@@ -1,0 +1,7 @@
+[package]
+authors = ["Łukasz Jan Niemier <lukasz@niemier.pl>"]
+name = "coreutils"
+version = "0.1.0"
+
+[dependencies]
+clap = "1.5.4"
