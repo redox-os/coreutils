@@ -14,7 +14,7 @@ fn main() {
             } else {
                 match fs::File::open(&path).map(Box::new) {
                     Ok(v) => v,
-                    Err(err) => panic!("Cannot open file {}: {}", path, err)
+                    Err(err) => panic!("Cannot open file {}: {}", path, err),
                 }
             };
 
