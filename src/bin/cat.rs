@@ -20,6 +20,5 @@ fn main() {
 
             io::copy(&mut *file, &mut io::stdout());
         }
-
     }
 }
