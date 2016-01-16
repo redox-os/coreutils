@@ -6,20 +6,20 @@ GNU coreutils as these tools should be as minimal as possible.
 **Currently included:**
 
 * `cat`
+* `echo`
 * `env`
 * `false`
+* `ls`
+* `rm`
 * `shutdown`
 * `true`
 * `yes`
 
 **TODO:**
 
-* `echo`
-* `ls`
 * `mkdir`
 * `ps`
 * `pwd`
-* `rm`
 * `rmdir`
 * `sleep`
 * `touch`
