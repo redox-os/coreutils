@@ -3,6 +3,8 @@ use std::fs;
 use std::io;
 
 fn main() {
+    // TODO support clap
+
     let paths = env::args().skip(1);
 
     if paths.len() == 0 {

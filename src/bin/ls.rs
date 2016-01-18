@@ -27,6 +27,8 @@ fn main() {
                                .help("Show files whose names begin with a '.'"))
                       .get_matches();
 
+    // TODO support arguments
+
     let path = matches.value_of("dir").unwrap_or(".");
 
     let mut entries = Vec::new();
