@@ -14,6 +14,7 @@ GNU coreutils as these tools should be as minimal as possible.
 * `shutdown`
 * `true`
 * `yes`
+* `touch`
 
 **TODO:**
 
@@ -22,4 +23,3 @@ GNU coreutils as these tools should be as minimal as possible.
 * `pwd`
 * `rmdir`
 * `sleep`
-* `touch`
