@@ -10,16 +10,16 @@ GNU coreutils as these tools should be as minimal as possible.
 * `env`
 * `false`
 * `ls`
+* `pwd`
 * `rm`
 * `shutdown`
+* `touch`
 * `true`
 * `yes`
-* `touch`
 
 **TODO:**
 
 * `mkdir`
 * `ps`
-* `pwd`
 * `rmdir`
 * `sleep`
