@@ -1,5 +1,6 @@
 [package]
-authors = ["Łukasz Jan Niemier <lukasz@niemier.pl>"]
+authors = ["Łukasz Jan Niemier <lukasz@niemier.pl>",
+            "Jeremy Soller <jackpot51@gmail.com>"]
 name = "coreutils"
 version = "0.1.0"
 

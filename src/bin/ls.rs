@@ -1,11 +1,13 @@
-#[macro_use]
-extern crate clap;
+//#[macro_use]
+//extern crate clap;
 
-use clap::{App, Arg};
+//use clap::{App, Arg};
 
+use std::env;
 use std::fs;
 
 fn main() {
+    /*
     let matches = App::new("ls")
                       .version("0.0.1")
                       .author("Redox Developers")
@@ -30,6 +32,9 @@ fn main() {
     // TODO support arguments
 
     let path = matches.value_of("dir").unwrap_or(".");
+    */
+
+    let path = env::args().nth(1).map_or(".", |p| *p);
 
     let mut entries = Vec::new();
 

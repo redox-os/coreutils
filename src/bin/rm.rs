@@ -1,11 +1,14 @@
-#[macro_use]
-extern crate clap;
+//#[macro_use]
+//extern crate clap;
 
-use clap::{App, Arg};
+//use clap::{App, Arg};
 
+use std::env;
 use std::fs;
+use std::process;
 
 fn main() {
+    /*
     let matches = App::new("rm")
                       .version("0.0.1")
                       .author("Redox Developers")
@@ -32,8 +35,16 @@ fn main() {
     // TODO support arguments
 
     let path = matches.value_of("item").unwrap();
+    */
 
-    if fs::remove_file(path).is_err() {
-        println!("Failed to remove: {}", path);
+    if env::args().count() < 2 {
+        println!("rm: no arguments");
+        process::exit(1);
+    }
+
+    for path in env::args().skip(1) {
+        if let Err(err) = fs::remove_file(path) {
+            println!("rm: cannot remove '{}': {}", path, err);
+        }
     }
 }

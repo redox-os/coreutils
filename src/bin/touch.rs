@@ -6,7 +6,7 @@ fn main() {
     // TODO support clap
 
     if env::args().count() < 2 {
-        println!("No arguments provided!");
+        println!("touch: no arguments");
         process::exit(1);
     }
 
@@ -14,7 +14,9 @@ fn main() {
 
     for arg in env::args().skip(1) {
         if let Err(_) = File::open(&arg) {
-            File::create(&arg).unwrap();
+            if let Err(err) = File::create(&arg) {
+                println!("touch: could not create '{}': {}", arg, err);
+            }
         }
     }
 }
