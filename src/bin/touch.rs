@@ -13,8 +13,8 @@ fn main() {
     // TODO update file modification date/time
 
     for arg in env::args().skip(1) {
-        if let Err(_) = File::open(arg.to_string()) {
-            File::create(arg).unwrap();
+        if let Err(_) = File::open(&arg) {
+            File::create(&arg).unwrap();
         }
     }
 }
