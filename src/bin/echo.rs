@@ -3,11 +3,11 @@ use std::env;
 fn main() {
     let mut newline = true;
     for arg in env::args().skip(1) {
-        if arg == "-n" {
+        if *arg == "-n" {
             newline = false;
-            continue;
+        } else {
+            print!("{} ", arg);
         }
-        print!("{} ", arg);
     }
     if newline {
         print!("\n");
