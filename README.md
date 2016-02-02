@@ -11,6 +11,8 @@ GNU coreutils as these tools should be as minimal as possible.
 * `echo`
 * `env`
 * `false`
+* `free`
+* `ints`
 * `ls`
 * `mkdir`
 * `ps`
