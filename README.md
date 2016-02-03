@@ -19,6 +19,7 @@ GNU coreutils as these tools should be as minimal as possible.
 * `pwd`
 * `rm`
 * `rmdir`
+* `seq`
 * `shutdown`
 * `sleep`
 * `touch`
