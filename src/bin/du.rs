@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Seek, SeekFrom};
 
 fn main() {
-    let path = env::args().nth(1).map_or(".", |p| *p);
+    let path = env::args().nth(1).unwrap_or(".".to_string());
 
     let mut entries = Vec::new();
 

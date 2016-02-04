@@ -2,13 +2,14 @@ use std::env;
 use std::fs::File;
 use std::process;
 
+#[cfg(target_os = "redox")]
 fn main() {
     if env::args().count() < 2 {
         println!("realpath: no arguments");
         process::exit(1);
     }
 
-    for path in env::args().skip(1) {
+    for ref path in env::args().skip(1) {
         match File::open(path) {
             Ok(mut file) => {
                 match file.path() {
@@ -19,4 +20,10 @@ fn main() {
             Err(err) => println!("realpath: cannot open '{}': {}", path, err)
         }
     }
+}
+
+#[cfg(not(target_os = "redox"))]
+fn main() {
+    println!("realpath: not implemented on non-Redox systems");
+    process::exit(1);
 }

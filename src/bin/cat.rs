@@ -9,7 +9,7 @@ fn main() {
         io::copy(&mut io::stdin(), &mut io::stdout()).unwrap();
     } else {
         for path in paths {
-            if *path == "-" {
+            if path == "-" {
                 io::copy(&mut io::stdin(), &mut io::stdout()).unwrap();
             } else {
                 match fs::File::open(&path) {

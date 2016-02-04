@@ -4,7 +4,7 @@ use std::io::{self, Seek, SeekFrom};
 use std::process;
 
 fn main() {
-    if let Some(src) = env::args().nth(1) {
+    if let Some(ref src) = env::args().nth(1) {
         let dsts = env::args().skip(2);
 
         if dsts.len() < 1 {
@@ -14,7 +14,7 @@ fn main() {
 
         match fs::File::open(src) {
             Ok(mut src_file) => {
-                for dst in dsts {
+                for ref dst in dsts {
                     match fs::File::create(dst) {
                         Ok(mut dst_file) => {
                             src_file.seek(SeekFrom::Start(0)).unwrap();
