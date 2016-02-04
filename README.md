@@ -12,11 +12,11 @@ GNU coreutils as these tools should be as minimal as possible.
 * `env`
 * `false`
 * `free`
-* `ints`
 * `ls`
 * `mkdir`
 * `ps`
 * `pwd`
+* `realpath`
 * `rm`
 * `rmdir`
 * `shutdown`
