@@ -1,8 +1,7 @@
 use std::env;
-use std::fs::File;
+use std::fs;
 use std::process;
 
-#[cfg(target_os = "redox")]
 fn main() {
     if env::args().count() < 2 {
         println!("realpath: no arguments");
@@ -10,20 +9,9 @@ fn main() {
     }
 
     for ref path in env::args().skip(1) {
-        match File::open(path) {
-            Ok(mut file) => {
-                match file.path() {
-                    Ok(realpath) => println!("{}", realpath.display()),
-                    Err(err) => println!("realpath: cannot get path of '{}': {}", path, err)
-                }
-            },
-            Err(err) => println!("realpath: cannot open '{}': {}", path, err)
+        match fs::canonicalize(path) {
+            Ok(realpath) => println!("{}", realpath.display()),
+            Err(err) => println!("realpath: cannot get path of '{}': {}", path, err)
         }
     }
-}
-
-#[cfg(not(target_os = "redox"))]
-fn main() {
-    println!("realpath: not implemented on non-Redox systems");
-    process::exit(1);
 }
