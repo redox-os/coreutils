@@ -1,39 +1,7 @@
-//#[macro_use]
-//extern crate clap;
-
-//use clap::{App, Arg};
-
 use std::env;
 use std::fs;
 
 fn main() {
-    /*
-    let matches = App::new("ls")
-                      .version("0.0.1")
-                      .author("Redox Developers")
-                      .about("List files and directories in the specified path (default = \
-                              current)")
-                      .arg(Arg::with_name("dir")
-                               .help("Directory to list")
-                               .index(1))
-                      .arg(Arg::with_name("long")
-                               .short("l")
-                               .long("long")
-                               .help("Use long display format"))
-                      .arg(Arg::with_name("onecol")
-                               .short("1")
-                               .help("Display files in one column"))
-                      .arg(Arg::with_name("all")
-                               .short("a")
-                               .long("all")
-                               .help("Show files whose names begin with a '.'"))
-                      .get_matches();
-
-    // TODO support arguments
-
-    let path = matches.value_of("dir").unwrap_or(".");
-    */
-
     let path = env::args().nth(1).unwrap_or(".".to_string());
 
     let mut entries = Vec::new();
