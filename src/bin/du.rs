@@ -1,5 +1,7 @@
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::{Seek, SeekFrom};
 
 fn main() {
     let path = env::args().nth(1).unwrap_or(".".to_string());
@@ -14,7 +16,7 @@ fn main() {
                         let directory = match entry.file_type() {
                             Ok(file_type) => file_type.is_dir(),
                             Err(err) => {
-                                println!("Failed to read file type: {}", err);
+                                println!("du: failed to read file type: {}", err);
                                 false
                             }
                         };
@@ -27,19 +29,33 @@ fn main() {
                                     entries.push(path_str.to_string())
                                 }
                             }
-                            None => println!("Failed to convert path to string"),
+                            None => println!("du: failed to convert path to string"),
                         }
                     }
-                    Err(err) => println!("Failed to read entry: {}", err),
+                    Err(err) => println!("du: failed to read entry: {}", err),
                 }
             }
         }
-        Err(err) => println!("Failed to open directory: {}: {}", path, err),
+        Err(err) => println!("du: failed to open directory '{}': {}", path, err),
     }
 
     entries.sort();
 
-    for entry in entries {
-        println!("{}", entry);
+    for entry in entries.iter() {
+        match File::open(entry) {
+            Ok(mut file) => {
+                match file.seek(SeekFrom::End(0)) {
+                    Ok(size) => {
+                        println!("{}\t{}", (size + 1023)/1024, entry);
+                    },
+                    Err(err) => {
+                        println!("du: cannot seek file '{}': {}", entry, err);
+                    }
+                }
+            },
+            Err(err) => {
+                println!("du: cannot read file '{}': {}", entry, err);
+            }
+        }
     }
 }
