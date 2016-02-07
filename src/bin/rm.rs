@@ -43,7 +43,7 @@ fn main() {
     }
 
     for path in env::args().skip(1) {
-        if let Err(err) = fs::remove_file(path) {
+        if let Err(err) = fs::remove_file(&path) {
             println!("rm: cannot remove '{}': {}", path, err);
         }
     }

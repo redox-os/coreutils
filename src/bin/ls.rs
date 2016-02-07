@@ -34,7 +34,7 @@ fn main() {
     let path = matches.value_of("dir").unwrap_or(".");
     */
 
-    let path = env::args().nth(1).map_or(".", |p| *p);
+    let path = env::args().nth(1).unwrap_or(".".to_owned());
 
     let mut entries = Vec::new();
 

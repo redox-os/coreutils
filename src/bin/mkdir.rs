@@ -9,7 +9,7 @@ fn main() {
     }
 
     for path in env::args().skip(1) {
-        if let Err(err) = fs::create_dir(path) {
+        if let Err(err) = fs::create_dir(&path) {
             println!("mkdir: cannot create directory '{}': {}", path, err);
         }
     }

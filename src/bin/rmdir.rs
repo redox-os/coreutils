@@ -9,7 +9,7 @@ fn main() {
     }
 
     for path in env::args().skip(1) {
-        if let Err(err) = fs::remove_dir(path) {
+        if let Err(err) = fs::remove_dir(&path) {
             println!("rmdir: cannot remove '{}': {}", path, err);
         }
     }
