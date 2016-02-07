@@ -1,6 +1,8 @@
 [package]
-authors = ["Łukasz Jan Niemier <lukasz@niemier.pl>",
-            "Jeremy Soller <jackpot51@gmail.com>"]
+authors = ["Polymetric <polymetricofficial@gmail.com>",
+           "Łukasz Jan Niemier <lukasz@niemier.pl>",
+           "Jeremy Soller <jackpot51@gmail.com>",
+           "Ticki <Ticki@users.noreply.github.com>"]
 name = "coreutils"
 version = "0.1.0"
 
