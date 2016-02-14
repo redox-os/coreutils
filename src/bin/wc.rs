@@ -127,19 +127,21 @@ fn do_count<T: std::io::Read>(input: &mut T) -> (i32, i32, i32) {
     let mut byte_count = 0;
     let mut got_space = true;
 
-    for byte in input.bytes() {
-        if byte == b'\n' {
-            line_count += 1;
-        }
+    for byte_result in input.bytes() {
+        if let Ok(byte) = byte_result {
+            if byte == b'\n' {
+                line_count += 1;
+            }
 
-        if is_whitespace(&byte) {
-            got_space = true;
-        } else if got_space {
-            got_space = false;
-            word_count += 1;
-        }
+            if is_whitespace(&byte) {
+                got_space = true;
+            } else if got_space {
+                got_space = false;
+                word_count += 1;
+            }
 
-        byte_count += 1;
+            byte_count += 1;
+        }
     }
 
     (line_count, word_count, byte_count)
