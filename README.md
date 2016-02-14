@@ -26,4 +26,5 @@ GNU coreutils as these tools should be as minimal as possible.
 * `sleep`
 * `touch`
 * `true`
+* `wc`
 * `yes`
