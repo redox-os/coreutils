@@ -1,22 +1,24 @@
+extern crate coreutils;
+
 use std::env;
 use std::process;
+use std::io::{Write, stdout};
+
+use coreutils::extra::{OptionalExt, fail};
 
 fn main() {
     if env::args().count() < 2 {
-        println!("seq: Missing argument!");
-        println!("Example: seq [VALUE]");
-        process::exit(1);
+        fail("missing value.");
     }
 
     let max: u32 = match std::env::args().nth(1).map(|a| a.parse()) {
         Some(Ok(n)) if n > 0 => n,
-        _ => {
-            println!("Invalid value: please provide a valid, unsigned number.");
-            process::exit(1);
-        }
+        _ => fail("invalid value: please provide a valid, unsigned number."),
     };
 
+    let mut stdout = stdout();
+
     for i in 1..max + 1 {
-        println!("{}", i);
+        stdout.write(i.to_string().as_bytes());
     }
 }

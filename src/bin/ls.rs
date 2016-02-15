@@ -1,45 +1,45 @@
+extern crate coreutils;
+
 use std::env;
 use std::fs;
+use std::io::{Write, stdout};
 
-fn main() {
-    let path = env::args().nth(1).unwrap_or(".".to_string());
+use coreutils::extra::OptionalExt;
 
+fn print(path: &str) {
     let mut entries = Vec::new();
 
-    match fs::read_dir(&path) {
-        Ok(dir) => {
-            for entry_result in dir {
-                match entry_result {
-                    Ok(entry) => {
-                        let directory = match entry.file_type() {
-                            Ok(file_type) => file_type.is_dir(),
-                            Err(err) => {
-                                println!("Failed to read file type: {}", err);
-                                false
-                            }
-                        };
+    let dir = fs::read_dir(path).try();
 
-                        match entry.file_name().to_str() {
-                            Some(path_str) => {
-                                if directory {
-                                    entries.push(path_str.to_string() + "/")
-                                } else {
-                                    entries.push(path_str.to_string())
-                                }
-                            }
-                            None => println!("Failed to convert path to string"),
-                        }
-                    }
-                    Err(err) => println!("Failed to read entry: {}", err),
-                }
-            }
+    for entry_result in dir {
+        let entry = entry_result.try();
+        let directory = entry.file_type().map(|x| x.is_dir()).unwrap_or(false);
+
+        let file_name = entry.file_name();
+        let path_str = file_name.to_str().try();
+        entries.push(path_str.to_string());
+
+        if directory {
+            entries.last_mut().unwrap().push('/');
         }
-        Err(err) => println!("Failed to open directory: {}: {}", path, err),
     }
 
     entries.sort();
 
+    let mut stdout = stdout();
+
     for entry in entries {
-        println!("{}", entry);
+        stdout.write(entry.as_bytes()).try();
+        stdout.write(b"\n").try();
     }
+}
+
+fn main() {
+    let path = env::args().nth(1);
+
+    if let Some(ref x) = path {
+        print(x);
+    } else {
+        print(".");
+    } // dafuq borrowck. Really you needa do deref coercions better.
 }
