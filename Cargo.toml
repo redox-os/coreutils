@@ -83,5 +83,9 @@ name = "true"
 path = "src/bin/true.rs"
 
 [[bin]]
+name = "wc"
+path = "src/bin/wc.rs"
+
+[[bin]]
 name = "yes"
 path = "src/bin/yes.rs"
