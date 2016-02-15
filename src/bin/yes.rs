@@ -1,9 +1,22 @@
+extern crate coreutils;
+
 use std::env;
+use std::io::{Write, stdout};
+
+use coreutils::extra::{OptionalExt};
 
 fn main() {
-    let answer = env::args().skip(1).next().unwrap_or("y".into());
+    let mut stdout = stdout();
 
-    loop {
-        println!("{}", answer)
-    }
+    let answer = env::args().skip(1).next();
+    if let Some(x) = answer {
+        let print = x.as_bytes();
+        loop {
+            stdout.write(print).try();
+        }
+    } else {
+        loop {
+            stdout.write(b"y").try();
+        }
+    }; // Dafuq, borrowck
 }

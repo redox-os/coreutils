@@ -1,8 +1,11 @@
+extern crate coreutils;
+
 use std::fs;
+use std::process::exit;
+
+use coreutils::extra::{OptionalExt, fail};
 
 fn main() {
-    match fs::File::create("acpi:off") {
-        Err(err) => println!("Failed to cut power (error: {})", err),
-        Ok(..) => println!("Good bye!"),
-    }
+    println!("Good bye!");
+    fs::File::create("acpi:off").try();
 }

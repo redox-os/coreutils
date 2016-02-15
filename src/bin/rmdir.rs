@@ -1,16 +1,17 @@
+extern crate coreutils;
+
 use std::env;
 use std::fs;
 use std::process;
 
+use coreutils::extra::{OptionalExt, fail};
+
 fn main() {
     if env::args().count() < 2 {
-        println!("rmdir: no arguments");
-        process::exit(1);
+        fail("no arguments.");
     }
 
     for ref path in env::args().skip(1) {
-        if let Err(err) = fs::remove_dir(path) {
-            println!("rmdir: cannot remove '{}': {}", path, err);
-        }
+        fs::remove_dir(path).try();
     }
 }

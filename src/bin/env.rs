@@ -1,7 +1,10 @@
 use std::env;
+use std::io::{stdout, Write};
 
 fn main() {
+    let mut stdout = stdout();
+
     for (key, value) in env::vars() {
-        println!("{}={}", key, value);
+        writeln!(stdout, "{}={}", key, value);
     }
 }

@@ -1,69 +1,144 @@
+extern crate coreutils;
+
 use std::env;
 use std::io;
+use std::process::exit;
 use std::io::Read;
 use std::fs::File;
+use std::iter;
 
-fn main() {
-    let mut count_lines = false;
-    let mut count_words = false;
-    let mut count_bytes = false;
-    let mut arg_idx = 1;
-    let mut first_file_idx = 0;
+use coreutils::extra::fail;
 
-    for arg in env::args().skip(1) {
-        //TODO match things like -cl
-        //maybe also long args? 
-        //ideally we would have getopt[s] equiv
-        //TODO add -m, maybe add -L
-        match &*arg {
-            "-l" => count_lines = true,
-            "-w" => count_words = true,
-            "-c" => count_bytes = true,
-            _ => {
-                first_file_idx = arg_idx;
-                break;
-            }
-        };
+static MAN_PAGE: &'static str = r#"
+    NAME
+        wc - count words, bytes and lines of a file or byte stream.
+    SYNOPSIS
+        wc [-h | --help] [-c | --bytes] [-w | --words] [-l | --lines] [FILE 1] [FILE 2]...
+    DESCRIPTION
+        This utility will dump word count, line count, and byte count of a file or byte stream. If multiple files are given, it will print a total count. If no file name is given, 'wc' reads from stdin until EOF.
 
-        arg_idx += 1;
+        Flags can be arbitrarily combined into a single flag, for example, '-c -w' (count bytes and count words) can be reduced to '-cw'.
+
+        If no flags are given, 'wc' defaults to '-cwl'.
+    OPTIONS
+        -h
+        --help
+            Print this manual page.
+        -c
+        --bytes
+            Count bytes.
+        -w
+        --words
+            Count words (i.e. contiguous strings seperated by whitespaces).
+        -l
+        --lines
+            Count lines (seperated by NL).
+    AUTHOR
+        This program was written mainly by Alice Maz.
+"#;
+
+#[derive(Copy, Clone)]
+struct Flags {
+    count_lines: bool,
+    count_words: bool,
+    count_bytes: bool,
+}
+
+impl Flags {
+    fn new() -> Flags {
+        Flags {
+            count_lines: false,
+            count_words: false,
+            count_bytes: false,
+        }
     }
 
-    //defaults to behavior of -lwc
-    if !(count_lines || count_words || count_bytes) {
-        count_lines = true;
-        count_words = true;
-        count_bytes = true;
-    }
+    fn print_count<'a>(self, lines: u64, words: u64, bytes: u64, file: &'a str) {
+        print!("    ");
 
-    if first_file_idx == 0 {
-        //FIXME perhaps I'm using this wrong
-        //or perhaps needs to be fixed in ion
-        //but this terminates on \n rather than EOF
-        let (lines, words, bytes) = do_count(&mut io::stdin());
-
-        print!("\t");
-
-        if count_lines {
+        if self.count_lines {
             print!("{} ", lines);
         }
-        if count_words {
+        if self.count_words {
             print!("{} ", words);
         }
-        if count_bytes {
+        if self.count_bytes {
             print!("{} ", bytes);
         }
 
+        print!("{}", file);
+
         println!("");
+    }
+
+    fn default_to(&mut self) {
+        // Defaults to behavior of -lwc
+        if !(self.count_lines || self.count_words || self.count_bytes) {
+            self.count_lines = true;
+            self.count_words = true;
+            self.count_bytes = true;
+        }
+    }
+}
+
+fn main() {
+    let mut opts = Flags::new();
+    let mut first_file  = String::new();
+    let mut args = env::args().skip(1);
+
+    loop { // To avoid consumption of the iter, we use loop.
+        let arg = if let Some(x) = args.next() { x } else { break };
+
+        // TODO add -m, maybe add -L
+
+        if arg.starts_with("--") {
+            match &arg[2..] {
+                "lines" => opts.count_lines = true,
+                "words" => opts.count_words = true,
+                "bytes" => opts.count_bytes = true,
+                "help" => {
+                    print!("{}", MAN_PAGE);
+                    exit(0);
+                },
+                _ => fail(&format!("unknown flag, {}.", arg)),
+            }
+        } else if arg.starts_with("-") {
+            for i in arg[1..].chars() {
+                match i {
+                    'l' => opts.count_lines = true,
+                    'w' => opts.count_words = true,
+                    'c' => opts.count_bytes = true,
+                    'h' => {
+                        print!("{}", MAN_PAGE);
+                        exit(0);
+                    }
+                    _ => fail(&format!("unknown flag, {}.", i)),
+                }
+            }
+        } else { // This is a file
+            first_file = arg;
+            break;
+        }
+    }
+
+    opts.default_to();
+
+    if first_file == "" {
+        let (lines, words, bytes) = do_count(&mut io::stdin());
+        opts.print_count(lines, words, bytes, "stdin");
     } else {
         let mut total_lines = 0;
         let mut total_words = 0;
         let mut total_bytes = 0;
 
-        for path in env::args().skip(arg_idx) {
+        let single_file = args.len() == 1;
+
+        for path in iter::once(first_file).chain(args) {
             //TODO would be easy to use stdin for - but
             //that is probably something the shell should handle?
             //unix it's all just fds so it's whatever dunno here tho
-            //(also - is specific to sh/bash fwiw)
+            //(also - is specific to sh/bash fwiw).
+
             match File::open(&path) {
                 Ok(mut file) => {
                     let (lines, words, bytes) = do_count(&mut file);
@@ -72,56 +147,31 @@ fn main() {
                     total_words += words;
                     total_bytes += bytes;
 
-                    print!("\t");
-
-                    if count_lines {
-                        print!("{} ", lines);
-                    }
-                    if count_words {
-                        print!("{} ", words);
-                    }
-                    if count_bytes {
-                        print!("{} ", bytes);
-                    }
-
-                    println!("{}", path);
+                    opts.print_count(lines, words, bytes, &path);
                 },
-                Err(err) => println!("wc: cannot open file {}: {}", path, err)
+                Err(err) => fail(&format!("wc: cannot open file {}: {}", path, err)),
             }
         }
 
-        if env::args().len() - arg_idx > 1 {
-            //XXX this is copy-pasted in two other places
-            //make it a fn or something
-            print!("\t");
-
-            if count_lines {
-                print!("{} ", total_lines);
-            }
-            if count_words {
-                print!("{} ", total_words);
-            }
-            if count_bytes {
-                print!("{} ", total_bytes);
-            }
-
-            println!("Total");
+        if single_file {
+            opts.print_count(total_lines, total_words, total_bytes, "total");
         }
     }
 }
 
-fn is_whitespace(byte: &u8) -> bool {
+fn is_whitespace(byte: u8) -> bool {
     //FIXME this works like iswspace w/ default C locale
     //but not good enough for en_US.UTF8 among others
-    *byte == b'\n'
-    || *byte == b'\t'
-    || *byte == b'\r'
-    || *byte == 0xc //formfeed
-    || *byte == 0xb //vtab
-    || *byte == b' '
+
+    byte == b'\n' // newline
+    || byte == b'\t' // tab
+    || byte == b'\r' // cr
+    || byte == 0xc // formfeed
+    || byte == 0xb // vtab
+    || byte == b' ' // space
 }
 
-fn do_count<T: std::io::Read>(input: &mut T) -> (i32, i32, i32) {
+fn do_count<T: std::io::Read>(input: &mut T) -> (u64, u64, u64) {
     let mut line_count = 0;
     let mut word_count = 0;
     let mut byte_count = 0;
@@ -133,7 +183,7 @@ fn do_count<T: std::io::Read>(input: &mut T) -> (i32, i32, i32) {
                 line_count += 1;
             }
 
-            if is_whitespace(&byte) {
+            if is_whitespace(byte) {
                 got_space = true;
             } else if got_space {
                 got_space = false;
