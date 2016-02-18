@@ -124,7 +124,7 @@ fn main() {
     opts.default_to();
 
     if first_file == "" {
-        let (lines, words, bytes) = do_count(&mut io::stdin());
+        let (lines, words, bytes) = do_count(io::stdin());
         opts.print_count(lines, words, bytes, "stdin");
     } else {
         let mut total_lines = 0;
@@ -140,8 +140,8 @@ fn main() {
             //(also - is specific to sh/bash fwiw).
 
             match File::open(&path) {
-                Ok(mut file) => {
-                    let (lines, words, bytes) = do_count(&mut file);
+                Ok(file) => {
+                    let (lines, words, bytes) = do_count(file);
 
                     total_lines += lines;
                     total_words += words;
@@ -171,7 +171,7 @@ fn is_whitespace(byte: u8) -> bool {
     || byte == b' ' // space
 }
 
-fn do_count<T: std::io::Read>(input: &mut T) -> (u64, u64, u64) {
+fn do_count<T: std::io::Read>(input: T) -> (u64, u64, u64) {
     let mut line_count = 0;
     let mut word_count = 0;
     let mut byte_count = 0;
