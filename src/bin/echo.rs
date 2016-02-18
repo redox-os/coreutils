@@ -13,6 +13,6 @@ fn main() {
         }
     }
     if newline {
-        writeln!(stdout, "\n");
+        write!(stdout, "\n");
     }
 }
