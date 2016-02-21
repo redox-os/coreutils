@@ -1,9 +1,10 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::fs;
-use std::process::exit;
 
-use coreutils::extra::{OptionalExt, fail};
+use coreutils::extra::OptionalExt;
 
 fn main() {
     println!("Good bye!");

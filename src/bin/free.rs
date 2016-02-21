@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 use std::fs::File;
 use std::io;
