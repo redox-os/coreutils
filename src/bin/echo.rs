@@ -19,6 +19,6 @@ fn main() {
         }
     }
     if newline {
-        writeln!(stdout, "\n").try();
+        write!(stdout, "\n").try();
     }
 }

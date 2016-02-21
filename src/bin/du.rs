@@ -43,7 +43,13 @@ fn print(path: &str) {
     entries.sort();
 
     for entry in entries.iter() {
-        match File::open(entry) {
+        let mut entry_path = path.to_string();
+        if ! entry_path.ends_with('/') {
+            entry_path.push('/');
+        }
+        entry_path.push_str(entry);
+        
+        match File::open(&entry_path) {
             Ok(mut file) => {
                 match file.seek(SeekFrom::End(0)) {
                     Ok(size) => {

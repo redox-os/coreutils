@@ -63,10 +63,6 @@ name = "rmdir"
 path = "src/bin/rmdir.rs"
 
 [[bin]]
-name = "seq"
-path = "src/bin/seq.rs"
-
-[[bin]]
 name = "shutdown"
 path = "src/bin/shutdown.rs"
 
@@ -85,7 +81,3 @@ path = "src/bin/true.rs"
 [[bin]]
 name = "wc"
 path = "src/bin/wc.rs"
-
-[[bin]]
-name = "yes"
-path = "src/bin/yes.rs"
