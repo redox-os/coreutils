@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 use std::process;
 
 fn main() {

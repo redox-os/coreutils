@@ -1,8 +1,9 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::env;
 use std::io::{Write, stdout};
-use std::thread;
 
 use coreutils::extra::{OptionalExt};
 
@@ -10,17 +11,14 @@ fn main() {
     let mut stdout = stdout();
 
     let answer = env::args().skip(1).next();
-    if let Some(mut x) = answer {
-        x.push('\n');
+    if let Some(x) = answer {
         let print = x.as_bytes();
         loop {
             stdout.write(print).try();
-            thread::yield_now();
         }
     } else {
         loop {
-            stdout.write(b"y\n").try();
-            thread::yield_now();
+            stdout.write(b"y").try();
         }
     }; // Dafuq, borrowck
 }

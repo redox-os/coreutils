@@ -1,5 +1,11 @@
+#![deny(warnings)]
+
+extern crate coreutils;
+
 use std::env;
 use std::io::{stdout, Write};
+
+use coreutils::extra::OptionalExt;
 
 fn main() {
     let mut stdout = stdout();
@@ -9,10 +15,10 @@ fn main() {
         if arg == "-n" {
             newline = false;
         } else {
-            write!(stdout, "{} ", arg);
+            write!(stdout, "{} ", arg).try();
         }
     }
     if newline {
-        write!(stdout, "\n");
+        write!(stdout, "\n").try();
     }
 }

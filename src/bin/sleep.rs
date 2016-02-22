@@ -1,11 +1,13 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::env;
-use std::time::Duration;
 use std::thread;
 
 use coreutils::extra::{OptionalExt, fail};
 
+#[allow(deprecated)]
 fn main() {
     if let Some(arg) = env::args().nth(1) {
         //TODO: (not supported in Redox due to missing _mulodi4) thread::sleep(Duration::new(arg.parse().try(), 0))

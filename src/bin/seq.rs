@@ -1,10 +1,11 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::env;
-use std::process;
 use std::io::{Write, stdout};
 
-use coreutils::extra::{OptionalExt, fail};
+use coreutils::extra::{fail, OptionalExt};
 
 fn main() {
     if env::args().count() < 2 {
@@ -19,6 +20,6 @@ fn main() {
     let mut stdout = stdout();
 
     for i in 1..max + 1 {
-        stdout.write(i.to_string().as_bytes());
+        stdout.write(i.to_string().as_bytes()).try();
     }
 }

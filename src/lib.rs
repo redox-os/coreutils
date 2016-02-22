@@ -1,8 +1,10 @@
+#![deny(warnings)]
 #![feature(core_intrinsics)]
 
 pub mod extra {
     use std::process::exit;
     use std::error::Error;
+    use std::io::{stdout, Write};
 
     /// Extension for Option-like types
     pub trait OptionalExt {
@@ -26,7 +28,13 @@ pub mod extra {
             match self {
                 Ok(succ) => succ,
                 Err(e) => {
-                    println!("error: {}", e.description());
+                    let mut stdout = stdout();
+                    // We ignore the results to avoid stack overflow (because of unbounded
+                    // recursion).
+                    let _ = stdout.write(b"error: ");
+                    let _ = stdout.write(e.description().as_bytes());
+                    let _ = stdout.write(b"\n");
+                    let _ = stdout.flush();
                     exit(1);
                 },
             }
@@ -36,7 +44,11 @@ pub mod extra {
             match self {
                 Ok(succ) => succ,
                 Err(_) => {
-                    println!("error: {}", err);
+                    let mut stdout = stdout();
+                    let _ = stdout.write(b"error: ");
+                    let _ = stdout.write(err.as_bytes());
+                    let _ = stdout.write(b"\n");
+                    let _ = stdout.flush();
                     exit(1);
                 },
             }
@@ -58,7 +70,14 @@ pub mod extra {
             match self {
                 Some(succ) => succ,
                 None => {
-                    println!("error: (no message)");
+                    // Why not use println!?
+                    // The reason is that we want optimal performance, which we cannot get, when
+                    // using println, due to the fact that it goes through another layer of
+                    // indirection formatters: Formatters will do an unneccary allocation, which we
+                    // do not need in this case.
+                    let mut stdout = stdout();
+                    let _ = stdout.write(b"error: (no message)\n");
+                    let _ = stdout.flush();
                     exit(1);
                 },
             }
@@ -68,7 +87,11 @@ pub mod extra {
             match self {
                 Some(succ) => succ,
                 None => {
-                    println!("error: {}", err);
+                    let mut stdout = stdout();
+                    let _ = stdout.write(b"error:");
+                    let _ = stdout.write(err.as_bytes());
+                    let _ = stdout.write(b"\n");
+                    let _ = stdout.flush();
                     exit(1);
                 },
             }
@@ -122,8 +145,10 @@ pub mod extra {
         use std::io::{Write, stdout};
 
         let mut stdout = stdout();
-        stdout.write(b"error: ").try();
-        stdout.write(s.as_bytes()).try();
+        let _ = stdout.write(b"error: ");
+        let _ = stdout.write(s.as_bytes());
+        let _ = stdout.write(b"\n").try();
+        let _ = stdout.flush();
         exit(1);
     }
 }

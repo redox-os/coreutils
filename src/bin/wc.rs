@@ -1,13 +1,14 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::env;
-use std::io;
-use std::process::exit;
+use std::io::{self, stdout, Write};
 use std::io::Read;
 use std::fs::File;
 use std::iter;
 
-use coreutils::extra::fail;
+use coreutils::extra::{OptionalExt, fail};
 
 static MAN_PAGE: &'static str = r#"
     NAME
@@ -54,21 +55,24 @@ impl Flags {
     }
 
     fn print_count<'a>(self, lines: u64, words: u64, bytes: u64, file: &'a str) {
-        print!("    ");
+        let mut stdout = stdout();
+        stdout.write(b"    ").try();
 
         if self.count_lines {
-            print!("{} ", lines);
+            stdout.write(lines.to_string().as_bytes()).try();
+            stdout.write(b" ").try();
         }
         if self.count_words {
-            print!("{} ", words);
+            stdout.write(words.to_string().as_bytes()).try();
+            stdout.write(b" ").try();
         }
         if self.count_bytes {
-            print!("{} ", bytes);
+            stdout.write(bytes.to_string().as_bytes()).try();
+            stdout.write(b" ").try();
         }
 
-        print!("{}", file);
-
-        println!("");
+        stdout.write(file.as_bytes()).try();
+        stdout.write(b"\n").try();
     }
 
     fn default_to(&mut self) {
@@ -85,37 +89,25 @@ fn main() {
     let mut opts = Flags::new();
     let mut first_file  = String::new();
     let mut args = env::args().skip(1);
+    let mut stdout = stdout();
 
     loop { // To avoid consumption of the iter, we use loop.
         let arg = if let Some(x) = args.next() { x } else { break };
 
         // TODO add -m, maybe add -L
 
-        if arg.starts_with("--") {
-            match &arg[2..] {
-                "lines" => opts.count_lines = true,
-                "words" => opts.count_words = true,
-                "bytes" => opts.count_bytes = true,
-                "help" => {
-                    print!("{}", MAN_PAGE);
-                    exit(0);
+        if arg.starts_with("-") {
+            match arg.as_str() {
+                "--lines" | "-l" => opts.count_lines = true,
+                "--words" | "-w" => opts.count_words = true,
+                "--bytes" | "-c" => opts.count_bytes = true,
+                "--help"  | "-h" => {
+                    stdout.write(MAN_PAGE.as_bytes()).try();
+                    return;
                 },
                 _ => fail(&format!("unknown flag, {}.", arg)),
             }
-        } else if arg.starts_with("-") {
-            for i in arg[1..].chars() {
-                match i {
-                    'l' => opts.count_lines = true,
-                    'w' => opts.count_words = true,
-                    'c' => opts.count_bytes = true,
-                    'h' => {
-                        print!("{}", MAN_PAGE);
-                        exit(0);
-                    }
-                    _ => fail(&format!("unknown flag, {}.", i)),
-                }
-            }
-        } else { // This is a file
+        } else { // This is a file name
             first_file = arg;
             break;
         }
@@ -139,18 +131,14 @@ fn main() {
             //unix it's all just fds so it's whatever dunno here tho
             //(also - is specific to sh/bash fwiw).
 
-            match File::open(&path) {
-                Ok(file) => {
-                    let (lines, words, bytes) = do_count(file);
+            let file = File::open(&path).try();
+            let (lines, words, bytes) = do_count(file);
 
-                    total_lines += lines;
-                    total_words += words;
-                    total_bytes += bytes;
+            total_lines += lines;
+            total_words += words;
+            total_bytes += bytes;
 
-                    opts.print_count(lines, words, bytes, &path);
-                },
-                Err(err) => fail(&format!("wc: cannot open file {}: {}", path, err)),
-            }
+            opts.print_count(lines, words, bytes, &path);
         }
 
         if single_file {

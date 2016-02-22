@@ -1,8 +1,9 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::env;
 use std::fs;
-use std::process;
 use std::io::{Write, stdout};
 
 use coreutils::extra::{OptionalExt, fail};

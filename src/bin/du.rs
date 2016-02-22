@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate coreutils;
 
 use std::env;
@@ -18,7 +20,7 @@ fn print(path: &str) {
                 let directory = match entry.file_type() {
                     Ok(file_type) => file_type.is_dir(),
                     Err(err) => {
-                        writeln!(stdout, "warning: failed to read file type: {}", err);
+                        writeln!(stdout, "warning: failed to read file type: {}", err).try();
                         false
                     }
                 };
@@ -29,7 +31,7 @@ fn print(path: &str) {
                         entries.last_mut().unwrap().push('/');
                     }
                 } else {
-                    writeln!(stdout, "warning: failed to convert path to string");
+                    writeln!(stdout, "warning: failed to convert path to string").try();
                 }
             }
             Err(err) => {
@@ -51,10 +53,10 @@ fn print(path: &str) {
             Ok(mut file) => {
                 match file.seek(SeekFrom::End(0)) {
                     Ok(size) => {
-                        writeln!(stdout, "{}\t{}", (size + 1023) / 1024, entry);
+                        writeln!(stdout, "{}\t{}", (size + 1023) / 1024, entry).try();
                     },
                     Err(err) => {
-                        writeln!(stdout, "warning: cannot seek file '{}': {}", entry, err);
+                        writeln!(stdout, "warning: cannot seek file '{}': {}", entry, err).try();
                     }
                 }
             },
