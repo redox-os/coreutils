@@ -3,12 +3,13 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::{self, stdout, Write};
-use std::io::Read;
 use std::fs::File;
+use std::io::Read;
+use std::io::{self, stdout, Write};
 use std::iter;
+use std::process::exit;
 
-use coreutils::extra::{OptionalExt, fail};
+use coreutils::extra::{OptionalExt, print, println};
 
 static MAN_PAGE: &'static str = r#"
     NAME
@@ -54,25 +55,23 @@ impl Flags {
         }
     }
 
-    fn print_count<'a>(self, lines: u64, words: u64, bytes: u64, file: &'a str) {
-        let mut stdout = stdout();
-        stdout.write(b"    ").try();
+    fn print_count<'a, W: Write>(self, lines: u64, words: u64, bytes: u64, file: &'a str, stdout: &mut W) {
+        print(b"    ", &mut *stdout);
 
         if self.count_lines {
-            stdout.write(lines.to_string().as_bytes()).try();
-            stdout.write(b" ").try();
+            print(lines.to_string().as_bytes(), &mut *stdout);
+            print(b" ", &mut *stdout);
         }
         if self.count_words {
-            stdout.write(words.to_string().as_bytes()).try();
-            stdout.write(b" ").try();
+            print(words.to_string().as_bytes(), &mut *stdout);
+            print(b" ", &mut *stdout);
         }
         if self.count_bytes {
-            stdout.write(bytes.to_string().as_bytes()).try();
-            stdout.write(b" ").try();
+            print(bytes.to_string().as_bytes(), &mut *stdout);
+            print(b" ", &mut *stdout);
         }
 
-        stdout.write(file.as_bytes()).try();
-        stdout.write(b"\n").try();
+        println(file.as_bytes(), &mut *stdout);
     }
 
     fn default_to(&mut self) {
@@ -89,7 +88,8 @@ fn main() {
     let mut opts = Flags::new();
     let mut first_file  = String::new();
     let mut args = env::args().skip(1);
-    let mut stdout = stdout();
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
 
     loop { // To avoid consumption of the iter, we use loop.
         let arg = if let Some(x) = args.next() { x } else { break };
@@ -102,10 +102,16 @@ fn main() {
                 "--words" | "-w" => opts.count_words = true,
                 "--bytes" | "-c" => opts.count_bytes = true,
                 "--help"  | "-h" => {
-                    stdout.write(MAN_PAGE.as_bytes()).try();
+                    print(MAN_PAGE.as_bytes(), &mut stdout);
                     return;
                 },
-                _ => fail(&format!("unknown flag, {}.", arg)),
+                _ => {
+                    print(b"error: unknown flag, ", &mut stdout);
+                    println(arg.as_bytes(), &mut stdout);
+                    let res = stdout.flush();
+                    res.try(&mut stdout);
+                    exit(1);
+                },
             }
         } else { // This is a file name
             first_file = arg;
@@ -116,8 +122,11 @@ fn main() {
     opts.default_to();
 
     if first_file == "" {
-        let (lines, words, bytes) = do_count(io::stdin());
-        opts.print_count(lines, words, bytes, "stdin");
+        let stdin = io::stdin();
+        let stdin = stdin.lock();
+
+        let (lines, words, bytes) = do_count(stdin);
+        opts.print_count(lines, words, bytes, "stdin", &mut stdout);
     } else {
         let mut total_lines = 0;
         let mut total_words = 0;
@@ -131,18 +140,18 @@ fn main() {
             //unix it's all just fds so it's whatever dunno here tho
             //(also - is specific to sh/bash fwiw).
 
-            let file = File::open(&path).try();
+            let file = File::open(&path).try(&mut stdout);
             let (lines, words, bytes) = do_count(file);
 
             total_lines += lines;
             total_words += words;
             total_bytes += bytes;
 
-            opts.print_count(lines, words, bytes, &path);
+            opts.print_count(lines, words, bytes, &path, &mut stdout);
         }
 
         if single_file {
-            opts.print_count(total_lines, total_words, total_bytes, "total");
+            opts.print_count(total_lines, total_words, total_bytes, "total", &mut stdout);
         }
     }
 }

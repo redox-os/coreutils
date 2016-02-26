@@ -3,23 +3,24 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::{Write, stdout};
+use std::io::stdout;
 
-use coreutils::extra::{fail, OptionalExt};
+use coreutils::extra::{fail, println};
 
 fn main() {
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+
     if env::args().count() < 2 {
-        fail("missing value.");
+        fail("missing value.", &mut stdout);
     }
 
     let max: u32 = match std::env::args().nth(1).map(|a| a.parse()) {
         Some(Ok(n)) if n > 0 => n,
-        _ => fail("invalid value: please provide a valid, unsigned number."),
+        _ => fail("invalid value: please provide a valid, unsigned integer.", &mut stdout),
     };
 
-    let mut stdout = stdout();
-
     for i in 1..max + 1 {
-        stdout.write(i.to_string().as_bytes()).try();
+        println(i.to_string().as_bytes(), &mut stdout);
     }
 }

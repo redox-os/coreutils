@@ -4,39 +4,29 @@ extern crate coreutils;
 
 use std::env;
 use std::fs;
-use std::fs::File;
-use std::io::{stdout, Write, Seek, SeekFrom};
-use coreutils::extra::OptionalExt;
+use std::io::{stdout, Seek, SeekFrom};
+use coreutils::extra::{OptionalExt, print, println};
 
-fn print(path: &str) {
-    let mut stdout = stdout();
+fn print_path(path: &str) {
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
     let mut entries = Vec::new();
 
-    let dir = fs::read_dir(path).try();
+    let dir = fs::read_dir(path).try(&mut stdout);
 
     for entry_result in dir {
-        match entry_result {
-            Ok(entry) => {
-                let directory = match entry.file_type() {
-                    Ok(file_type) => file_type.is_dir(),
-                    Err(err) => {
-                        writeln!(stdout, "warning: failed to read file type: {}", err).try();
-                        false
-                    }
-                };
+        let entry = entry_result.try(&mut stdout);
 
-                if let Some(path_str) = entry.file_name().to_str() {
-                    entries.push(path_str.to_owned());
-                    if directory {
-                        entries.last_mut().unwrap().push('/');
-                    }
-                } else {
-                    writeln!(stdout, "warning: failed to convert path to string").try();
-                }
+        let file_type = entry.file_type().try(&mut stdout);
+        let directory = file_type.is_dir();
+
+        if let Some(path_str) = entry.file_name().to_str() {
+            entries.push(path_str.to_owned());
+            if directory {
+                entries.last_mut().unwrap().push('/');
             }
-            Err(err) => {
-                writeln!(stdout, "warning: failed to read entry: {}", err).try();
-            },
+        } else {
+            println(b"warning: failed to convert path to a valid string.", &mut stdout);
         }
     }
 
@@ -44,32 +34,23 @@ fn print(path: &str) {
 
     for entry in entries.iter() {
         let mut entry_path = path.to_string();
-        if ! entry_path.ends_with('/') {
+        if !entry_path.ends_with('/') {
             entry_path.push('/');
         }
         entry_path.push_str(entry);
-        
-        match File::open(&entry_path) {
-            Ok(mut file) => {
-                match file.seek(SeekFrom::End(0)) {
-                    Ok(size) => {
-                        writeln!(stdout, "{}\t{}", (size + 1023) / 1024, entry).try();
-                    },
-                    Err(err) => {
-                        writeln!(stdout, "warning: cannot seek file '{}': {}", entry, err).try();
-                    }
-                }
-            },
-            Err(err) => {
-                println!("warning: cannot read file '{}': {}", entry, err);
-            }
-        }
+
+        let mut file = fs::File::open(&entry_path).try(&mut stdout);
+        let size = file.seek(SeekFrom::End(0)).try(&mut stdout);
+
+        print(((size + 1023) / 1024).to_string().as_bytes(), &mut stdout);
+        print(b"    ", &mut stdout);
+        println(entry.as_bytes(), &mut stdout);
     }
 }
 fn main() {
     if let Some(ref x) = env::args().nth(1) {
-        print(x);
+        print_path(x);
     } else {
-        print(".");
+        print_path(".");
     }
 }

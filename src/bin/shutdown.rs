@@ -3,10 +3,14 @@
 extern crate coreutils;
 
 use std::fs;
+use std::io;
 
-use coreutils::extra::OptionalExt;
+use coreutils::extra::{OptionalExt, println};
 
 fn main() {
-    println!("Good bye!");
-    fs::File::create("acpi:off").try();
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+
+    println(b"Good bye!", &mut stdout);
+    fs::File::create("acpi:off").try(&mut stdout);
 }

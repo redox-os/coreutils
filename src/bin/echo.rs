@@ -3,12 +3,13 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::{stdout, Write};
+use std::io::stdout;
 
-use coreutils::extra::OptionalExt;
+use coreutils::extra::print;
 
 fn main() {
-    let mut stdout = stdout();
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
 
     let mut args = env::args();
     let mut newline = true;
@@ -16,15 +17,19 @@ fn main() {
     if let Some(arg) = args.nth(1) {
         if arg == "-n" {
             newline = false;
-            if let Some(arg) = args.nth(0) {write!(stdout, "{}", arg).try();}
+            if let Some(arg) = args.nth(0) {
+                print(arg.as_bytes(), &mut stdout);
+            }
         } else {
-            write!(stdout, "{}", arg).try();
+            print(arg.as_bytes(), &mut stdout);
+            print(b" ", &mut stdout);
         }
     }
     for arg in args {
-        write!(stdout, " {}", arg).try();
+        print(b" ", &mut stdout);
+        print(arg.as_bytes(), &mut stdout);
     }
     if newline {
-        write!(stdout, "\n").try();
+        print(b"\n", &mut stdout);
     }
 }

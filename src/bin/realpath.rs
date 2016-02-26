@@ -4,19 +4,22 @@ extern crate coreutils;
 
 use std::env;
 use std::fs;
-use std::io::{Write, stdout};
+use std::io::stdout;
 
-use coreutils::extra::{OptionalExt, fail};
+use coreutils::extra::{OptionalExt, fail, println};
 
 fn main() {
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+
     if env::args().count() < 2 {
-        fail("no arguments.");
+        fail("no arguments.", &mut stdout);
     }
 
-    let mut stdout = stdout();
-
     for ref path in env::args().skip(1) {
-        stdout.write(fs::canonicalize(path).try().to_str().unwrap().as_bytes()).try();
-        stdout.write(b"\n").try();
+        let file = fs::canonicalize(path).try(&mut stdout);
+
+        let b = file.to_str().try(&mut stdout).as_bytes();
+        println(b, &mut stdout);
     }
 }
