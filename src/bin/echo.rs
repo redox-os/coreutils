@@ -3,22 +3,24 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::{stdout, Write};
+use std::io::stdout;
 
-use coreutils::extra::OptionalExt;
+use coreutils::extra::print;
 
 fn main() {
-    let mut stdout = stdout();
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
 
     let mut newline = true;
     for arg in env::args().skip(1) {
         if arg == "-n" {
             newline = false;
         } else {
-            write!(stdout, "{} ", arg).try();
+            print(arg.as_bytes(), &mut stdout);
+            print(b" ", &mut stdout);
         }
     }
     if newline {
-        write!(stdout, "\n").try();
+        print(b"\n", &mut stdout);
     }
 }
