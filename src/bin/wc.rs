@@ -107,8 +107,8 @@ fn main() {
                     return;
                 },
                 _ => {
-                    stdout.write(b"error: unknown flag, ").try(&mut stderr);
-                    stdout.write(arg.as_bytes()).try(&mut stderr);
+                    stderr.write(b"error: unknown flag, ").try(&mut stderr);
+                    stderr.write(arg.as_bytes()).try(&mut stderr);
                     stderr.flush().try(&mut stderr);
                     exit(1);
                 },
