@@ -12,6 +12,5 @@ fn main() {
     let mut stdout = stdout.lock();
 
     let mut file = File::open("context:").try(&mut stdout);
-    let res = io::copy(&mut file, &mut stdout);
-    res.try(&mut stdout);
+    io::copy(&mut file, &mut stdout).try(&mut stdout);
 }
