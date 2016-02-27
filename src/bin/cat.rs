@@ -13,18 +13,20 @@ fn main() {
     let mut stdin = stdin.lock();
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
 
     if paths.len() == 0 {
-        io::copy(&mut stdin, &mut stdout).try(&mut stdout);
+        io::copy(&mut stdin, &mut stdout).try(&mut stderr);
     } else {
         for path in paths {
             if path == "-" {
-                io::copy(&mut stdin, &mut stdout).try(&mut stdout);
+                io::copy(&mut stdin, &mut stdout).try(&mut stderr);
             } else {
                 let file = fs::File::open(&path);
-                let mut file = file.try(&mut stdout);
+                let mut file = file.try(&mut stderr);
 
-                io::copy(&mut file, &mut stdout).try(&mut stdout);
+                io::copy(&mut file, &mut stdout).try(&mut stderr);
             };
         }
     }

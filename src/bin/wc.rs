@@ -5,7 +5,7 @@ extern crate coreutils;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::io::{self, stdout, Write};
+use std::io::{self, stdout, stderr, Write};
 use std::iter;
 use std::process::exit;
 
@@ -90,6 +90,8 @@ fn main() {
     let mut args = env::args().skip(1);
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let stderr = stderr();
+    let mut stderr = stderr.lock();
 
     loop { // To avoid consumption of the iter, we use loop.
         let arg = if let Some(x) = args.next() { x } else { break };
@@ -106,10 +108,9 @@ fn main() {
                     return;
                 },
                 _ => {
-                    print(b"error: unknown flag, ", &mut stdout);
-                    println(arg.as_bytes(), &mut stdout);
-                    let res = stdout.flush();
-                    res.try(&mut stdout);
+                    print(b"error: unknown flag, ", &mut stderr);
+                    println(arg.as_bytes(), &mut stderr);
+                    stderr.flush().try(&mut stderr);
                     exit(1);
                 },
             }
@@ -140,7 +141,7 @@ fn main() {
             //unix it's all just fds so it's whatever dunno here tho
             //(also - is specific to sh/bash fwiw).
 
-            let file = File::open(&path).try(&mut stdout);
+            let file = File::open(&path).try(&mut stderr);
             let (lines, words, bytes) = do_count(file);
 
             total_lines += lines;
