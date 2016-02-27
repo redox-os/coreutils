@@ -3,16 +3,17 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::stdout;
+use std::io::{stdout, stderr, Write};
 
-use coreutils::extra::{OptionalExt, println};
+use coreutils::extra::OptionalExt;
 
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
-    let pwd = env::current_dir().try(&mut stdout);
+    let pwd = env::current_dir().try(&mut stderr);
 
-    let b = pwd.to_str().fail("invalid unicode.", &mut stdout).as_bytes();
-    println(b, &mut stdout);
+    let b = pwd.to_str().fail("invalid unicode.", &mut stderr).as_bytes();
+    stdout.write(b).try(&mut stderr);
 }

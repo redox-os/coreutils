@@ -9,13 +9,13 @@ use std::io;
 use coreutils::extra::{OptionalExt, fail};
 
 fn main() {
-    let stdout = io::stdout();
+    let mut stderr = io::stderr();
 
     if env::args().count() < 2 {
-        fail("no arguments.", &mut stdout.lock());
+        fail("no arguments.", &mut stderr);
     }
 
     for ref path in env::args().skip(1) {
-        fs::remove_file(path).try(&mut stdout.lock());
+        fs::remove_file(path).try(&mut stderr);
     }
 }

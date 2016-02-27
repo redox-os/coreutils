@@ -3,23 +3,24 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::stdout;
+use std::io::{stdout, stderr};
 
-use coreutils::extra::println;
+use coreutils::extra::{WriteExt, OptionalExt};
 
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
     let answer = env::args().skip(1).next();
     if let Some(x) = answer {
         let print = x.as_bytes();
         loop {
-            println(print, &mut stdout);
+            stdout.writeln(print).try(&mut stderr);
         }
     } else {
         loop {
-            println(b"y", &mut stdout)
+            stdout.writeln(b"y").try(&mut stderr);
         }
     }; // Dafuq, borrowck
 }

@@ -4,24 +4,25 @@ extern crate coreutils;
 
 use std::env;
 use std::fs;
-use std::io::stdout;
+use std::io::{stdout, stderr, Write};
 
-use coreutils::extra::{OptionalExt, println};
+use coreutils::extra::OptionalExt;
 
 fn print_path(path: &str) {
     let mut entries = Vec::new();
 
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
-    let dir = fs::read_dir(path).try(&mut stdout);
+    let dir = fs::read_dir(path).try(&mut stderr);
 
     for entry_result in dir {
-        let entry = entry_result.try(&mut stdout);
+        let entry = entry_result.try(&mut stderr);
         let directory = entry.file_type().map(|x| x.is_dir()).unwrap_or(false);
 
         let file_name = entry.file_name();
-        let path_str = file_name.to_str().try(&mut stdout);
+        let path_str = file_name.to_str().try(&mut stderr);
         entries.push(path_str.to_string());
 
         if directory {
@@ -32,7 +33,7 @@ fn print_path(path: &str) {
     entries.sort();
 
     for entry in entries {
-        println(entry.as_bytes(), &mut stdout);
+        stdout.write(entry.as_bytes()).try(&mut stderr);
     }
 }
 

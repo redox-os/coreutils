@@ -5,11 +5,11 @@ extern crate coreutils;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::io::{self, stdout, Write};
+use std::io::{self, stdout, stderr, Write, Stderr};
 use std::iter;
 use std::process::exit;
 
-use coreutils::extra::{OptionalExt, print, println};
+use coreutils::extra::{OptionalExt, WriteExt};
 
 static MAN_PAGE: &'static str = r#"
     NAME
@@ -55,23 +55,23 @@ impl Flags {
         }
     }
 
-    fn print_count<'a, W: Write>(self, lines: u64, words: u64, bytes: u64, file: &'a str, stdout: &mut W) {
-        print(b"    ", &mut *stdout);
+    fn print_count<'a, W: Write>(self, lines: u64, words: u64, bytes: u64, file: &'a str, stdout: &mut W, stderr: &mut Stderr) {
+        stdout.write(b"    ").try(&mut *stderr);
 
         if self.count_lines {
-            print(lines.to_string().as_bytes(), &mut *stdout);
-            print(b" ", &mut *stdout);
+            stdout.write(lines.to_string().as_bytes()).try(&mut *stderr);
+            stdout.write(b" ").try(&mut *stderr);
         }
         if self.count_words {
-            print(words.to_string().as_bytes(), &mut *stdout);
-            print(b" ", &mut *stdout);
+            stdout.write(words.to_string().as_bytes()).try(&mut *stderr);
+            stdout.write(b" ").try(&mut *stderr);
         }
         if self.count_bytes {
-            print(bytes.to_string().as_bytes(), &mut *stdout);
-            print(b" ", &mut *stdout);
+            stdout.write(bytes.to_string().as_bytes()).try(&mut *stderr);
+            stdout.write(b" ").try(&mut *stderr);
         }
 
-        println(file.as_bytes(), &mut *stdout);
+        stdout.writeln(file.as_bytes()).try(&mut *stderr);
     }
 
     fn default_to(&mut self) {
@@ -90,6 +90,7 @@ fn main() {
     let mut args = env::args().skip(1);
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
     loop { // To avoid consumption of the iter, we use loop.
         let arg = if let Some(x) = args.next() { x } else { break };
@@ -102,14 +103,13 @@ fn main() {
                 "--words" | "-w" => opts.count_words = true,
                 "--bytes" | "-c" => opts.count_bytes = true,
                 "--help"  | "-h" => {
-                    print(MAN_PAGE.as_bytes(), &mut stdout);
+                    stdout.writeln(MAN_PAGE.as_bytes()).try(&mut stderr);
                     return;
                 },
                 _ => {
-                    print(b"error: unknown flag, ", &mut stdout);
-                    println(arg.as_bytes(), &mut stdout);
-                    let res = stdout.flush();
-                    res.try(&mut stdout);
+                    stdout.write(b"error: unknown flag, ").try(&mut stderr);
+                    stdout.write(arg.as_bytes()).try(&mut stderr);
+                    stderr.flush().try(&mut stderr);
                     exit(1);
                 },
             }
@@ -126,7 +126,7 @@ fn main() {
         let stdin = stdin.lock();
 
         let (lines, words, bytes) = do_count(stdin);
-        opts.print_count(lines, words, bytes, "stdin", &mut stdout);
+        opts.print_count(lines, words, bytes, "stdin", &mut stdout, &mut stderr);
     } else {
         let mut total_lines = 0;
         let mut total_words = 0;
@@ -140,18 +140,18 @@ fn main() {
             //unix it's all just fds so it's whatever dunno here tho
             //(also - is specific to sh/bash fwiw).
 
-            let file = File::open(&path).try(&mut stdout);
+            let file = File::open(&path).try(&mut stderr);
             let (lines, words, bytes) = do_count(file);
 
             total_lines += lines;
             total_words += words;
             total_bytes += bytes;
 
-            opts.print_count(lines, words, bytes, &path, &mut stdout);
+            opts.print_count(lines, words, bytes, &path, &mut stdout, &mut stderr);
         }
 
         if single_file {
-            opts.print_count(total_lines, total_words, total_bytes, "total", &mut stdout);
+            opts.print_count(total_lines, total_words, total_bytes, "total", &mut stdout, &mut stderr);
         }
     }
 }
