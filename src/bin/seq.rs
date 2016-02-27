@@ -10,8 +10,7 @@ use coreutils::extra::{fail, WriteExt, OptionalExt};
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
-    let stderr = stderr();
-    let mut stderr = stderr.lock();
+    let mut stderr = stderr();
 
     if env::args().count() < 2 {
         fail("missing value.", &mut stderr);

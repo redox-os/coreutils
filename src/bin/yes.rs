@@ -10,8 +10,7 @@ use coreutils::extra::{WriteExt, OptionalExt};
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
-    let stderr = stderr();
-    let mut stderr = stderr.lock();
+    let mut stderr = stderr();
 
     let answer = env::args().skip(1).next();
     if let Some(x) = answer {

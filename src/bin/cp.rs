@@ -8,8 +8,7 @@ use std::io::{self, Seek, SeekFrom, stderr};
 use coreutils::extra::{OptionalExt, fail};
 
 fn main() {
-    let stderr = stderr();
-    let mut stderr = stderr.lock();
+    let mut stderr = stderr();
     let ref src = env::args().nth(1).fail("no source argument.", &mut stderr);
     let dsts = env::args().skip(2);
 

@@ -13,8 +13,7 @@ fn main() {
     let mut stdin = stdin.lock();
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    let stderr = io::stderr();
-    let mut stderr = stderr.lock();
+    let mut stderr = io::stderr();
 
     if paths.len() == 0 {
         io::copy(&mut stdin, &mut stdout).try(&mut stderr);

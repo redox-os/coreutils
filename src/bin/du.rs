@@ -10,8 +10,7 @@ use coreutils::extra::{OptionalExt, WriteExt};
 fn print_path(path: &str) {
     let stdout = stdout();
     let mut stdout = stdout.lock();
-    let stderr = stderr();
-    let mut stderr = stderr.lock();
+    let mut stderr = stderr();
     let mut entries = Vec::new();
 
     let dir = fs::read_dir(path).try(&mut stderr);

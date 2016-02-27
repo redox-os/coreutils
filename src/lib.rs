@@ -4,7 +4,7 @@
 pub mod extra {
     use std::process::exit;
     use std::error::Error;
-    use std::io::{self, Write};
+    use std::io::{self, Write, Stderr};
 
     /// Extension for Option-like types
     pub trait OptionalExt {
@@ -12,10 +12,10 @@ pub mod extra {
         type Succ;
 
         /// Unwrap or abort program with exit code
-        fn try<W: Write>(self, stderr: &mut W) -> Self::Succ;
+        fn try(self, stderr: &mut Stderr) -> Self::Succ;
 
         /// Unwrap or abort the program with failed exit code and custom error message
-        fn fail<'a, W: Write>(self, err: &'a str, stderr: &mut W) -> Self::Succ;
+        fn fail<'a>(self, err: &'a str, stderr: &mut Stderr) -> Self::Succ;
 
         /// An unwrapping where the fail-case is not checked and threaten as statical unreachable.
         unsafe fn unchecked_unwrap(self) -> Self::Succ;
@@ -24,7 +24,9 @@ pub mod extra {
     impl<T, U: Error> OptionalExt for Result<T, U> {
         type Succ = T;
 
-        fn try<W: Write>(self, stderr: &mut W) -> T {
+        fn try(self, stderr: &mut Stderr) -> T {
+            let mut stderr = stderr.lock();
+
             match self {
                 Ok(succ) => succ,
                 Err(e) => {
@@ -39,7 +41,9 @@ pub mod extra {
             }
         }
 
-        fn fail<'a, W: Write>(self, err: &'a str, stderr: &mut W) -> T {
+        fn fail<'a>(self, err: &'a str, stderr: &mut Stderr) -> T {
+            let mut stderr = stderr.lock();
+
             match self {
                 Ok(succ) => succ,
                 Err(_) => {
@@ -64,18 +68,22 @@ pub mod extra {
     impl<T> OptionalExt for Option<T> {
         type Succ = T;
 
-        fn try<W: Write>(self, stderr: &mut W) -> T {
+        fn try(self, stderr: &mut Stderr) -> T {
+            let mut stderr = stderr.lock();
+
             match self {
                 Some(succ) => succ,
                 None => {
-                    let _ = stderr.write(b"error: (no message)\n");
+                    let _ = stderr.writeln(b"error: (no message)\n");
                     let _ = stderr.flush();
                     exit(1);
                 },
             }
         }
 
-        fn fail<'a, W: Write>(self, err: &'a str, stderr: &mut W) -> T {
+        fn fail<'a>(self, err: &'a str, stderr: &mut Stderr) -> T {
+            let mut stderr = stderr.lock();
+
             match self {
                 Some(succ) => succ,
                 None => {
@@ -103,10 +111,11 @@ pub mod extra {
 
     impl<W: Write> WriteExt for W {
         fn writeln(&mut self, s: &[u8]) -> io::Result<usize> {
-            let res = self.write(s).map(|x| x + 1);
-            try!(self.write(b"\n"));
-
-            res
+            let res = self.write(s);
+            match self.write(b"\n") {
+                Ok(n) => res.map(|x| x + n),
+                e => e,
+            }
         }
     }
 
@@ -145,7 +154,9 @@ pub mod extra {
         };
     }
 
-    pub fn fail<'a, W: Write>(s: &'a str, stderr: &mut W) -> ! {
+    pub fn fail<'a>(s: &'a str, stderr: &mut Stderr) -> ! {
+        let mut stderr = stderr.lock();
+
         let _ = stderr.write(b"error: ");
         let _ = stderr.write(s.as_bytes());
         let _ = stderr.write(b"\n");

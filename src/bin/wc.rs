@@ -5,7 +5,7 @@ extern crate coreutils;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::io::{self, stdout, stderr, Write};
+use std::io::{self, stdout, stderr, Write, Stderr};
 use std::iter;
 use std::process::exit;
 
@@ -55,7 +55,7 @@ impl Flags {
         }
     }
 
-    fn print_count<'a, W: Write, E: Write>(self, lines: u64, words: u64, bytes: u64, file: &'a str, stdout: &mut W, stderr: &mut E) {
+    fn print_count<'a, W: Write>(self, lines: u64, words: u64, bytes: u64, file: &'a str, stdout: &mut W, stderr: &mut Stderr) {
         stdout.write(b"    ").try(&mut *stderr);
 
         if self.count_lines {
@@ -90,8 +90,7 @@ fn main() {
     let mut args = env::args().skip(1);
     let stdout = stdout();
     let mut stdout = stdout.lock();
-    let stderr = stderr();
-    let mut stderr = stderr.lock();
+    let mut stderr = stderr();
 
     loop { // To avoid consumption of the iter, we use loop.
         let arg = if let Some(x) = args.next() { x } else { break };
