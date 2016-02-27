@@ -1,5 +1,6 @@
 #![deny(warnings)]
 #![feature(core_intrinsics)]
+#![feature(unicode)]
 
 pub mod extra {
     use std::process::exit;
@@ -107,6 +108,8 @@ pub mod extra {
 
     pub trait WriteExt {
         fn writeln(&mut self, s: &[u8]) -> io::Result<usize>;
+
+        fn put_char(&mut self, c: char) -> io::Result<usize>;
     }
 
     impl<W: Write> WriteExt for W {
@@ -116,6 +119,12 @@ pub mod extra {
                 Ok(n) => res.map(|x| x + n),
                 e => e,
             }
+        }
+
+        fn put_char(&mut self, c: char) -> io::Result<usize> {
+            let mut buf = [0; 4];
+            let n = c.encode_utf8(&mut buf).expect("Invalid UTF-8! This is a bug: Report it at 'github.com/redox-os/coreutils'.");
+            self.write(&buf[..n])
         }
     }
 
