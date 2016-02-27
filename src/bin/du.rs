@@ -4,20 +4,22 @@ extern crate coreutils;
 
 use std::env;
 use std::fs;
-use std::io::{stdout, Seek, SeekFrom};
-use coreutils::extra::{OptionalExt, print, println};
+use std::io::{stdout, stderr, Seek, SeekFrom, Write};
+use coreutils::extra::{OptionalExt, WriteExt};
 
 fn print_path(path: &str) {
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let stderr = stderr();
+    let mut stderr = stderr.lock();
     let mut entries = Vec::new();
 
-    let dir = fs::read_dir(path).try(&mut stdout);
+    let dir = fs::read_dir(path).try(&mut stderr);
 
     for entry_result in dir {
-        let entry = entry_result.try(&mut stdout);
+        let entry = entry_result.try(&mut stderr);
 
-        let file_type = entry.file_type().try(&mut stdout);
+        let file_type = entry.file_type().try(&mut stderr);
         let directory = file_type.is_dir();
 
         if let Some(path_str) = entry.file_name().to_str() {
@@ -26,7 +28,7 @@ fn print_path(path: &str) {
                 entries.last_mut().unwrap().push('/');
             }
         } else {
-            println(b"warning: failed to convert path to a valid string.", &mut stdout);
+            stderr.writeln(b"warning: failed to convert path to a valid string.").try(&mut stderr);
         }
     }
 
@@ -39,12 +41,12 @@ fn print_path(path: &str) {
         }
         entry_path.push_str(entry);
 
-        let mut file = fs::File::open(&entry_path).try(&mut stdout);
-        let size = file.seek(SeekFrom::End(0)).try(&mut stdout);
+        let mut file = fs::File::open(&entry_path).try(&mut stderr);
+        let size = file.seek(SeekFrom::End(0)).try(&mut stderr);
 
-        print(((size + 1023) / 1024).to_string().as_bytes(), &mut stdout);
-        print(b"    ", &mut stdout);
-        println(entry.as_bytes(), &mut stdout);
+        stdout.write(((size + 1023) / 1024).to_string().as_bytes()).try(&mut stderr);
+        stdout.write(b"    ").try(&mut stderr);
+        stdout.writeln(entry.as_bytes()).try(&mut stderr);
     }
 }
 fn main() {

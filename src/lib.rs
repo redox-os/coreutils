@@ -4,7 +4,7 @@
 pub mod extra {
     use std::process::exit;
     use std::error::Error;
-    use std::io::Write;
+    use std::io::{self, Write};
 
     /// Extension for Option-like types
     pub trait OptionalExt {
@@ -97,6 +97,19 @@ pub mod extra {
         }
     }
 
+    pub trait WriteExt {
+        fn writeln(&mut self, s: &[u8]) -> io::Result<usize>;
+    }
+
+    impl<W: Write> WriteExt for W {
+        fn writeln(&mut self, s: &[u8]) -> io::Result<usize> {
+            let res = self.write(s).map(|x| x + 1);
+            try!(self.write(b"\n"));
+
+            res
+        }
+    }
+
     /// A hint which is threaten as statical unreachable in release mode, and panic (unreachable!())
     /// in debug mode.
     #[cfg(debug)]
@@ -138,14 +151,5 @@ pub mod extra {
         let _ = stderr.write(b"\n");
         let _ = stderr.flush();
         exit(1);
-    }
-
-    pub fn print<W: Write>(s: &[u8], stdout: &mut W) {
-        stdout.write(s).try(stdout);
-    }
-
-    pub fn println<W: Write>(s: &[u8], stdout: &mut W) {
-        stdout.write(s).try(stdout);
-        let _ = stdout.write(b"\n");
     }
 }

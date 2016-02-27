@@ -9,7 +9,8 @@ use coreutils::extra::OptionalExt;
 fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
+    let mut stderr = io::stderr();
 
-    let mut file = File::open("memory:").try(&mut stdout);
-    io::copy(&mut file, &mut stdout).try(&mut stdout);
+    let mut file = File::open("memory:").try(&mut stderr);
+    io::copy(&mut file, &mut stdout).try(&mut stderr);
 }

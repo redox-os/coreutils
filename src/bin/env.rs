@@ -3,17 +3,18 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::stdout;
+use std::io::{stdout, stderr, Write};
 
-use coreutils::extra::{print, println};
+use coreutils::extra::{WriteExt, OptionalExt};
 
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
     for (key, value) in env::vars() {
-        print(key.as_bytes(), &mut stdout);
-        print(b"=", &mut stdout);
-        println(value.as_bytes(), &mut stdout);
+        stdout.write(key.as_bytes()).try(&mut stderr);
+        stdout.write(b"=").try(&mut stderr);
+        stdout.writeln(value.as_bytes()).try(&mut stderr);
     }
 }
