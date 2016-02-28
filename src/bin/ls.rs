@@ -23,7 +23,7 @@ fn print_path(path: &str) {
 
         let file_name = entry.file_name();
         let path_str = file_name.to_str().try(&mut stderr);
-        entries.push(path_str.to_string());
+        entries.push(path_str.to_owned());
 
         if directory {
             entries.last_mut().unwrap().push('/');

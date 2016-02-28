@@ -34,7 +34,7 @@ fn print_path(path: &str) {
     entries.sort();
 
     for entry in entries.iter() {
-        let mut entry_path = path.to_string();
+        let mut entry_path = path.to_owned();
         if !entry_path.ends_with('/') {
             entry_path.push('/');
         }
