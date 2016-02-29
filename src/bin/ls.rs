@@ -34,6 +34,7 @@ fn print_path(path: &str) {
 
     for entry in entries {
         stdout.write(entry.as_bytes()).try(&mut stderr);
+        stdout.write(b"\n").try(&mut stderr);
     }
 }
 
