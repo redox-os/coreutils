@@ -4,12 +4,11 @@ extern crate coreutils;
 
 use std::env;
 use std::fs::File;
-use std::io::Read;
-use std::io::{self, stdout, stderr, Write, Stderr};
+use std::io::{self, stdout, stderr, Read, Write, Stderr};
 use std::iter;
+use std::ops::{Add, AddAssign};
 use std::process::exit;
 
-use std::ops::{Add, AddAssign};
 
 use coreutils::extra::{OptionalExt, WriteExt};
 
@@ -50,7 +49,7 @@ struct Counter {
 
 impl Counter {
     #[inline]
-    fn new<T: std::io::Read>(input: T) -> Self {
+    fn new<T: Read>(input: T) -> Self {
         let mut line_count = 0;
         let mut word_count = 0;
         let mut byte_count = 0;
