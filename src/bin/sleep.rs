@@ -3,14 +3,15 @@
 extern crate coreutils;
 
 use std::env;
-use std::io::{self, Write};
+use std::io::{self, Write, Stderr};
+use std::process::exit;
 use std::thread;
 use std::time::Duration;
 
-use coreutils::extra::{OptionalExt};
+use coreutils::extra::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME
-    sleep - delay for a specified amount of time
+    sleep - delay for a specified amount of time.
 
 SYNOPSIS
     sleep [-h | --help] NUMBER[SUFFIX]...
@@ -47,26 +48,26 @@ fn main() {
                 stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
             },
             _ => {
-                thread::sleep(Duration::from_millis(argument_to_ms(&arg)));
+                thread::sleep(Duration::from_millis(argument_to_ms(&arg, &mut stderr)));
                 for argument in args {
-                    thread::sleep(Duration::from_millis(argument_to_ms(&argument)));
+                    thread::sleep(Duration::from_millis(argument_to_ms(&argument, &mut stderr)));
                 }
             }
         }
     } else {
         stderr.write(MISSING_OPERAND.as_bytes()).try(&mut stderr);
-        stdout.write(HELP_INFO.as_bytes()).try(&mut stderr);
+        stderr.write(HELP_INFO.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        exit(1);
     }
 }
 
 /// Check if the argument uses a time suffix and convert the time accordingly.
-fn argument_to_ms(argument: &str) -> u64 {
+fn argument_to_ms(argument: &str, stderr: &mut Stderr) -> u64 {
     // If the argument is a number, the duration is in seconds, so multiply it by 1000.
     if let Ok(number) = argument.parse::<f64>() {
         return (number * 1000f64) as u64;
     }
-
-    let mut stderr = io::stderr();
 
     // Split the argument into two strings at the last character. The first string should be the
     // number while the second string should be the duration unit:
@@ -79,18 +80,18 @@ fn argument_to_ms(argument: &str) -> u64 {
             "h" => (number * 3600000f64) as u64,
             "d" => (number * 86400000f64) as u64,
             _   => {
-                stderr.write(b"invalid time interval '").try(&mut stderr);
-                stderr.write(argument.as_bytes()).try(&mut stderr);
-                stderr.write(b"\'\n").try(&mut stderr);
-                stderr.flush().try(&mut stderr);
-                std::process::exit(1);
+                stderr.write(b"invalid time interval '").try(&mut *stderr);
+                stderr.write(argument.as_bytes()).try(&mut *stderr);
+                stderr.write(b"\'\n").try(&mut *stderr);
+                stderr.flush().try(&mut *stderr);
+                exit(1);
             }
         }
     } else {
-        stderr.write(b"invalid time interval '").try(&mut stderr);
-        stderr.write(argument.as_bytes()).try(&mut stderr);
-        stderr.write(b"\'\n").try(&mut stderr);
-        stderr.flush().try(&mut stderr);
-        std::process::exit(1);
+        stderr.write(b"invalid time interval '").try(&mut *stderr);
+        stderr.write(argument.as_bytes()).try(&mut *stderr);
+        stderr.write(b"\'\n").try(&mut *stderr);
+        stderr.flush().try(&mut *stderr);
+        exit(1);
     }
 }
