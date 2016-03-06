@@ -32,8 +32,8 @@ AUTHOR
     Written by Michael Murphy.
 "#;
 
-const MISSING_OPERAND: &'static str = "missing operand";
-const HELP_INFO:       &'static str = "Try 'sleep --help' for more information.";
+const MISSING_OPERAND: &'static str = "missing operand\n";
+const HELP_INFO:       &'static str = "Try 'sleep --help' for more information.\n";
 
 fn main() {
     let stdout     = io::stdout();
