@@ -7,7 +7,6 @@ use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
 
-
 use coreutils::extra::{OptionalExt};
 
 const MAN_PAGE: &'static str = r#"NAME
@@ -80,18 +79,18 @@ fn argument_to_ms(argument: &str) -> u64 {
             "h" => (number * 3600000f64) as u64,
             "d" => (number * 86400000f64) as u64,
             _   => {
-                let mut output = String::from("invalid time interval '");
-                output.push_str(argument);
-                output.push_str("\'\n");
-                stderr.write(output.as_bytes()).try(&mut stderr);
+                stderr.write(b"invalid time interval '").try(&mut stderr);
+                stderr.write(argument.as_bytes()).try(&mut stderr);
+                stderr.write(b"\'\n").try(&mut stderr);
+                stderr.flush().try(&mut stderr);
                 std::process::exit(1);
             }
         }
     } else {
-        let mut output = String::from("invalid time interval '");
-        output.push_str(argument);
-        output.push_str("\'\n");
-        stderr.write(output.as_bytes()).try(&mut stderr);
+        stderr.write(b"invalid time interval '").try(&mut stderr);
+        stderr.write(argument.as_bytes()).try(&mut stderr);
+        stderr.write(b"\'\n").try(&mut stderr);
+        stderr.flush().try(&mut stderr);
         std::process::exit(1);
     }
 }
