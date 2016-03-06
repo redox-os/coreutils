@@ -36,7 +36,7 @@ fn main() {
     let mut multiple    = false;
     let mut zero        = false;
     let mut suffix      = String::new();
-    let mut first_name  = String::new();
+    let first_name: Option<String>;
 
     // Check input arguments for options.
     loop {
@@ -67,7 +67,7 @@ fn main() {
                     }
                 }
             } else {
-                first_name = argument; // Store the last argument so that it isn't lost.
+                first_name = Some(argument); // Store the last argument so that it isn't lost.
                 break
             }
         } else {
@@ -78,7 +78,9 @@ fn main() {
     }
 
     // Begin printing the basename of each following argument.
-    basename(zero, &first_name, &suffix);
+    if let Some(name) = first_name {
+        basename(zero, &name, &suffix);
+    }
     if multiple {
         for argument in arguments {
             basename(zero, &argument, &suffix);
