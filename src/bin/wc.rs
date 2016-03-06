@@ -1,4 +1,6 @@
 #![deny(warnings)]
+#![feature(augmented_assignments)]
+#![feature(op_assign_traits)]
 
 extern crate coreutils;
 
