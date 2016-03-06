@@ -16,4 +16,5 @@ fn main() {
 
     let b = pwd.to_str().fail("invalid unicode.", &mut stderr).as_bytes();
     stdout.write(b).try(&mut stderr);
+    stdout.write(&[b'\n']).try(&mut stderr);
 }
