@@ -1,32 +1,47 @@
+#![deny(warnings)]
 extern crate coreutils;
 
-use std::io::{self,Write};
-use coreutils::extra::{OptionalExt};
+use std::io::{self, Write};
+use coreutils::extra::OptionalExt;
 
-static MAN_PAGE: &'static str = r#"
-NAME
+const MAN_PAGE: &'static str = r#"NAME
     basename - strip directory and suffix from filenames
+
 SYNOPSIS
-    basename NAME [SUFFIX]
-    basename OPTION... NAME...
+    basename [-z --zero] [-s | --suffix] SUFFIX [-a | --multiple] NAME...
+
 DESCRIPTION
-    Print NAME with any leading directory components removed. If specified, also remove a trailing SUFFIX.
+    Print NAME with any leading directory components removed. If a SUFFIX is provided, the suffix will be removed from NAME.
+
 OPTIONS
-    -a, --multiple
-        support multiple arguments and treat each as a NAME
-    -s, --suffix=SUFFIX
+    -a
+    --multiple
+        Support multiple arguments and treat each as a NAME
+    -s
+    --suffix=SUFFIX
         remove a trailing SUFFIX; implies -a
-    -z, --zero
+    -z
+    --zero
         end each output line with NUL, not newline
-    -h, --help
+    -h
+    --help
         display this help and exit
+
+EXAMPLE
+    basename dir/filename.ext
+        > filename.ext
+    basename dir/filename.ext .ext
+        > filename
+    basename -a -s .ext one.ext two.ext three.ext
+        > one two three
+
 AUTHOR
     Written by Michael Murphy.
 "#;
 
-static HELP_INFO: &'static str       = "Try 'basename --help' for more information.";
-static MISSING_OPERAND: &'static str = "basename: missing operand";
-static REQUIRES_OPTION: &'static str = "basename: option requires an argument -- 's'";
+const HELP_INFO:       &'static str = "Try ‘basename --help’ for more information.\n";
+const MISSING_OPERAND: &'static str = "missing operand\n";
+const REQUIRES_OPTION: &'static str = "option requires an argument -- ‘s’\n";
 
 fn main() {
     let stdout          = io::stdout();
@@ -50,20 +65,27 @@ fn main() {
                             suffix = arg;
                             multiple = true;
                         } else {
-                            stdout.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
+                            stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
                             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-                            return;
+                            stderr.flush().try(&mut stderr);
+                            stdout.flush().try(&mut stderr);
+                            std::process::exit(1);
                         }
                     },
                     "-z" | "--zero"     => zero = true,
                     "-h" | "--help"     => {
                         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-                        return;
+                        stdout.flush().try(&mut stderr);
+                        std::process::exit(1);
                     },
                     _ => {
-                        println!("basename: invalid option -- '{}'", argument);
+                        stderr.write_all("invalid option -- ‘".as_bytes()).try(&mut stderr);
+                        stderr.write_all(argument.as_bytes()).try(&mut stderr);
+                        stderr.write_all("’\n".as_bytes()).try(&mut stderr);
                         stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-                        return;
+                        stderr.flush().try(&mut stderr);
+                        stdout.flush().try(&mut stderr);
+                        std::process::exit(1);
                     }
                 }
             } else {
@@ -79,11 +101,32 @@ fn main() {
 
     // Begin printing the basename of each following argument.
     if let Some(name) = first_name {
-        basename(zero, &name, &suffix);
+        if !multiple {
+            // If multiple isn't set and there is more than one
+            // argument, the second argument is the suffix.
+            if let Some(potential_suffix) = arguments.next() {
+                // Check if there is an extra operand and exit if true.
+                if let Some(extra_operand) = arguments.next() {
+                    stderr.write_all("extra operand ‘".as_bytes()).try(&mut stderr);
+                    stderr.write_all(extra_operand.as_bytes()).try(&mut stderr);
+                    stderr.write_all("’\n".as_bytes()).try(&mut stderr);
+                    stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+                    stderr.flush().try(&mut stderr);
+                    stdout.flush().try(&mut stderr);
+                    std::process::exit(1);
+                }
+
+                // Otherwise, set the suffix variable to the argument we found.
+                suffix = potential_suffix;
+            }
+        }
+        basename(zero, &name, &suffix, &mut stdout, &mut stderr);
     }
+
+    // If the multiple arguments flag was set, execute a loop to print each name.
     if multiple {
         for argument in arguments {
-            basename(zero, &argument, &suffix);
+            basename(zero, &argument, &suffix, &mut stdout, &mut stderr);
         }
     }
 }
@@ -91,25 +134,39 @@ fn main() {
 /// Takes a file path as input and returns the basename of that path. If `zero` is set to true,
 /// the name will be printed without a newline. If a suffix is set and the path contains that
 /// suffix, the suffix will be removed.
-fn basename(zero: bool, path: &str, suffix: &str) {
-    let mut path = String::from(path);
-    let path_len = path.len();
-
-    // If the suffix variable is set, remove the suffix.
-    if path.ends_with(suffix) {
-        path.truncate(path_len - suffix.len());
-    }
-
-    // Take only the basename of the path
-    let new_path = std::path::Path::new(&path);
-    let mut output = match new_path.file_name() {
-        Some(base)     => String::from(base.to_str().unwrap()),
-        None           => unreachable!()
+fn basename(zero: bool, input: &str, suffix: &str, stdout: &mut io::StdoutLock, stderr: &mut io::Stderr) {
+    // If the suffix variable is set, remove the suffix from the path string.
+    let path = if !suffix.is_empty() {
+        let (prefix, input_suffix) = input.split_at(input.len() - suffix.len());
+        if input_suffix == suffix { prefix } else { input }
+    } else {
+        input
     };
 
-    // If zero is enabled, do not print a newline.
-    if !zero { output.push('\n'); }
+    // Only print the basename of the the path.
+    let new_path = std::path::Path::new(&path);
+    match new_path.file_name() {
+        Some(base) => {
+            if let Some(filename) = base.to_str() {
+                stdout.write_all(filename.as_bytes()).try(stderr);
+            } else {
+                stderr.write_all("invalid unicode in path ‘".as_bytes()).try(stderr);
+                stderr.write_all(path.as_bytes()).try(stderr);
+                stderr.write_all("’\n".as_bytes()).try(stderr);
+                stderr.flush().try(stderr);
+                std::process::exit(1);
+            }
 
-    // Print the output directly to stdout.
-    io::stdout().write_all(output.as_bytes()).try(&mut io::stderr())
+        },
+        None => {
+            stderr.write_all("invalid path ‘".as_bytes()).try(stderr);
+            stderr.write_all(path.as_bytes()).try(stderr);
+            stderr.write_all("’\n".as_bytes()).try(stderr);
+            stderr.flush().try(stderr);
+            std::process::exit(1);
+        }
+    };
+
+    // If zero is not enabled, print a newline.
+    if !zero { stdout.write_all(b"\n").try(stderr); }
 }
