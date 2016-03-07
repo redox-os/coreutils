@@ -1,3 +1,4 @@
+#![deny(warnings)]
 extern crate coreutils;
 
 use std::io::{self, Write};
@@ -7,7 +8,7 @@ const MAN_PAGE: &'static str = r#"NAME
     basename - strip directory and suffix from filenames
 
 SYNOPSIS
-    basename [NAME [SUFFIX]] [OPTION... NAME...]
+    basename [-z --zero] [-s | --suffix] SUFFIX [-a | --multiple] NAME...
 
 DESCRIPTION
     Print NAME with any leading directory components removed. If a SUFFIX is provided, the suffix will be removed from NAME.
