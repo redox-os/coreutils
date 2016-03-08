@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![feature(op_assign_traits)]
 
 extern crate coreutils;
 
