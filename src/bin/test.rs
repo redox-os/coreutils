@@ -215,7 +215,7 @@ fn get_dev_and_inode(filename: &str) -> (u64, u64) {
 
 /// Exits SUCCESS if the first file is newer than the second file.
 fn file_is_newer_than(first: &str, second: &str) {
-    evaluate_bool(get_modified_file_time(first) < get_modified_file_time(second));
+    evaluate_bool(get_modified_file_time(first) > get_modified_file_time(second));
 }
 
 /// Exits SUCCESS if the first file is older than the second file.
