@@ -35,6 +35,10 @@ name = "free"
 path = "src/bin/free.rs"
 
 [[bin]]
+name = "grep"
+path = "src/bin/grep.rs"
+
+[[bin]]
 name = "ls"
 path = "src/bin/ls.rs"
 
