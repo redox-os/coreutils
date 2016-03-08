@@ -2,9 +2,14 @@
 authors = ["Polymetric <polymetricofficial@gmail.com>",
            "Łukasz Jan Niemier <lukasz@niemier.pl>",
            "Jeremy Soller <jackpot51@gmail.com>",
-           "Ticki <Ticki@users.noreply.github.com>"]
+           "Ticki <Ticki@users.noreply.github.com>",
+           "Michael Murphy <mmstickan@gmail.com>"]
 name = "coreutils"
 version = "0.1.0"
+
+[[bin]]
+name = "basename"
+path = "src/bin/basename.rs"
 
 [[bin]]
 name = "cat"

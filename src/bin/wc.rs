@@ -1,13 +1,15 @@
 #![deny(warnings)]
+#![feature(op_assign_traits)]
 
 extern crate coreutils;
 
 use std::env;
 use std::fs::File;
-use std::io::Read;
-use std::io::{self, stdout, stderr, Write, Stderr};
+use std::io::{self, stdout, stderr, Read, Write, Stderr};
 use std::iter;
+use std::ops::{Add, AddAssign};
 use std::process::exit;
+
 
 use coreutils::extra::{OptionalExt, WriteExt};
 
@@ -39,7 +41,63 @@ static MAN_PAGE: &'static str = r#"
         This program was written mainly by Alice Maz.
 "#;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
+struct Counter {
+    lines: u64,
+    words: u64,
+    bytes: u64,
+}
+
+impl Counter {
+    #[inline]
+    fn new<T: Read>(input: T) -> Self {
+        let mut line_count = 0;
+        let mut word_count = 0;
+        let mut byte_count = 0;
+        let mut got_space = true;
+
+        for byte_result in input.bytes() {
+            if let Ok(byte) = byte_result {
+                if byte == b'\n' {
+                    line_count += 1;
+                }
+
+                if is_whitespace(byte) {
+                    got_space = true;
+                } else if got_space {
+                    got_space = false;
+                    word_count += 1;
+                }
+
+                byte_count += 1;
+            }
+        }
+
+        Counter { lines: line_count, words: word_count, bytes: byte_count }
+    }
+}
+
+impl Add for Counter {
+    type Output = Counter;
+
+    fn add(self, other: Self) -> Self {
+        Counter {
+            lines: self.lines + other.lines,
+            words: self.words + other.words,
+            bytes: self.bytes + other.bytes
+        }
+    }
+}
+
+impl AddAssign for Counter {
+    fn add_assign(&mut self, _rhs: Self) {
+        self.lines += _rhs.lines;
+        self.words += _rhs.words;
+        self.bytes += _rhs.bytes;
+    }
+}
+
+#[derive(Copy, Clone, Default)]
 struct Flags {
     count_lines: bool,
     count_words: bool,
@@ -47,27 +105,19 @@ struct Flags {
 }
 
 impl Flags {
-    fn new() -> Flags {
-        Flags {
-            count_lines: false,
-            count_words: false,
-            count_bytes: false,
-        }
-    }
-
-    fn print_count<'a, W: Write>(self, lines: u64, words: u64, bytes: u64, file: &'a str, stdout: &mut W, stderr: &mut Stderr) {
+    fn print_count<'a, W: Write>(self, count: Counter, file: &'a str, stdout: &mut W, stderr: &mut Stderr) {
         stdout.write(b"    ").try(&mut *stderr);
 
         if self.count_lines {
-            stdout.write(lines.to_string().as_bytes()).try(&mut *stderr);
+            stdout.write(count.lines.to_string().as_bytes()).try(&mut *stderr);
             stdout.write(b" ").try(&mut *stderr);
         }
         if self.count_words {
-            stdout.write(words.to_string().as_bytes()).try(&mut *stderr);
+            stdout.write(count.words.to_string().as_bytes()).try(&mut *stderr);
             stdout.write(b" ").try(&mut *stderr);
         }
         if self.count_bytes {
-            stdout.write(bytes.to_string().as_bytes()).try(&mut *stderr);
+            stdout.write(count.bytes.to_string().as_bytes()).try(&mut *stderr);
             stdout.write(b" ").try(&mut *stderr);
         }
 
@@ -85,8 +135,8 @@ impl Flags {
 }
 
 fn main() {
-    let mut opts = Flags::new();
-    let mut first_file  = String::new();
+    let mut opts = Flags::default();
+    let mut first_file = String::new();
     let mut args = env::args().skip(1);
     let stdout = stdout();
     let mut stdout = stdout.lock();
@@ -125,13 +175,9 @@ fn main() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        let (lines, words, bytes) = do_count(stdin);
-        opts.print_count(lines, words, bytes, "stdin", &mut stdout, &mut stderr);
+        opts.print_count(Counter::new(stdin), "stdin", &mut stdout, &mut stderr);
     } else {
-        let mut total_lines = 0;
-        let mut total_words = 0;
-        let mut total_bytes = 0;
-
+        let mut total_count = Counter::default();
         let single_file = args.len() == 1;
 
         for path in iter::once(first_file).chain(args) {
@@ -141,17 +187,14 @@ fn main() {
             //(also - is specific to sh/bash fwiw).
 
             let file = File::open(&path).try(&mut stderr);
-            let (lines, words, bytes) = do_count(file);
+            let file_count = Counter::new(file);
+            total_count += file_count;
 
-            total_lines += lines;
-            total_words += words;
-            total_bytes += bytes;
-
-            opts.print_count(lines, words, bytes, &path, &mut stdout, &mut stderr);
+            opts.print_count(file_count, &path, &mut stdout, &mut stderr);
         }
 
         if single_file {
-            opts.print_count(total_lines, total_words, total_bytes, "total", &mut stdout, &mut stderr);
+            opts.print_count(total_count, "total", &mut stdout, &mut stderr);
         }
     }
 }
@@ -166,30 +209,4 @@ fn is_whitespace(byte: u8) -> bool {
     || byte == 0xc // formfeed
     || byte == 0xb // vtab
     || byte == b' ' // space
-}
-
-fn do_count<T: std::io::Read>(input: T) -> (u64, u64, u64) {
-    let mut line_count = 0;
-    let mut word_count = 0;
-    let mut byte_count = 0;
-    let mut got_space = true;
-
-    for byte_result in input.bytes() {
-        if let Ok(byte) = byte_result {
-            if byte == b'\n' {
-                line_count += 1;
-            }
-
-            if is_whitespace(byte) {
-                got_space = true;
-            } else if got_space {
-                got_space = false;
-                word_count += 1;
-            }
-
-            byte_count += 1;
-        }
-    }
-
-    (line_count, word_count, byte_count)
 }

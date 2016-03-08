@@ -4,7 +4,7 @@ extern crate coreutils;
 
 use std::env;
 use std::fs;
-use std::io::{stdout, stderr, Seek, SeekFrom, Write};
+use std::io::{stdout, stderr, Write};
 use coreutils::extra::{OptionalExt, WriteExt};
 
 fn print_path(path: &str) {
@@ -40,8 +40,8 @@ fn print_path(path: &str) {
         }
         entry_path.push_str(entry);
 
-        let mut file = fs::File::open(&entry_path).try(&mut stderr);
-        let size = file.seek(SeekFrom::End(0)).try(&mut stderr);
+        let metadata = fs::metadata(&entry_path).try(&mut stderr);
+        let size = metadata.len();
 
         stdout.write(((size + 1023) / 1024).to_string().as_bytes()).try(&mut stderr);
         stdout.write(b"    ").try(&mut stderr);
