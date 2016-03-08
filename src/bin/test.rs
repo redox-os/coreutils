@@ -89,6 +89,9 @@ OPTIONS
     -s FILE
         FILE exists and has a file size greater than zero
 
+    -S FILE
+        FILE exists and is a socket
+
     -w FILE
         FILE exists and write permission is granted
 
