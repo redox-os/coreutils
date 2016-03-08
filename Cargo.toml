@@ -80,6 +80,10 @@ name = "sleep"
 path = "src/bin/sleep.rs"
 
 [[bin]]
+name = "test"
+path = "src/bin/test.rs"
+
+[[bin]]
 name = "touch"
 path = "src/bin/touch.rs"
 
