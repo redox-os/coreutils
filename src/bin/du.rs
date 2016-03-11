@@ -44,7 +44,7 @@ fn print_path(path: &str) {
         let size = metadata.len();
 
         stdout.write(((size + 1023) / 1024).to_string().as_bytes()).try(&mut stderr);
-        stdout.write(b"    ").try(&mut stderr);
+        stdout.write(b"\t").try(&mut stderr);
         stdout.writeln(entry.as_bytes()).try(&mut stderr);
     }
 }
