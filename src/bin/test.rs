@@ -122,28 +122,32 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut arguments = std::env::args().skip(1);
+
     // TODO: Implement support for evaluating multiple expressions
-    if let Some(first_argument) = arguments.next() {
-        if first_argument.as_str() == "--help" {
-            stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(SUCCESS);
+    let expression = std::env::args().skip(1).collect::<Vec<String>>();
+    exit(evaluate_arguments(expression, &mut stdout, &mut stderr));
+}
+
+fn evaluate_arguments(arguments: Vec<String>, stdout: &mut std::io::StdoutLock, stderr: &mut std::io::Stderr) -> i32 {
+    if let Some(arg) = arguments.first() {
+        if arg.as_str() == "--help" {
+            stdout.write_all(MAN_PAGE.as_bytes()).try(stderr);
+            stdout.flush().try(stderr);
+            return SUCCESS;
         }
-        let mut characters = first_argument.chars().take(2);
-        match characters.next().unwrap() {
-            '-' => match_flag_argument(characters.next(), arguments.next()),
-            _   => evaluate_expression(first_argument.as_str(), arguments.next(), arguments.next(),
-                                       &mut stderr),
-        }
+        let mut characters = arg.chars().take(2);
+         return match characters.next().unwrap() {
+            '-' => match_flag_argument(characters.next(), arguments.get(2)),
+            _   => evaluate_expression(arg.as_str(), arguments.get(2), arguments.get(3), stderr),
+        };
     } else {
-        exit(FAILED);
+        FAILED
     }
 }
 
 /// Evaluate an expression of `VALUE -OPERATOR VALUE`.
-fn evaluate_expression(first: &str, operator: Option<String>, second_argument: Option<String>,
-                       stderr: &mut io::Stderr) {
+fn evaluate_expression(first: &str, operator: Option<&String>, second_argument: Option<&String>,
+                       stderr: &mut io::Stderr) -> i32 {
     match operator {
         Some(op) => {
             let op = op.as_str();
@@ -155,27 +159,27 @@ fn evaluate_expression(first: &str, operator: Option<String>, second_argument: O
                         "!=" => evaluate_bool(first != second),
                         "-eq" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            evaluate_bool(left == right);
+                            return evaluate_bool(left == right);
                         },
                         "-ge" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            evaluate_bool(left >= right);
+                            return evaluate_bool(left >= right);
                         },
                         "-gt" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            evaluate_bool(left > right);
+                            return evaluate_bool(left > right);
                         },
                         "-le" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            evaluate_bool(left <= right);
+                            return evaluate_bool(left <= right);
                         },
                         "-lt" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            evaluate_bool(left < right);
+                            return evaluate_bool(left < right);
                         },
                         "-ne" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            evaluate_bool(left != right)
+                            return evaluate_bool(left != right);
                         },
                         "-ef" => files_have_same_device_and_inode_numbers(first, second),
                         "-nt" => file_is_newer_than(first, second),
@@ -185,73 +189,102 @@ fn evaluate_expression(first: &str, operator: Option<String>, second_argument: O
                             stderr.write_all(op.as_bytes()).try(stderr);
                             stderr.write_all(&[b'\n']).try(stderr);
                             stderr.flush().try(stderr);
-                            exit(FAILED);
+                            return FAILED
                         }
                     }
                 },
                 None => {
                     stderr.write_all(b"parse error: condition expected\n").try(stderr);
                     stderr.flush().try(stderr);
-                    exit(FAILED);
+                    return FAILED
                 }
             }
         },
-        None => string_is_nonzero(Some(String::from(first)))
+        None => string_is_nonzero(Some(&String::from(first)))
     }
 }
 
 /// Exits SUCCESS if both files have the same device and inode numbers
-fn files_have_same_device_and_inode_numbers(first: &str, second: &str) {
-    evaluate_bool(get_dev_and_inode(first) == get_dev_and_inode(second));
+fn files_have_same_device_and_inode_numbers(first: &str, second: &str) -> i32 {
+    let left = match get_dev_and_inode(first) {
+        Some(values) => values,
+        None         => return FAILED
+    };
+
+    let right = match get_dev_and_inode(second) {
+        Some(values) => values,
+        None         => return FAILED
+    };
+
+    evaluate_bool(left == right)
 }
 
 /// Obtains the device and inode numbers of the file specified
-fn get_dev_and_inode(filename: &str) -> (u64, u64) {
+fn get_dev_and_inode(filename: &str) -> Option<(u64, u64)> {
     match fs::metadata(filename) {
-        Ok(file) => (file.dev(), file.ino()),
-        Err(_)   => exit(FAILED)
+        Ok(file) => Some((file.dev(), file.ino())),
+        Err(_)   => None
     }
 }
 
 /// Exits SUCCESS if the first file is newer than the second file.
-fn file_is_newer_than(first: &str, second: &str) {
-    evaluate_bool(get_modified_file_time(first) > get_modified_file_time(second));
+fn file_is_newer_than(first: &str, second: &str) -> i32 {
+    let left = match get_modified_file_time(first) {
+        Some(time) => time,
+        None       => return FAILED
+    };
+
+    let right = match get_modified_file_time(second) {
+        Some(time) => time,
+        None       => return FAILED
+    };
+    evaluate_bool(left > right)
 }
 
 /// Exits SUCCESS if the first file is older than the second file.
-fn file_is_older_than(first: &str, second: &str) {
-    evaluate_bool(get_modified_file_time(first) < get_modified_file_time(second));
+fn file_is_older_than(first: &str, second: &str) -> i32 {
+    let left = match get_modified_file_time(first) {
+        Some(time) => time,
+        None       => return FAILED
+    };
+
+    let right = match get_modified_file_time(second) {
+        Some(time) => time,
+        None       => return FAILED
+    };
+
+    evaluate_bool(left < right)
 }
 
 /// Obtain the time the file was last modified as a `SystemTime` type.
-fn get_modified_file_time(filename: &str) -> std::time::SystemTime {
+fn get_modified_file_time(filename: &str) -> Option<std::time::SystemTime> {
     match fs::metadata(filename) {
         Ok(file) => match file.modified() {
-            Ok(time) => return time,
-            Err(_)   => exit(FAILED)
+            Ok(time) => return Some(time),
+            Err(_)   => None
         },
-        Err(_) => exit(FAILED)
+        Err(_) => None
     }
 }
 
 /// Attempt to parse a &str as a usize.
-fn parse_integers(left: &str, right: &str, stderr: &mut io::Stderr) -> (usize, usize) {
-    let mut parse_integer = |input: &str| -> usize {
+fn parse_integers(left: &str, right: &str, stderr: &mut io::Stderr) -> (Option<usize>, Option<usize>) {
+    let mut parse_integer = |input: &str| -> Option<usize> {
         if let Ok(integer) = input.parse::<usize>() {
-            integer
+            Some(integer)
         } else {
             stderr.write_all(b"integer expression expected: ").try(stderr);
             stderr.write_all(input.as_bytes()).try(stderr);
             stderr.write_all(&[b'\n']).try(stderr);
             stderr.flush().try(stderr);
-            exit(FAILED);
+            None
         }
     };
     (parse_integer(left), parse_integer(right))
 }
 
 /// Matches flag arguments to their respective functionaity when the `-` character is detected.
-fn match_flag_argument(character: Option<char>, arguments: Option<String>) {
+fn match_flag_argument(character: Option<char>, arguments: Option<&String>) -> i32 {
     if let Some(second_character) = character {
         // TODO: Implement missing flags
         match second_character {
@@ -275,21 +308,21 @@ fn match_flag_argument(character: Option<char>, arguments: Option<String>) {
             'x' => file_has_execute_permission(arguments),
             'n' => string_is_nonzero(arguments),
             'z' => string_is_zero(arguments),
-            _ => exit(SUCCESS),
+            _ => SUCCESS,
         }
     } else {
-        exit(SUCCESS);
+        SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file size is greather than zero.
-fn file_size_is_greater_than_zero(file: Option<String>) {
+fn file_size_is_greater_than_zero(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.len() > 0),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
@@ -297,7 +330,7 @@ fn file_size_is_greater_than_zero(file: Option<String>) {
 /// Rust currently does not have a higher level abstraction for obtaining non-standard file modes.
 /// To extract the permissions from the mode, the bitwise AND operator will be used and compared
 /// with the respective read bits.
-fn file_has_read_permission(file: Option<String>) {
+fn file_has_read_permission(file: Option<&String>) -> i32 {
     const USER_BIT:  u32 = 0b100000000;
     const GROUP_BIT: u32 = 0b100000;
     const GUEST_BIT: u32 = 0b100;
@@ -306,14 +339,14 @@ fn file_has_read_permission(file: Option<String>) {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => {
                 let permissions = metadata.permissions().mode();
-                if permissions & USER_BIT == USER_BIT { exit(SUCCESS); }
-                if permissions & GROUP_BIT == GROUP_BIT { exit(SUCCESS); }
-                if permissions & GUEST_BIT == GUEST_BIT { exit(SUCCESS); }
-                exit(FAILED);
+                if permissions & USER_BIT == USER_BIT { return SUCCESS; }
+                if permissions & GROUP_BIT == GROUP_BIT { return SUCCESS; }
+                if permissions & GUEST_BIT == GUEST_BIT { return SUCCESS; }
+                FAILED
             },
-            Err(_) => exit(FAILED)
+            Err(_) => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
@@ -321,7 +354,7 @@ fn file_has_read_permission(file: Option<String>) {
 /// Rust currently does not have a higher level abstraction for obtaining non-standard file modes.
 /// To extract the permissions from the mode, the bitwise AND operator will be used and compared
 /// with the respective write bits.
-fn file_has_write_permission(file: Option<String>) {
+fn file_has_write_permission(file: Option<&String>) -> i32 {
     const USER_BIT:  u32 = 0b10000000;
     const GROUP_BIT: u32 = 0b10000;
     const GUEST_BIT: u32 = 0b10;
@@ -330,14 +363,14 @@ fn file_has_write_permission(file: Option<String>) {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => {
                 let permissions = metadata.permissions().mode();
-                if permissions & USER_BIT == USER_BIT { exit(SUCCESS); }
-                if permissions & GROUP_BIT == GROUP_BIT { exit(SUCCESS); }
-                if permissions & GUEST_BIT == GUEST_BIT { exit(SUCCESS); }
-                exit(FAILED);
+                if permissions & USER_BIT == USER_BIT { return SUCCESS; }
+                if permissions & GROUP_BIT == GROUP_BIT { return SUCCESS; }
+                if permissions & GUEST_BIT == GUEST_BIT { return SUCCESS; }
+                FAILED
             },
-            Err(_) => exit(FAILED)
+            Err(_) => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
@@ -345,7 +378,7 @@ fn file_has_write_permission(file: Option<String>) {
 /// Rust currently does not have a higher level abstraction for obtaining non-standard file modes.
 /// To extract the permissions from the mode, the bitwise AND operator will be used and compared
 /// with the respective execute bits.
-fn file_has_execute_permission(file: Option<String>) {
+fn file_has_execute_permission(file: Option<&String>) -> i32 {
     const USER_BIT:  u32 = 0b1000000;
     const GROUP_BIT: u32 = 0b1000;
     const GUEST_BIT: u32 = 0b1;
@@ -354,106 +387,106 @@ fn file_has_execute_permission(file: Option<String>) {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => {
                 let permissions = metadata.permissions().mode();
-                if permissions & USER_BIT == USER_BIT { exit(SUCCESS); }
-                if permissions & GROUP_BIT == GROUP_BIT { exit(SUCCESS); }
-                if permissions & GUEST_BIT == GUEST_BIT { exit(SUCCESS); }
-                exit(FAILED);
+                if permissions & USER_BIT == USER_BIT { return SUCCESS; }
+                if permissions & GROUP_BIT == GROUP_BIT { return SUCCESS; }
+                if permissions & GUEST_BIT == GUEST_BIT { return SUCCESS; }
+                FAILED
             },
-            Err(_) => exit(FAILED)
+            Err(_) => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file argument is a socket
-fn file_is_socket(file: Option<String>) {
+fn file_is_socket(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_socket()),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file argument is a block device
-fn file_is_block_device(file: Option<String>) {
+fn file_is_block_device(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_block_device()),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file argument is a character device
-fn file_is_character_device(file: Option<String>) {
+fn file_is_character_device(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_char_device()),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file exists
-fn file_exists(file: Option<String>) {
+fn file_exists(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => evaluate_bool(Path::new(&filepath).exists()),
-        None           => exit(SUCCESS)
+        None           => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file is a regular file
-fn file_is_regular(file: Option<String>) {
+fn file_is_regular(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_file()),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file is a directory
-fn file_is_directory(file: Option<String>) {
+fn file_is_directory(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_dir()),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the file is a symbolic link
-fn file_is_symlink(file: Option<String>) {
+fn file_is_symlink(file: Option<&String>) -> i32 {
     match file {
         Some(filepath) => match fs::metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_symlink()),
-            Err(_)       => exit(FAILED)
+            Err(_)       => FAILED
         },
-        None => exit(SUCCESS)
+        None => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the string is not empty
-fn string_is_nonzero(string: Option<String>) {
+fn string_is_nonzero(string: Option<&String>) -> i32 {
     match string {
         Some(string) => evaluate_bool(!string.is_empty()),
-        None         => exit(SUCCESS)
+        None         => SUCCESS
     }
 }
 
 /// Exits SUCCESS if the string is empty
-fn string_is_zero(string: Option<String>) {
+fn string_is_zero(string: Option<&String>) -> i32 {
     match string {
         Some(string) => evaluate_bool(string.is_empty()),
-        None         => exit(SUCCESS)
+        None         => SUCCESS
     }
 }
 
-// Convert a boolean to it's respective exit code.
-fn evaluate_bool(input: bool) { if input { exit(SUCCESS); } else { exit(FAILED); } }
+/// Convert a boolean to it's respective exit code.
+fn evaluate_bool(input: bool) -> i32 { if input { SUCCESS } else { FAILED } }
