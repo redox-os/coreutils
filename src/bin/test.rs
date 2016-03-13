@@ -498,3 +498,50 @@ fn test_strings() {
     assert_eq!(string_is_nonzero(Some(&String::from("NOT ZERO"))), SUCCESS);
     assert_eq!(string_is_nonzero(Some(&String::from(""))), FAILED);
 }
+
+#[test]
+fn test_integers() {
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = io::stderr();
+
+    // Equal To
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-eq"), String::from("10")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-eq"), String::from("5")],
+        &mut stdout, &mut stderr), FAILED);
+
+    // Greater Than or Equal To
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-ge"), String::from("10")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-ge"), String::from("5")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-ge"), String::from("10")],
+        &mut stdout, &mut stderr), FAILED);
+
+    // Less Than or Equal To
+    assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-le"), String::from("5")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-le"), String::from("10")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-le"), String::from("5")],
+        &mut stdout, &mut stderr), FAILED);
+
+    // Less Than
+    assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-lt"), String::from("10")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-lt"), String::from("5")],
+        &mut stdout, &mut stderr), FAILED);
+
+    // Greater Than
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-gt"), String::from("5")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-gt"), String::from("10")],
+        &mut stdout, &mut stderr), FAILED);
+
+    // Not Equal To
+    assert_eq!(evaluate_arguments(vec![String::from("10"), String::from("-ne"), String::from("5")],
+        &mut stdout, &mut stderr), SUCCESS);
+    assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-ne"), String::from("5")],
+        &mut stdout, &mut stderr), FAILED);
+}
