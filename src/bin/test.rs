@@ -136,9 +136,9 @@ fn evaluate_arguments(arguments: Vec<String>, stdout: &mut std::io::StdoutLock, 
             return SUCCESS;
         }
         let mut characters = arg.chars().take(2);
-         return match characters.next().unwrap() {
-            '-' => match_flag_argument(characters.next(), arguments.get(2)),
-            _   => evaluate_expression(arg.as_str(), arguments.get(2), arguments.get(3), stderr),
+        return match characters.next().unwrap() {
+            '-' => match_flag_argument(characters.next(), arguments.get(1)),
+            _   => evaluate_expression(arg.as_str(), arguments.get(1), arguments.get(2), stderr),
         };
     } else {
         FAILED
@@ -490,3 +490,11 @@ fn string_is_zero(string: Option<&String>) -> i32 {
 
 /// Convert a boolean to it's respective exit code.
 fn evaluate_bool(input: bool) -> i32 { if input { SUCCESS } else { FAILED } }
+
+#[test]
+fn test_strings() {
+    assert_eq!(string_is_zero(Some(&String::from("NOT ZERO"))), FAILED);
+    assert_eq!(string_is_zero(Some(&String::from(""))), SUCCESS);
+    assert_eq!(string_is_nonzero(Some(&String::from("NOT ZERO"))), SUCCESS);
+    assert_eq!(string_is_nonzero(Some(&String::from(""))), FAILED);
+}
