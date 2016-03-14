@@ -14,6 +14,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `env`
 - `false`
 - `free`
+- `head`
 - `ls`
 - `mkdir`
 - `ps`
@@ -24,6 +25,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `seq`
 - `shutdown`
 - `sleep`
+- `tail`
 - `test`
 - `touch`
 - `true`

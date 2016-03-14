@@ -40,6 +40,10 @@ name = "free"
 path = "src/bin/free.rs"
 
 [[bin]]
+name = "head"
+path = "src/bin/head.rs"
+
+[[bin]]
 name = "ls"
 path = "src/bin/ls.rs"
 
@@ -78,6 +82,10 @@ path = "src/bin/shutdown.rs"
 [[bin]]
 name = "sleep"
 path = "src/bin/sleep.rs"
+
+[[bin]]
+name = "tail"
+path = "src/bin/tail.rs"
 
 [[bin]]
 name = "test"
