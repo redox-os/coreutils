@@ -11,7 +11,7 @@ static MAN_PAGE: &'static str = r#"NAME
     head - output the first part of a file
 
 SYNOPSIS
-    head [[-h | --help] | [-n LINES] | [-c BYTES]] [FILE ...]
+    head [[-h | --help] | [[-n | --lines] LINES] | [[-c | --bytes] BYTES]] [FILE ...]
 
 DESCRIPTION
     Print the first 10 lines of each FILE to standard output. If there are no files, read the standard input. If there are multiple files, prefix each one with a header containing it's name.
@@ -21,62 +21,50 @@ OPTIONS
     --help
         Print this manual page.
 
-    -n [-]LINES
-        Print the first LINES lines. If prefixed with a minus, print all but the last LINES lines.
+    -n LINES
+    --lines LINES
+        Print the first LINES lines.
 
-    -c [-]BYTES
-        Print the first BYTES bytes. If prefixed with a minus, print all but the last BYTES bytes.
+    -c BYTES
+    --bytes BYTES
+        Print the first BYTES bytes.
 
 AUTHOR
     Written by Žad Deljkić.
 "#;
 
-// lines - true if outputing lines, false if outputing bytes
-// num - number of lines/bytes specified
-// skip - false if outputing first num lines/bytes, true if outputing all but the last num lines/bytes (i.e. skip the last num lines/bytes)
 #[derive(Copy, Clone)]
 struct Options {
+    /// true if outputing lines, false if outputing bytes
     lines: bool,
+    /// number of lines/bytes specified
     num: usize,
-    skip: bool,
 }
 
-// get the last line/byte up to which we read
-// while taking care to stay within bounds
-fn get_last(num: usize, len: usize, skip: bool) -> usize {
-    if skip {
-        if num <= len {
-            len - num
-        } else {
-            0
-        }
-    } else {
-        if num <= len {
-            num
-        } else {
-            len
-        }
-    }
-}
+fn head<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()> {
+    let mut writer = io::BufWriter::new(output);
 
-fn head<R: Read>(mut input: R, opts: Options) -> io::Result<()> {
     if opts.lines {
-        let lines: Vec<String> = try!(io::BufReader::new(input).lines().collect());
+        let lines = io::BufReader::new(input).lines().take(opts.num);
 
-        let last = get_last(opts.num, lines.len(), opts.skip);
-
-        for line in &lines[..last] {
-            println!("{}", line);
+        for line_res in lines {
+            match line_res {
+                Ok(mut line) => {
+                    line.push('\n');
+                    try!(writer.write_all(line.as_bytes()));
+                }
+                Err(err) => return Err(err),
+            };
         }
     } else {
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-        let mut output = Vec::<u8>::new();
-        try!(input.read_to_end(&mut output));
+        let bytes = input.bytes().take(opts.num);
 
-        let last = get_last(opts.num, output.len(), opts.skip);
-
-        try!(stdout.write_all(&output[..last]));
+        for byte_res in bytes {
+            match byte_res {
+                Ok(byte) => try!(writer.write_all(&[byte])),
+                Err(err) => return Err(err),
+            };
+        }
     }
 
     Ok(())
@@ -87,51 +75,50 @@ fn main() {
     let mut opts = Options {
         lines: true,
         num: 10,
-        skip: false,
     };
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut args: Vec<_> = env::args().skip(1).collect();
+    let mut args = env::args().skip(1);
+    let mut paths: Vec<String> = Vec::new();
 
     // parse options
-    if args.len() > 0 && args[0].starts_with("-") {
-        match args[0].as_str() {
-            "-h" | "--help" => {
-                print!("{}", MAN_PAGE);
-                return;
+    while let Some(arg) = args.next() {
+        if arg.starts_with('-') {
+            match arg.as_str() {
+                "-h" | "--help" => {
+                    stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
+                    return;
+                }
+                "-n" | "--lines" => opts.lines = true,
+                "-c" | "--bytes" => opts.lines = false,
+                _ => fail("invalid option", &mut stderr),
             }
-            "-n" => opts.lines = true,
-            "-c" => opts.lines = false,
-            _ => fail("invalid option", &mut stderr),
+
+            if let Some(arg) = args.next() {
+                opts.num = arg.parse::<usize>().try(&mut stderr);
+            } else {
+                fail("missing argument (number of lines/bytes)", &mut stderr);
+            }
+        } else {
+            paths.push(arg);
         }
-
-        if args.len() < 2 {
-            fail("missing parameter (number of lines/bytes)", &mut stderr);
-        }
-
-        // check if number of lines/bytes is prefixed with a minus
-        if args[1].starts_with("-") {
-            opts.skip = true;
-            args[1].remove(0); // remove the minus
-        }
-
-        opts.num = args[1].parse::<usize>().try(&mut stderr);
-
-        // remove the arguments specifiyng the number of lines/bytes
-        args = args.split_off(2);
     }
 
-    // the rest of the arguments are now files
-    if args.is_empty() {
-        head(io::stdin(), opts).try(&mut stderr);
-    } else if args.len() == 1 {
-        let file = fs::File::open(&args[0]).try(&mut stderr);
-        head(file, opts).try(&mut stderr);
+    // run the main part
+    if paths.is_empty() {
+        let stdin = io::stdin();
+        let stdin = stdin.lock();
+        head(stdin, stdout, opts).try(&mut stderr);
+    } else if paths.len() == 1 {
+        let file = fs::File::open(&paths[0]).try(&mut stderr);
+        head(file, stdout, opts).try(&mut stderr);
     } else {
-        for path in args {
+        for path in paths {
             let file = fs::File::open(&path).try(&mut stderr);
-            println!("==> {} <==", path);
-            head(file, opts).try(&mut stderr);
-            println!("");
+            writeln!(&mut stdout, "==> {} <==", path).try(&mut stderr);
+            head(file, &mut stdout, opts).try(&mut stderr);
+            writeln!(&mut stdout, "").try(&mut stderr);
         }
     }
 }
