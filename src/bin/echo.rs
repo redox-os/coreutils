@@ -23,7 +23,6 @@ fn main() {
             }
         } else {
             stdout.write(arg.as_bytes()).try(&mut stderr);
-            stdout.write(b" ").try(&mut stderr);
         }
     }
     for arg in args {
