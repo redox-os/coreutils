@@ -104,10 +104,10 @@ struct Flags {
 }
 
 fn u64_num_digits(val: u64) -> usize {
-    if val == 0 {
+    if val < 10 {
         1
     } else {
-        (val as f32).log10() as usize + 1
+        1 + u64_num_digits(val / 10)
     }
 }
 
