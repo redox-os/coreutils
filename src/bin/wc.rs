@@ -103,24 +103,66 @@ struct Flags {
     count_bytes: bool,
 }
 
+fn u64_num_digits(val: u64) -> usize {
+    if val < 10 {
+        1
+    } else {
+        1 + u64_num_digits(val / 10)
+    }
+}
+
 impl Flags {
-    fn print_count<'a, W: Write>(self, count: Counter, file: &'a str, stdout: &mut W, stderr: &mut Stderr) {
-        stdout.write(b"    ").try(&mut *stderr);
+    fn print_counts<W: Write>(self, mut counts: Vec<(Counter, String)>, stdout: &mut W, stderr: &mut Stderr) {
+        use std::cmp::max;
+
+        let mut max_lines_digits = 0;
+        let mut max_words_digits = 0;
+        let mut max_bytes_digits = 0;
+
+        for &mut (count, _) in &mut counts {
+            if self.count_lines {
+                max_lines_digits = max(max_lines_digits, u64_num_digits(count.lines));
+            }
+            if self.count_words {
+                max_words_digits = max(max_words_digits, u64_num_digits(count.words));
+            }
+            if self.count_bytes {
+                max_bytes_digits = max(max_bytes_digits, u64_num_digits(count.bytes));
+            }
+        }
+
+        for &mut (count, ref mut path) in &mut counts {
+            self.print_count(count, path,
+                max_lines_digits - u64_num_digits(count.lines) + 1,
+                max_words_digits - u64_num_digits(count.words) + 1,
+                max_bytes_digits - u64_num_digits(count.bytes) + 1,
+                stdout, stderr)
+        }
+    }
+
+    fn print_count<'a, W: Write>(self, count: Counter, path: &'a str, lines_padding: usize, words_padding: usize, bytes_padding: usize, stdout: &mut W, stderr: &mut Stderr) {
+        stdout.write(b"    ").try(stderr);
 
         if self.count_lines {
-            stdout.write(count.lines.to_string().as_bytes()).try(&mut *stderr);
-            stdout.write(b" ").try(&mut *stderr);
+            stdout.write(count.lines.to_string().as_bytes()).try(stderr);
+            for _ in 0..lines_padding {
+                stdout.write(b" ").try(stderr);
+            }
         }
         if self.count_words {
-            stdout.write(count.words.to_string().as_bytes()).try(&mut *stderr);
-            stdout.write(b" ").try(&mut *stderr);
+            stdout.write(count.words.to_string().as_bytes()).try(stderr);
+            for _ in 0..words_padding {
+                stdout.write(b" ").try(stderr);
+            }
         }
         if self.count_bytes {
-            stdout.write(count.bytes.to_string().as_bytes()).try(&mut *stderr);
-            stdout.write(b" ").try(&mut *stderr);
+            stdout.write(count.bytes.to_string().as_bytes()).try(stderr);
+            for _ in 0..bytes_padding {
+                stdout.write(b" ").try(stderr);
+            }
         }
 
-        stdout.writeln(file.as_bytes()).try(&mut *stderr);
+        stdout.writeln(path.as_bytes()).try(&mut *stderr);
     }
 
     fn default_to(&mut self) {
@@ -174,10 +216,11 @@ fn main() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        opts.print_count(Counter::new(stdin), "stdin", &mut stdout, &mut stderr);
+        opts.print_count(Counter::new(stdin), "stdin", 1, 1, 1, &mut stdout, &mut stderr);
     } else {
+        let mut files = Vec::new();
         let mut total_count = Counter::default();
-        let single_file = args.len() == 1;
+        let single_file = args.len() == 0;
 
         for path in iter::once(first_file).chain(args) {
             //TODO would be easy to use stdin for - but
@@ -189,12 +232,14 @@ fn main() {
             let file_count = Counter::new(file);
             total_count += file_count;
 
-            opts.print_count(file_count, &path, &mut stdout, &mut stderr);
+            files.push((file_count, path.to_owned()));
         }
 
-        if single_file {
-            opts.print_count(total_count, "total", &mut stdout, &mut stderr);
+        if !single_file {
+            files.push((total_count, "total".to_owned()));
         }
+
+        opts.print_counts(files, &mut stdout, &mut stderr);
     }
 }
 
