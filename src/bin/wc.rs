@@ -103,6 +103,10 @@ struct Flags {
     count_bytes: bool,
 }
 
+fn u64_num_digits(val: u64) -> usize {
+    (val as f32).log10() as usize + 1
+}
+
 impl Flags {
     fn print_counts<W: Write>(self, mut counts: Vec<(Counter, String)>, stdout: &mut W, stderr: &mut Stderr) {
         use std::cmp::max;
@@ -113,20 +117,19 @@ impl Flags {
 
         for &mut (count, _) in &mut counts {
             if self.count_lines {
-                max_lines_digits = max(max_lines_digits, count.lines.to_string().len());
+                max_lines_digits = max(max_lines_digits, u64_num_digits(count.lines));
             }
             if self.count_words {
-                max_words_digits = max(max_words_digits, count.words.to_string().len());
+                max_words_digits = max(max_words_digits, u64_num_digits(count.words));
             }
             if self.count_bytes {
-                max_bytes_digits = max(max_bytes_digits, count.bytes.to_string().len());
+                max_bytes_digits = max(max_bytes_digits, u64_num_digits(count.bytes));
             }
         }
 
         fn print_val<W: Write>(val: u64, max_digits: usize, stdout: &mut W, stderr: &mut Stderr) {
-            let count_str = val.to_string();
-            stdout.write(count_str.as_bytes()).try(stderr);
-            for _ in 0..(max_digits - count_str.len() + 1) {
+            stdout.write(val.to_string().as_bytes()).try(stderr);
+            for _ in 0..(max_digits - u64_num_digits(val) + 1) {
                 stdout.write(b" ").try(stderr);
             }
         }
