@@ -8,6 +8,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 
 - `basename`
 - `cat`
+- `clear`
 - `cp`
 - `du`
 - `echo`
@@ -20,6 +21,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `ps`
 - `pwd`
 - `realpath`
+- `reset`
 - `rm`
 - `rmdir`
 - `seq`
