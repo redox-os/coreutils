@@ -104,23 +104,48 @@ struct Flags {
 }
 
 impl Flags {
-    fn print_count<'a, W: Write>(self, count: Counter, file: &'a str, stdout: &mut W, stderr: &mut Stderr) {
-        stdout.write(b"    ").try(&mut *stderr);
+    fn print_counts<W: Write>(self, mut counts: Vec<(Counter, String)>, stdout: &mut W, stderr: &mut Stderr) {
+        use std::cmp::max;
 
-        if self.count_lines {
-            stdout.write(count.lines.to_string().as_bytes()).try(&mut *stderr);
-            stdout.write(b" ").try(&mut *stderr);
-        }
-        if self.count_words {
-            stdout.write(count.words.to_string().as_bytes()).try(&mut *stderr);
-            stdout.write(b" ").try(&mut *stderr);
-        }
-        if self.count_bytes {
-            stdout.write(count.bytes.to_string().as_bytes()).try(&mut *stderr);
-            stdout.write(b" ").try(&mut *stderr);
+        let mut max_lines_digits = 0;
+        let mut max_words_digits = 0;
+        let mut max_bytes_digits = 0;
+
+        for &mut (count, _) in &mut counts {
+            if self.count_lines {
+                max_lines_digits = max(max_lines_digits, count.lines.to_string().len());
+            }
+            if self.count_words {
+                max_words_digits = max(max_words_digits, count.words.to_string().len());
+            }
+            if self.count_bytes {
+                max_bytes_digits = max(max_bytes_digits, count.bytes.to_string().len());
+            }
         }
 
-        stdout.writeln(file.as_bytes()).try(&mut *stderr);
+        fn print_val<W: Write>(val: u64, max_digits: usize, stdout: &mut W, stderr: &mut Stderr) {
+            let count_str = val.to_string();
+            stdout.write(count_str.as_bytes()).try(stderr);
+            for _ in 0..(max_digits - count_str.len() + 1) {
+                stdout.write(b" ").try(stderr);
+            }
+        }
+
+        for &mut (count, ref mut path) in &mut counts {
+            stdout.write(b"    ").try(stderr);
+
+            if self.count_lines {
+                print_val(count.lines, max_lines_digits, stdout, stderr);
+            }
+            if self.count_words {
+                print_val(count.words, max_words_digits, stdout, stderr);
+            }
+            if self.count_bytes {
+                print_val(count.bytes, max_bytes_digits, stdout, stderr);
+            }
+
+            stdout.writeln(path.as_bytes()).try(&mut *stderr);
+        }
     }
 
     fn default_to(&mut self) {
@@ -174,10 +199,11 @@ fn main() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        opts.print_count(Counter::new(stdin), "stdin", &mut stdout, &mut stderr);
+        opts.print_counts(vec![(Counter::new(stdin), "stdin".to_owned())], &mut stdout, &mut stderr);
     } else {
+        let mut files = Vec::<(Counter, String)>::new();
         let mut total_count = Counter::default();
-        let single_file = args.len() == 1;
+        let single_file = args.len() == 0;
 
         for path in iter::once(first_file).chain(args) {
             //TODO would be easy to use stdin for - but
@@ -189,12 +215,14 @@ fn main() {
             let file_count = Counter::new(file);
             total_count += file_count;
 
-            opts.print_count(file_count, &path, &mut stdout, &mut stderr);
+            files.push((file_count, path.to_owned()));
         }
 
-        if single_file {
-            opts.print_count(total_count, "total", &mut stdout, &mut stderr);
+        if !single_file {
+            files.push((total_count, "total".to_owned()));
         }
+
+        opts.print_counts(files, &mut stdout, &mut stderr);
     }
 }
 
