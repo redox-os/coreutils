@@ -127,28 +127,38 @@ impl Flags {
             }
         }
 
-        fn print_val<W: Write>(val: u64, max_digits: usize, stdout: &mut W, stderr: &mut Stderr) {
-            stdout.write(val.to_string().as_bytes()).try(stderr);
-            for _ in 0..(max_digits - u64_num_digits(val) + 1) {
+        for &mut (count, ref mut path) in &mut counts {
+            self.print_count(count, path,
+                max_lines_digits - u64_num_digits(count.lines) + 1,
+                max_words_digits - u64_num_digits(count.words) + 1,
+                max_bytes_digits - u64_num_digits(count.bytes) + 1,
+                stdout, stderr)
+        }
+    }
+
+    fn print_count<'a, W: Write>(self, count: Counter, path: &'a str, lines_padding: usize, words_padding: usize, bytes_padding: usize, stdout: &mut W, stderr: &mut Stderr) {
+        stdout.write(b"    ").try(stderr);
+
+        if self.count_lines {
+            stdout.write(count.lines.to_string().as_bytes()).try(stderr);
+            for _ in 0..lines_padding {
+                stdout.write(b" ").try(stderr);
+            }
+        }
+        if self.count_words {
+            stdout.write(count.words.to_string().as_bytes()).try(stderr);
+            for _ in 0..words_padding {
+                stdout.write(b" ").try(stderr);
+            }
+        }
+        if self.count_bytes {
+            stdout.write(count.bytes.to_string().as_bytes()).try(stderr);
+            for _ in 0..bytes_padding {
                 stdout.write(b" ").try(stderr);
             }
         }
 
-        for &mut (count, ref mut path) in &mut counts {
-            stdout.write(b"    ").try(stderr);
-
-            if self.count_lines {
-                print_val(count.lines, max_lines_digits, stdout, stderr);
-            }
-            if self.count_words {
-                print_val(count.words, max_words_digits, stdout, stderr);
-            }
-            if self.count_bytes {
-                print_val(count.bytes, max_bytes_digits, stdout, stderr);
-            }
-
-            stdout.writeln(path.as_bytes()).try(&mut *stderr);
-        }
+        stdout.writeln(path.as_bytes()).try(&mut *stderr);
     }
 
     fn default_to(&mut self) {
@@ -202,9 +212,9 @@ fn main() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        opts.print_counts(vec![(Counter::new(stdin), "stdin".to_owned())], &mut stdout, &mut stderr);
+        opts.print_count(Counter::new(stdin), "stdin", 0, 0, 0, &mut stdout, &mut stderr);
     } else {
-        let mut files = Vec::<(Counter, String)>::new();
+        let mut files = Vec::new();
         let mut total_count = Counter::default();
         let single_file = args.len() == 0;
 
