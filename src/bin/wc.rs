@@ -212,7 +212,7 @@ fn main() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        opts.print_count(Counter::new(stdin), "stdin", 0, 0, 0, &mut stdout, &mut stderr);
+        opts.print_count(Counter::new(stdin), "stdin", 1, 1, 1, &mut stdout, &mut stderr);
     } else {
         let mut files = Vec::new();
         let mut total_count = Counter::default();
