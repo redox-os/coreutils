@@ -5,7 +5,7 @@ extern crate coreutils;
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
-use coreutils::extra::{OptionalExt, fail};
+use coreutils::extra::{OptionalExt, WriteExt, fail};
 
 static MAN_PAGE: &'static str = r#"NAME
     head - output the first part of a file
@@ -87,7 +87,7 @@ fn main() {
         if arg.starts_with('-') {
             match arg.as_str() {
                 "-h" | "--help" => {
-                    stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
+                    stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
                     return;
                 }
                 "-n" | "--lines" => opts.lines = true,
@@ -116,9 +116,10 @@ fn main() {
     } else {
         for path in paths {
             let file = fs::File::open(&path).try(&mut stderr);
-            writeln!(&mut stdout, "==> {} <==", path).try(&mut stderr);
+            stdout.write(b"==> ").try(&mut stderr);
+            stdout.write(path.as_bytes()).try(&mut stderr);
+            stdout.writeln(b" <==").try(&mut stderr);
             head(file, &mut stdout, opts).try(&mut stderr);
-            writeln!(&mut stdout, "").try(&mut stderr);
         }
     }
 }
