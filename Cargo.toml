@@ -56,6 +56,10 @@ name = "mkdir"
 path = "src/bin/mkdir.rs"
 
 [[bin]]
+name = "mv"
+path = "src/bin/mv.rs"
+
+[[bin]]
 name = "ps"
 path = "src/bin/ps.rs"
 
