@@ -18,6 +18,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `head`
 - `ls`
 - `mkdir`
+- `mv`
 - `ps`
 - `pwd`
 - `realpath`
