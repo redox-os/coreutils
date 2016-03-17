@@ -16,6 +16,10 @@ name = "cat"
 path = "src/bin/cat.rs"
 
 [[bin]]
+name = "clear"
+path = "src/bin/clear.rs"
+
+[[bin]]
 name = "cp"
 path = "src/bin/cp.rs"
 
@@ -62,6 +66,10 @@ path = "src/bin/pwd.rs"
 [[bin]]
 name = "realpath"
 path = "src/bin/realpath.rs"
+
+[[bin]]
+name = "reset"
+path = "src/bin/reset.rs"
 
 [[bin]]
 name = "rm"
