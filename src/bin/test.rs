@@ -183,7 +183,7 @@ fn evaluate_expression(first: &str, operator: Option<&String>, second_argument: 
                         },
                         "-ef" => files_have_same_device_and_inode_numbers(first, second),
                         "-nt" => file_is_newer_than(first, second),
-                        "-ot" => file_is_older_than(first, second),
+                        "-ot" => file_is_newer_than(second, first),
                         _          => {
                             stderr.write_all(b"unknown condition: ").try(stderr);
                             stderr.write_all(op.as_bytes()).try(stderr);
@@ -239,21 +239,6 @@ fn file_is_newer_than(first: &str, second: &str) -> i32 {
         None       => return FAILED
     };
     evaluate_bool(left > right)
-}
-
-/// Exits SUCCESS if the first file is older than the second file.
-fn file_is_older_than(first: &str, second: &str) -> i32 {
-    let left = match get_modified_file_time(first) {
-        Some(time) => time,
-        None       => return FAILED
-    };
-
-    let right = match get_modified_file_time(second) {
-        Some(time) => time,
-        None       => return FAILED
-    };
-
-    evaluate_bool(left < right)
 }
 
 /// Obtain the time the file was last modified as a `SystemTime` type.
@@ -464,7 +449,7 @@ fn file_is_directory(file: Option<&String>) -> i32 {
 /// Exits SUCCESS if the file is a symbolic link
 fn file_is_symlink(file: Option<&String>) -> i32 {
     match file {
-        Some(filepath) => match fs::metadata(filepath) {
+        Some(filepath) => match fs::symlink_metadata(filepath) {
             Ok(metadata) => evaluate_bool(metadata.file_type().is_symlink()),
             Err(_)       => FAILED
         },
@@ -500,7 +485,7 @@ fn test_strings() {
 }
 
 #[test]
-fn test_integers() {
+fn test_integers_arguments() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
@@ -544,4 +529,40 @@ fn test_integers() {
         &mut stdout, &mut stderr), SUCCESS);
     assert_eq!(evaluate_arguments(vec![String::from("5"), String::from("-ne"), String::from("5")],
         &mut stdout, &mut stderr), FAILED);
+}
+
+#[test]
+fn test_file_exists() {
+    assert_eq!(file_exists(Some(&String::from("testing/empty_file"))), SUCCESS);
+    assert_eq!(file_exists(Some(&String::from("this-does-not-exist"))), FAILED);
+}
+
+#[test]
+fn test_file_is_regular() {
+    assert_eq!(file_is_regular(Some(&String::from("testing/empty_file"))), SUCCESS);
+    assert_eq!(file_is_regular(Some(&String::from("testing"))), FAILED);
+}
+
+#[test]
+fn test_file_is_directory() {
+    assert_eq!(file_is_directory(Some(&String::from("testing"))), SUCCESS);
+    assert_eq!(file_is_directory(Some(&String::from("testing/empty_file"))), FAILED);
+}
+
+#[test]
+fn test_file_is_symlink() {
+    assert_eq!(file_is_symlink(Some(&String::from("testing/symlink"))), SUCCESS);
+    assert_eq!(file_is_symlink(Some(&String::from("testing/empty_file"))), FAILED);
+}
+
+#[test]
+fn test_file_has_execute_permission() {
+    assert_eq!(file_has_execute_permission(Some(&String::from("testing/executable_file"))), SUCCESS);
+    assert_eq!(file_has_execute_permission(Some(&String::from("testing/empty_file"))), FAILED);
+}
+
+#[test]
+fn test_file_size_is_greater_than_zero() {
+    assert_eq!(file_size_is_greater_than_zero(Some(&String::from("testing/file_with_text"))), SUCCESS);
+    assert_eq!(file_size_is_greater_than_zero(Some(&String::from("testing/empty_file"))), FAILED);
 }
