@@ -1,8 +1,8 @@
 #![deny(warnings)]
-extern crate coreutils;
+extern crate extra;
 
 use std::io::{self, Write};
-use coreutils::extra::OptionalExt;
+use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME
     basename - strip directory and suffix from filenames

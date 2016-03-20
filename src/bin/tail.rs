@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::collections::VecDeque;
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
-use coreutils::extra::{OptionalExt, WriteExt, fail};
+use extra::option::OptionalExt;
+use extra::io::{WriteExt, fail};
 
 static MAN_PAGE: &'static str = r#"NAME
     tail - output the last part of a file

@@ -1,6 +1,6 @@
 #![deny(warnings)]
 #![feature(fs_time)]
-extern crate coreutils;
+extern crate extra;
 
 use std::fs;
 use std::io::{self, Write};
@@ -8,7 +8,7 @@ use std::path::Path;
 use std::process::exit;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 
-use coreutils::extra::OptionalExt;
+use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME
     test - perform tests on files and text

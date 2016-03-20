@@ -1,11 +1,11 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::fs::File;
 use std::io;
 
-use coreutils::extra::OptionalExt;
+use extra::option::OptionalExt;
 
 fn main() {
     let stdout = io::stdout();

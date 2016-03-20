@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{stdout, stderr};
 
-use coreutils::extra::{OptionalExt, WriteExt, fail};
+use extra::io::{fail, WriteExt};
+use extra::option::OptionalExt;
 
 fn main() {
     let stdout = stdout();

@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::fs::File;
@@ -9,8 +9,9 @@ use std::iter;
 use std::ops::{Add, AddAssign};
 use std::process::exit;
 
+use extra::option::OptionalExt;
+use extra::io::WriteExt;
 
-use coreutils::extra::{OptionalExt, WriteExt};
 
 static MAN_PAGE: &'static str = r#"
     NAME

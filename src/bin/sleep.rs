@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::io::{self, Write, Stderr};
@@ -8,7 +8,7 @@ use std::process::exit;
 use std::thread;
 use std::time::Duration;
 
-use coreutils::extra::OptionalExt;
+use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME
     sleep - delay for a specified amount of time.

@@ -1,11 +1,12 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
-use coreutils::extra::{OptionalExt, WriteExt, fail};
+use extra::io::{fail, WriteExt};
+use extra::option::OptionalExt;
 
 static MAN_PAGE: &'static str = r#"NAME
     head - output the first part of a file

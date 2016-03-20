@@ -1,11 +1,11 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io;
-use coreutils::extra::OptionalExt;
+use extra::option::OptionalExt;
 
 fn main() {
     let paths = env::args().skip(1);

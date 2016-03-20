@@ -1,12 +1,12 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{stdout, stderr, Write};
 
-use coreutils::extra::OptionalExt;
+use extra::option::OptionalExt;
 
 fn print_path(path: &str) {
     let mut entries = Vec::new();

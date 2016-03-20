@@ -1,11 +1,12 @@
 #![deny(warnings)]
 
-extern crate coreutils;
+extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{self, Seek, SeekFrom, stderr};
-use coreutils::extra::{OptionalExt, fail};
+use extra::io::fail;
+use extra::option::OptionalExt;
 
 fn main() {
     let mut stderr = stderr();
