@@ -27,6 +27,10 @@ name = "cp"
 path = "src/bin/cp.rs"
 
 [[bin]]
+name = "cut"
+path = "src/bin/cut.rs"
+
+[[bin]]
 name = "du"
 path = "src/bin/du.rs"
 
