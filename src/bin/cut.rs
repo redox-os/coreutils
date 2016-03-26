@@ -1,22 +1,15 @@
 
 
+extern crate extra;
+
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::slice;
 use std::str::FromStr;
 
-// libextra is not compiling.
-use std::process;
-pub fn fail<'a>(s: &'a str, stderr: &mut io::Stderr) -> ! {
-    let mut stderr = stderr.lock();
-
-    let _ = stderr.write(b"error: ");
-    let _ = stderr.write(s.as_bytes());
-    let _ = stderr.write(b"\n");
-    let _ = stderr.flush();
-    process::exit(1);
-}
+use extra::io::{fail, WriteExt};
+use extra::option::OptionalExt;
 
 
 static USAGE: &'static str = r#"usage: cut -b list [-n] [file ...]
@@ -44,7 +37,7 @@ DESCRIPTION
      repeated, overlapping, and in any order.  If a field or column is specified multiple times, it will appear only once in the output.  It
      is not an error to select fields or columns not present in the input line.
 
-     The options are as follows:
+OPTIONS
 
      -b list
              The list specifies byte positions.
@@ -97,11 +90,11 @@ impl Selection {
     /// which selects all fields or columns from the last number to the end of the line.
     /// Numbers and number ranges may be repeated, overlapping, and in any order.
     /// If a field or column is specified multiple times, it will appear only once in the output.
-    fn from_str(list: &str) -> Result<Self, ()> {
+    fn from_str(list: &str) -> Option<Self> {
 
         let empty = usize::from_str("");
 
-        let mut selected: Vec<bool> = vec![];
+        let mut selected = Vec::with_capacity(20);
         let mut to_eol = false;
 
         for part in list.split(|c| c == ',' || c == ' ') {
@@ -122,10 +115,10 @@ impl Selection {
                 // Range: M-N
                 (Some(&Ok(begin)), Some(&Ok(end))) => fill(&mut selected, begin - 1, end),
 
-                _ => return Err(()),
+                _ => return None,
             }
         }
-        Ok(Selection {
+        Some(Selection {
             selected: selected,
             to_eol: to_eol,
         })
@@ -172,7 +165,7 @@ impl<'a, I> Iterator for SelectFromIter<'a, I> where I: Iterator
         if self.consumed {
             // The selected iterator was consumed ...
             // but we continue yielding values from the values iterator.
-            return self.values.next();
+            self.values.next()
         } else {
             // The selected iterator is not yet consumed.
             // Consume both iterators and ..
@@ -203,7 +196,6 @@ impl<'a, I> Iterator for SelectFromIter<'a, I> where I: Iterator
                 }
             }
         }
-        return None;
     }
 }
 
@@ -229,37 +221,44 @@ fn fill(v: &mut Vec<bool>, begin: usize, end: usize) {
     }
 }
 
-/// Write selected bytes from a reader.
-fn cut_bytes<R: Read, W: Write>(input: R, output: W, selection: &Selection) {
+/// Write selected bytes from a reader, returning how many bytes were written.
+fn cut_bytes<R: Read, W: Write>(input: R, output: W, selection: &Selection) -> io::Result<usize> {
     let reader = io::BufReader::new(input);
     let mut writer = io::BufWriter::new(output);
 
+    let mut count = 0;
     for line in reader.lines() {
         let line = line.unwrap();
         let bytes = line.bytes();
         for el in selection.select_from(bytes) {
-            let _ = writer.write(&[el]);
+            count += try!(writer.write(&[el]));
         }
-        let _ = writer.write(b"\n");
+        count += try!(writer.write(b"\n"));
     }
+    Ok(count)
 }
 
-/// Write selected characters from a reader.
-fn cut_characters<R: Read, W: Write>(input: R, output: W, selection: &Selection) {
+/// Write selected characters from a reader, returning how many bytes were written.
+fn cut_characters<R: Read, W: Write>(input: R,
+                                     output: W,
+                                     selection: &Selection)
+                                     -> io::Result<usize> {
     let reader = io::BufReader::new(input);
     let mut writer = io::BufWriter::new(output);
 
+    let mut count = 0;
     for line in reader.lines() {
         let line = line.unwrap();
         let chars = line.chars();
         for el in selection.select_from(chars) {
-            let _ = write!(&mut writer, "{}", el);
+            count += try!(writer.write_char(el));
         }
-        let _ = writer.write(b"\n");
+        count += try!(writer.write(b"\n"));
     }
+    Ok(count)
 }
 
-/// Write selected fields from a reader.
+/// Write selected fields from a reader, returning how many bytes were written.
 ///
 /// The delimiter is also printed when there are more than 1 fields.
 ///
@@ -267,16 +266,22 @@ fn cut_characters<R: Read, W: Write>(input: R, output: W, selection: &Selection)
 ///
 /// * `delimiter` - Indicates how the fields are delimited
 /// * `skip_if_missing` - If true, lines not containing the field delimiter will be skipped.
-fn cut_fields<R: Read, W: Write>(input: R, output: W, selection: &Selection,
-                                 delimiter: &str, skip_if_missing: bool) {
+fn cut_fields<R: Read, W: Write>(input: R,
+                                 output: W,
+                                 selection: &Selection,
+                                 delimiter: &str,
+                                 skip_if_missing: bool)
+                                 -> io::Result<usize> {
     let reader = io::BufReader::new(input);
     let mut writer = io::BufWriter::new(output);
 
+    let mut count = 0;
     for line in reader.lines() {
         let line = line.unwrap();
         if !line.contains(delimiter) {
             if !skip_if_missing {
-                let _ = writeln!(&mut writer, "{}", line);
+                count += try!(writer.write(line.as_bytes()));
+                count += try!(writer.write(b"\n"));
             }
             continue;
         }
@@ -286,15 +291,17 @@ fn cut_fields<R: Read, W: Write>(input: R, output: W, selection: &Selection,
         // in the output if there are more than two elements.
         let mut it = selection.select_from(fields);
         if let Some(el) = it.next() {
-            let _ = write!(&mut writer, "{}", el);
+            count += try!(writer.write(el.as_bytes()));
         } else {
             continue;
         }
         for el in it {
-            let _ = write!(&mut writer, "{}{}", delimiter, el);
+            count += try!(writer.write(delimiter.as_bytes()));
+            count += try!(writer.write(el.as_bytes()));
         }
-        let _ = writer.write(b"\n");
+        count += try!(writer.write(b"\n"));
     }
+    Ok(count)
 }
 
 
@@ -310,11 +317,10 @@ enum Mode {
 fn main() {
 
     // Arguments.
-    let mut mode: Option<Mode> = None;
-    let mut delimiter: Option<String> = None;
-    let mut skip_if_missing: Option<bool> = None;
-    let mut list: String = "".into();
-
+    let mut mode = None;
+    let mut delimiter = None;
+    let mut skip_if_missing = None;
+    let mut list = String::new();
 
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
@@ -368,20 +374,11 @@ fn main() {
         }
     }
 
-    let selection = match Selection::from_str(&list) {
-        Ok(s) => s,
-        _ => fail("illegal list value", &mut stderr),
-    };
+    let mode = mode.fail(USAGE, &mut stderr);
+    let selection = Selection::from_str(&list).fail("illegal list value", &mut stderr);
 
-    let mode = match mode {
-        Some(m) => m,
-        _ => fail(USAGE, &mut stderr),
-    };
-
-    if mode != Mode::Fields {
-        if delimiter.is_some() || skip_if_missing.is_some() {
-            fail(USAGE, &mut stderr);
-        }
+    if mode != Mode::Fields && (delimiter.is_some() || skip_if_missing.is_some()) {
+        fail(USAGE, &mut stderr);
     }
 
     let delimiter = delimiter.unwrap_or("\t".into());
@@ -390,22 +387,27 @@ fn main() {
     if paths.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
-        match mode {
-            Mode::Bytes => cut_bytes(stdin, &mut stdout, &selection),
-            Mode::Characters => cut_characters(stdin, &mut stdout, &selection),
-            Mode::Fields => cut_fields(stdin, &mut stdout, &selection, &delimiter, skip_if_missing),
-        }
+        let _ = match mode {
+                     Mode::Bytes => cut_bytes(stdin, &mut stdout, &selection),
+                     Mode::Characters => cut_characters(stdin, &mut stdout, &selection),
+                     Mode::Fields => {
+                         cut_fields(stdin, &mut stdout, &selection, &delimiter, skip_if_missing)
+                     }
+                 }
+                 .try(&mut stderr);
     } else {
         for path in paths {
-            let file = fs::File::open(&path).unwrap();
-            match mode {
-                Mode::Bytes => cut_bytes(file, &mut stdout, &selection),
-                Mode::Characters => cut_characters(file, &mut stdout, &selection),
-                Mode::Fields => cut_fields(file, &mut stdout, &selection, &delimiter, skip_if_missing),
-            }
+            let file = fs::File::open(&path).try(&mut stderr);
+            let _ = match mode {
+                         Mode::Bytes => cut_bytes(file, &mut stdout, &selection),
+                         Mode::Characters => cut_characters(file, &mut stdout, &selection),
+                         Mode::Fields => {
+                             cut_fields(file, &mut stdout, &selection, &delimiter, skip_if_missing)
+                         }
+                     }
+                     .try(&mut stderr);
         }
     }
-
 }
 
 
@@ -422,7 +424,7 @@ mod tests {
         let selection = Selection::from_str(list).unwrap();
         let mut reader = io::Cursor::new(TXT);
         let mut buf = io::Cursor::new(Vec::new());
-        cut_bytes(&mut reader, &mut buf, &selection);
+        let _ = cut_bytes(&mut reader, &mut buf, &selection);
         buf.into_inner()
     }
 
@@ -431,7 +433,7 @@ mod tests {
         let mut reader = io::Cursor::new(TXT);
         // let mut buf = io::Cursor::new(Vec::new());
         let mut buf = io::Cursor::new(Vec::new());
-        cut_characters(&mut reader, &mut buf, &selection);
+        let _ = cut_characters(&mut reader, &mut buf, &selection);
         buf.into_inner()
     }
 
@@ -440,7 +442,7 @@ mod tests {
         let mut reader = io::Cursor::new(CSV);
         // let mut buf = io::Cursor::new(Vec::new());
         let mut buf = io::Cursor::new(Vec::new());
-        cut_fields(&mut reader, &mut buf, &selection, ",", skip_if_missing);
+        let _ = cut_fields(&mut reader, &mut buf, &selection, ",", skip_if_missing);
         buf.into_inner()
     }
 
@@ -495,10 +497,10 @@ mod tests {
 
     #[test]
     fn parse_err() {
-        assert!(Selection::from_str("").is_err());
-        assert!(Selection::from_str("X").is_err());
-        assert!(Selection::from_str("1;5").is_err());
-        assert!(Selection::from_str("1,3,5-X ").is_err());
+        assert!(Selection::from_str("").is_none());
+        assert!(Selection::from_str("X").is_none());
+        assert!(Selection::from_str("1;5").is_none());
+        assert!(Selection::from_str("1,3,5-X ").is_none());
     }
 
 
