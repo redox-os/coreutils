@@ -4,7 +4,6 @@ extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr};
-
 use extra::io::WriteExt;
 use extra::option::OptionalExt;
 
@@ -23,5 +22,7 @@ fn main() {
         loop {
             stdout.writeln(b"y").try(&mut stderr);
         }
-    }; // Dafuq, borrowck
+    };
+    // ticki: Dafuq, borrowck?
+    // stratact: But I love the borrowck! :)
 }

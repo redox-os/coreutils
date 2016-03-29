@@ -4,7 +4,6 @@ extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr, Write};
-
 use extra::option::OptionalExt;
 
 fn main() {

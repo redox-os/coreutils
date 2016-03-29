@@ -5,7 +5,6 @@ extern crate extra;
 use std::env;
 use std::fs;
 use std::io;
-
 use extra::io::fail;
 use extra::option::OptionalExt;
 

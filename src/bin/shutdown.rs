@@ -4,7 +4,6 @@ extern crate extra;
 
 use std::fs;
 use std::io;
-
 use extra::io::WriteExt;
 use extra::option::OptionalExt;
 
