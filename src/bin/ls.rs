@@ -5,7 +5,6 @@ extern crate extra;
 use std::env;
 use std::fs;
 use std::io::{stdout, stderr, Write};
-
 use extra::option::OptionalExt;
 
 fn print_path(path: &str) {
@@ -45,5 +44,5 @@ fn main() {
         print_path(x);
     } else {
         print_path(".");
-    } // dafuq borrowck. Really you needa do deref coercions better.
+    } // Dafuq borrowck! Really you need to do deref coercions better.
 }

@@ -1,5 +1,3 @@
-
-
 extern crate extra;
 
 use std::env;
@@ -7,10 +5,8 @@ use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::slice;
 use std::str::FromStr;
-
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
-
 
 static USAGE: &'static str = r#"usage: cut -b list [-n] [file ...]
        cut -c list [file ...]

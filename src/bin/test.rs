@@ -7,7 +7,6 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::exit;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
-
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME

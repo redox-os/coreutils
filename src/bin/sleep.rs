@@ -7,7 +7,6 @@ use std::io::{self, Write, Stderr};
 use std::process::exit;
 use std::thread;
 use std::time::Duration;
-
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME

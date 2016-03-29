@@ -1,9 +1,9 @@
 #![deny(warnings)]
 
 extern crate extra;
+
 use std::fs::File;
 use std::io;
-
 use extra::option::OptionalExt;
 
 fn main() {

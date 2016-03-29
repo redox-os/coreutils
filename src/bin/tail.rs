@@ -45,11 +45,11 @@ AUTHOR
 
 #[derive(Copy, Clone)]
 struct Options {
-    /// true if outputing lines, false if outputing bytes
+    /// True if outputting lines, false if outputting bytes
     lines: bool,
-    /// number of lines/bytes specified
+    /// The number of lines/bytes specified
     num: usize,
-    /// false if outputing last num lines/bytes, true if outputing all but the first num lines/bytes (i.e. skip the last num lines/bytes)
+    /// False if outputting last num lines/bytes, true if outputting all but the first num lines/bytes (i.e. skip the last num lines/bytes)
     skip: bool,
 }
 
