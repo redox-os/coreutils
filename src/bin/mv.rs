@@ -9,7 +9,6 @@ use std::os::unix::fs::MetadataExt;
 use extra::io::fail;
 use extra::option::OptionalExt;
 
-
 fn main() {
     let mut stderr = stderr();
     let mut arguments = env::args().skip(1).collect::<Vec<String>>();
@@ -62,5 +61,6 @@ fn mv(src: &str, dst: &str, stderr: &mut io::Stderr) {
         };
         src_file.seek(SeekFrom::Start(0)).try(stderr);
         io::copy(&mut src_file, &mut dst_file).try(stderr);
+        fs::remove_file(src).try(stderr);
     }
 }
