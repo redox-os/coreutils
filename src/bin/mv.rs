@@ -13,8 +13,8 @@ fn main() {
     let mut stderr = stderr();
     let mut arguments = env::args().skip(1).collect::<Vec<String>>();
     match arguments.len() {
-        1 => fail("no source argument", &mut stderr),
-        2 => fail("no destination argument", &mut stderr),
+        0 => fail("no source argument", &mut stderr),
+        1 => fail("no destination argument", &mut stderr),
         _ => ()
     }
 
