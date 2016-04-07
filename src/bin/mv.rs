@@ -247,7 +247,8 @@ fn check_arguments(arguments: &Vec<String>, stdout: &mut StdoutLock, stderr: &mu
         },
         1 => {
             let _ = stderr.write(b"missing target operand after '");
-            let _ = stderr.write(arguments[1].as_bytes());
+            let _ = stderr.write(arguments[0].as_bytes());
+            let _ = stderr.write(b"'\n");
             let _ = stderr.flush();
             exit(1);
         }
