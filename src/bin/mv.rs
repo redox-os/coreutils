@@ -239,7 +239,7 @@ fn check_arguments(arguments: &Vec<String>, stdout: &mut StdoutLock, stderr: &mu
         }
     }
 
-    match arguments.len() {
+    match sources.len() {
         0 => {
             let _ = stderr.write(b"missing file operand\nTry 'mv --help' for more information.\n");
             let _ = stderr.flush();
@@ -247,7 +247,7 @@ fn check_arguments(arguments: &Vec<String>, stdout: &mut StdoutLock, stderr: &mu
         },
         1 => {
             let _ = stderr.write(b"missing target operand after '");
-            let _ = stderr.write(arguments[0].as_bytes());
+            let _ = stderr.write(sources[0].to_string_lossy().as_bytes());
             let _ = stderr.write(b"'\nTry 'mv --help' for more information.\n");
             let _ = stderr.flush();
             exit(1);
