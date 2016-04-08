@@ -16,7 +16,7 @@ const MAN_PAGE: &'static str = r#"NAME
     mv - move (rename) files
 
 SYNOPSIS
-    mv [-i | --interactive] [-n | --no-clobber] [-v | --verbose] [h | --help] SOURCES.. DESTINATION
+    mv [-i | --interactive] [-n | --no-clobber] [-v | --verbose] [-h | --help] SOURCES.. DESTINATION
 
 DESCRIPTION
     If a source is on the same device as it's respective destination, it will be renamed. If it is on a different device, it will be copied.
@@ -196,7 +196,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
         }
     }
 
-    // Delete files and directories that
+    // Delete files and directories that were copied.
     for entry in directory_walk.iter().rev() {
         if entry.is_dir() {
             match fs::remove_dir(&entry) {
@@ -236,7 +236,6 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
 ///
 /// - If the target file exists and the no-clobber flag is set, return false.
 /// - If the target file exists and the interactive flag is set, prompt the user if it is okay to overwrite.
-
 /// - Otherwise, this will return true in order to allow writing.
 fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
     // Skip to the next source if the target exists and we are not allowed to overwrite it.

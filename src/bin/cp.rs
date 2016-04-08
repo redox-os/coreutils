@@ -1,27 +1,388 @@
 #![deny(warnings)]
-
 extern crate extra;
+extern crate walkdir;
 
 use std::env;
-use std::fs;
-use std::io::{self, Seek, SeekFrom, stderr};
-use extra::io::fail;
+use std::error::Error;
+use std::fs::{self, Metadata};
+use std::io::{self, BufRead, Read, Write, Stderr, StdinLock, StdoutLock};
+use std::path::{Path, PathBuf};
+use std::process::exit;
 use extra::option::OptionalExt;
+use walkdir::WalkDir;
+
+const MAN_PAGE: &'static str = r#"NAME
+    cp - copy files and directories
+
+SYNOPSIS
+    cp [-i | --interactive] [-n | --no-clobber] [-v | --verbose] [-h | --help] [-r | -R | --recursive] SOURCES.. DESTINATION
+
+DESCRIPTION
+    Copies files and directories as SOURCES to their respective DESTINATION.
+
+    If the target is a directory, the source will be moved into that directory.
+
+OPTIONS
+    -h
+    --help
+        Display this help information and exit.
+
+    -i
+    --interactive
+        Prompt before overwriting existing files.
+
+    -n
+    --no-clobber
+        Do not overwrite existing files.
+
+    -r
+    -R
+    --recursive
+        Recursively copy directories.
+
+    -v
+    --verbose
+        Print the file changes that have been successfully performed.
+
+AUTHOR
+    Written by Michael Murphy.
+"#;
+
+/// Contains the sources, target and flags that were given as input arguments.
+struct Arguments {
+    sources: Vec<PathBuf>,
+    target:  PathBuf,
+    flags:   Flags
+}
+
+/// Stores the state of each flag.
+struct Flags {
+    interactive: bool,
+    noclobber:   bool,
+    recursive:   bool,
+    verbose:     bool,
+}
 
 fn main() {
-    let mut stderr = stderr();
-    let ref src = env::args().nth(1).fail("no source argument.", &mut stderr);
-    let dsts = env::args().skip(2);
+    let stderr = &mut io::stderr();
+    let stdout = io::stdout();
+    let stdout = &mut stdout.lock();
+    let arguments = env::args().skip(1).collect::<Vec<String>>();
+    cp(check_arguments(&arguments, stdout, stderr), stdout, stderr);
+}
 
-    if dsts.len() < 1 {
-        fail("no destination arguments.", &mut stderr);
+/// Take a list of arguments and attempt to copy each source argument to their respective destination.
+fn cp(arguments: Arguments, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    for source in arguments.sources {
+        // Metadata from the source and target are required to determine both are on the same device.
+        let target_metadata = get_target_metadata(&arguments.target, &source, stderr);
+        let target = get_target_path(&arguments.target, &target_metadata, &source, stderr);
+        let source_metadata = match get_source_metadata(&source, stderr) {
+            Some(metadata) => metadata,
+            None => continue // We will skip this source because there was an error.
+        };
+
+        // Copy files from their source to the target.
+        if source_metadata.is_dir() {
+            if arguments.flags.recursive {
+                copy_directory(&source, &arguments.target, &arguments.flags, stderr, stdout);
+            } else {
+                stdout.write(b"omitting directory '").try(stderr);
+                stdout.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                stdout.write(b"'\n").try(stderr);
+                stdout.flush().try(stderr);
+            }
+        } else {
+            copy_file(&source, target.as_path(), &arguments.flags, stderr, stdout);
+        }
+    }
+}
+
+
+
+/// Copy a file from the source path to the target destination.
+fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
+    let stdin = io::stdin();
+    let stdin = &mut stdin.lock();
+    if write_is_allowed(target, flags, stdout, stdin, stderr) {
+        match fs::copy(&source, &target) {
+            Ok(_) => {
+                if flags.verbose { verbose_print(&source, &target, stdout, stderr); }
+                if let Err(message) = fs::remove_file(&source) {
+                    stderr.write(b"cannot remove file '").try(stderr);
+                    stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
+                    print_error(message, stderr);
+                }
+            },
+            Err(message) => {
+                stderr.write(b"cannot copy '").try(stderr);
+                stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"' to '").try(stderr);
+                stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"': ").try(stderr);
+                print_error(message, stderr);
+            }
+        }
+    }
+}
+
+/// Copy a source directory and all of it's contents to the target destination.
+fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
+    for entry in WalkDir::new(&source) {
+        // Because the target will change for each entry, a mutable PathBuf will be created from the target Path.
+        let mut current_target = target.to_path_buf();
+        let entry = entry.unwrap();
+        let entry = entry.path();
+
+        // Pushing an absolute path onto a PathBuf causes the PathBuf to be overwritten.
+        // Therefore, we will strip the source path from the entry path.
+        if entry.is_absolute() {
+            let mut temp = source.to_path_buf();
+            if !temp.pop() {
+                stderr.write(b"unable to get parent from '").try(stderr);
+                stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"'\n").try(stderr);
+                stderr.flush().try(stderr);
+                continue
+            }
+            let suffix = entry.strip_prefix(&temp).unwrap();
+            current_target.push(suffix);
+        } else {
+            current_target.push(&entry);
+        }
+
+        // If the entry is a directory, create the directory.
+        // If the entry is a file, copy the file.
+        let stdin = io::stdin();
+        let stdin = &mut stdin.lock();
+        if write_is_allowed(&current_target, flags, stdout, stdin, stderr) {
+            if entry.is_dir() {
+                match fs::create_dir(&current_target) {
+                    Ok(_) => if flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); },
+                    Err(message) => {
+                        stderr.write(b"cannot create directory '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
+                        print_error(message, stderr);
+                    }
+                }
+            } else {
+                match fs::copy(&entry, &current_target) {
+                    Ok(_) => {
+                        if flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                    },
+                    Err(message) => {
+                        stderr.write(b"cannot copy '").try(stderr);
+                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' to '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
+                        print_error(message, stderr);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Determines if it is okay to overwrite a file that already exists, if it exists.
+///
+/// - If the target file exists and the no-clobber flag is set, return false.
+/// - If the target file exists and the interactive flag is set, prompt the user if it is okay to overwrite.
+/// - Otherwise, this will return true in order to allow writing.
+fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
+    // Skip to the next source if the target exists and we are not allowed to overwrite it.
+    if fs::metadata(&target).is_ok() {
+        if target.is_dir() || flags.noclobber {
+            return false;
+        } else if flags.interactive {
+            stdout.write(b"overwrite '").try(stderr);
+            stdout.write(target.to_string_lossy().as_bytes()).try(stderr);
+            stdout.write(b"'? ").try(stderr);
+            stdout.flush().try(stderr);
+            let input = &mut String::new();
+            stdin.read_line(input).try(stderr);
+            if input.chars().next().unwrap() != 'y' { return false; }
+        }
+    }
+    return true;
+}
+
+/// Print the message given by an io::Error to stderr.
+fn print_error(message: io::Error, stderr: &mut Stderr) {
+    stderr.write(message.description().as_bytes()).try(stderr);
+    stderr.write(b"\n").try(stderr);
+    stderr.flush().try(stderr);
+}
+
+/// If verbose mode is enabled, print the action that was successfully performed.
+fn verbose_print(source: &Path, target: &Path, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    stdout.write(b"'").try(stderr);
+    stdout.write(source.to_string_lossy().as_bytes()).try(stderr);
+    stdout.write(b"' -> '").try(stderr);
+    stdout.write(target.to_string_lossy().as_bytes()).try(stderr);
+    stdout.write(b"'\n").try(stderr);
+    stdout.flush().try(stderr);
+}
+
+/// Uses the target name, target metadata and source path to determine the effective target path.
+fn get_target_path(target_name: &Path, target_metadata: &Metadata, source: &Path, stderr: &mut Stderr) -> PathBuf {
+    let mut target = PathBuf::from(target_name);
+    if fs::metadata(target_name).is_ok() && target.is_absolute() && target_metadata.is_dir() {
+        let filename = source.file_name().unwrap_or_default();
+        target.push(Path::new(filename));
+    } else if &target_name == &Path::new(".") {
+        target = get_current_directory(stderr);
+        let filename = source.file_name().unwrap_or_default();
+        target.push(Path::new(filename));
+    } else {
+        resolve_target_prefixes(&mut target, stderr);
+        if fs::metadata(&target).is_ok() && fs::metadata(&target).unwrap().is_dir() {
+            let filename = source.file_name().unwrap_or_default();
+            target.push(Path::new(filename));
+        }
+    }
+    target
+}
+
+/// Obtain the metadata from the source argument, if possible.
+fn get_source_metadata(source: &Path, stderr: &mut Stderr) -> Option<Metadata> {
+    match fs::metadata(source) {
+        Ok(metadata) => Some(metadata),
+        Err(message) => {
+            stderr.write(b"cannot stat '").try(stderr);
+            stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+            stderr.write(b"': ").try(stderr);
+            print_error(message, stderr);
+            return None;
+        }
+    }
+}
+
+/// Obtain the metadata from the target argument, if possible.
+fn get_target_metadata(target: &Path, source: &Path, stderr: &mut Stderr) -> Metadata {
+    match fs::metadata(target) {
+        Ok(metadata) => metadata,
+        Err(_) => {
+            let mut path = PathBuf::from(target);
+            if path.is_absolute() {
+                if !path.pop() {
+                    stderr.write(b"unable to get parent from '").try(stderr);
+                    stderr.write(target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"'\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    exit(1);
+                }
+            } else if &path == &Path::new(".") {
+                path = get_current_directory(stderr);
+            } else {
+                resolve_target_prefixes(&mut path, stderr);
+                if !path.pop() {
+                    stderr.write(b"unable to get parent from '").try(stderr);
+                    stderr.write(target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"'\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    exit(1);
+                }
+            }
+
+            match fs::metadata(&path) {
+                Ok(metadata) => metadata,
+                Err(message) => {
+                    stderr.write(b"cannot move '").try(stderr);
+                    stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"' to '").try(stderr);
+                    stderr.write(target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
+                    print_error(message, stderr);
+                    exit(1);
+                }
+            }
+        }
+    }
+}
+
+// If the target contains ".." path prefixes, this function will resolve the path.
+fn resolve_target_prefixes(path: &mut PathBuf, stderr: &mut Stderr) {
+    let mut temp = get_current_directory(stderr);
+    for component in path.iter() {
+        if component == ".." {
+            if !temp.pop() {
+                stderr.write(b"unable to get parent from current working directory\n'").try(stderr);
+                stderr.flush().try(stderr);
+                exit(1);
+            }
+        } else {
+            temp.push(component);
+        }
+    }
+    *path = temp;
+}
+
+/// Returns the current directory, if possible.
+fn get_current_directory(stderr: &mut Stderr) -> PathBuf {
+    match std::env::current_dir() {
+        Ok(pathbuf) => pathbuf,
+        Err(message) => {
+            stderr.write(b"unable to get current working directory: ").try(stderr);
+            print_error(message, stderr);
+            exit(1);
+        }
+    }
+}
+
+/// Check the input arguments to determine if enough arguments were given.
+fn check_arguments(arguments: &Vec<String>, stdout: &mut StdoutLock, stderr: &mut Stderr) -> Arguments {
+    let mut sources = Vec::new();
+
+    // Loop through each argument and check for flags.
+    // If the argument is not a flag, add it as a source.
+    let mut flags = Flags { interactive: false, noclobber: false, recursive: false, verbose: false };
+    for argument in arguments {
+        match argument.as_str() {
+            "-h" | "--help" => {
+                let _ = stdout.write(MAN_PAGE.as_bytes());
+                let _ = stdout.flush();
+                exit(0);
+            }
+            "-i" | "--interactive" => {
+                flags.interactive = true;
+                flags.noclobber = false;
+            }
+            "-n" | "--no-clobber" => {
+                flags.noclobber = true;
+                flags.interactive = false;
+            }
+            "-r" | "-R" | "--recursive" => {
+                flags.recursive = true;
+            }
+            "-v" | "--verbose" => {
+                flags.verbose = true;
+            }
+            _ => sources.push(PathBuf::from(argument))
+        }
     }
 
-    let mut src_file = fs::File::open(src).try(&mut stderr);
-    for ref dst in dsts {
-        let mut dst_file = fs::File::create(dst).try(&mut stderr);
-
-        src_file.seek(SeekFrom::Start(0)).try(&mut stderr);
-        io::copy(&mut src_file, &mut dst_file).try(&mut stderr);
+    // Check if there are at least two valid arguments were colleced: a source and a target.
+    match sources.len() {
+        0 => {
+            stderr.write(b"missing file operand\nTry 'mv --help' for more information.\n").try(stderr);
+            stderr.flush().try(stderr);
+            exit(1);
+        },
+        1 => {
+            stderr.write(b"missing target operand after '").try(stderr);
+            stderr.write(sources[0].to_string_lossy().as_bytes()).try(stderr);
+            stderr.write(b"'\nTry 'mv --help' for more information.\n").try(stderr);
+            stderr.flush().try(stderr);
+            exit(1);
+        }
+        _ => ()
     }
+
+    // The target may be popped from the list of arguments because it is the last argument.
+    // Because there will always be at least two arguments, the result can be unwrapped.
+    let target = sources.pop().unwrap();
+    Arguments { sources: sources, target: target, flags: flags }
 }
