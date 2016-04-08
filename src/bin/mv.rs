@@ -9,6 +9,7 @@ use std::io::{self, BufRead, Read, Write, Stderr, StdinLock, StdoutLock};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::exit;
+use extra::option::OptionalExt;
 use walkdir::WalkDir;
 
 const MAN_PAGE: &'static str = r#"NAME
@@ -25,19 +26,19 @@ DESCRIPTION
 OPTIONS
     -h
     --help
-        display this help and exit
+        Display this help information and exit.
 
     -i
     --interactive
-        prompt before overwriting existing files
+        Prompt before overwriting existing files.
 
     -n
     --no-clobber
-        do not overwrite existing files
+        Do not overwrite existing files.
 
     -v
     --verbose
-        print the file changes that have been successfully performed
+        Print the file changes that have been successfully performed.
 
 AUTHOR
     Written by Michael Murphy.
@@ -81,13 +82,13 @@ fn mv(arguments: Arguments, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         // If they are on different devices, copy the file or directory.
         if source_metadata.dev() == target_metadata.dev() {
             match fs::rename(&source, &target) {
-                Ok(_) => if arguments.flags.verbose { verbose_print(&source, &target, stdout); },
+                Ok(_) => if arguments.flags.verbose { verbose_print(&source, &target, stdout, stderr); },
                 Err(message) => {
-                    let _ = stderr.write(b"cannot rename '");
-                    let _ = stderr.write(&source.to_string_lossy().as_bytes());
-                    let _ = stderr.write(b"' to '");
-                    let _ = stderr.write(&target.to_string_lossy().as_bytes());
-                    let _ = stderr.write(b"': ");
+                    stderr.write(b"cannot rename '").try(stderr);
+                    stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"' to '").try(stderr);
+                    stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
                 }
             }
@@ -107,18 +108,23 @@ fn mv(arguments: Arguments, stdout: &mut StdoutLock, stderr: &mut Stderr) {
 fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
     let stdin = io::stdin();
     let stdin = &mut stdin.lock();
-    if write_is_allowed(target, flags, stdout, stdin) {
+    if write_is_allowed(target, flags, stdout, stdin, stderr) {
         match fs::copy(&source, &target) {
             Ok(_) => {
-                if flags.verbose { verbose_print(&source, &target, stdout); }
-                let _ = fs::remove_file(&source);
+                if flags.verbose { verbose_print(&source, &target, stdout, stderr); }
+                if let Err(message) = fs::remove_file(&source) {
+                    stderr.write(b"cannot remove file '").try(stderr);
+                    stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
+                    print_error(message, stderr);
+                }
             },
             Err(message) => {
-                let _ = stderr.write(b"cannot copy '");
-                let _ = stderr.write(&source.to_string_lossy().as_bytes());
-                let _ = stderr.write(b"' to '");
-                let _ = stderr.write(&target.to_string_lossy().as_bytes());
-                let _ = stderr.write(b"': ");
+                stderr.write(b"cannot copy '").try(stderr);
+                stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"' to '").try(stderr);
+                stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"': ").try(stderr);
                 print_error(message, stderr);
             }
         }
@@ -143,7 +149,13 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
         // Therefore, we will strip the source path from the entry path.
         if entry.is_absolute() {
             let mut temp = source.to_path_buf();
-            let _ = temp.pop();
+            if !temp.pop() {
+                stderr.write(b"unable to get parent from '").try(stderr);
+                stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"'\n").try(stderr);
+                stderr.flush().try(stderr);
+                continue
+            }
             let suffix = entry.strip_prefix(&temp).unwrap();
             current_target.push(suffix);
         } else {
@@ -154,29 +166,29 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
         // If the entry is a file, copy the file.
         let stdin = io::stdin();
         let stdin = &mut stdin.lock();
-        if write_is_allowed(&current_target, flags, stdout, stdin) {
+        if write_is_allowed(&current_target, flags, stdout, stdin, stderr) {
             if entry.is_dir() {
                 match fs::create_dir(&current_target) {
-                    Ok(_) => if flags.verbose { verbose_print(&entry, &current_target, stdout); },
+                    Ok(_) => if flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); },
                     Err(message) => {
-                        let _ = stderr.write(b"cannot create directory '");
-                        let _ = stderr.write(&current_target.to_string_lossy().as_bytes());
-                        let _ = stderr.write(b"': ");
+                        stderr.write(b"cannot create directory '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
                     }
                 }
             } else {
                 match fs::copy(&entry, &current_target) {
                     Ok(_) => {
-                        if flags.verbose { verbose_print(&entry, &current_target, stdout); }
+                        if flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
                         delete_files.push(entry.to_path_buf());
                     },
                     Err(message) => {
-                        let _ = stderr.write(b"cannot copy '");
-                        let _ = stderr.write(&entry.to_string_lossy().as_bytes());
-                        let _ = stderr.write(b"' to '");
-                        let _ = stderr.write(&current_target.to_string_lossy().as_bytes());
-                        let _ = stderr.write(b"': ");
+                        stderr.write(b"cannot copy '").try(stderr);
+                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' to '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
                     }
                 }
@@ -189,30 +201,30 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
         if entry.is_dir() {
             match fs::remove_dir(&entry) {
                 Ok(_) => if flags.verbose {
-                    let _ = stdout.write(b"removed directory '");
-                    let _ = stdout.write(&entry.to_string_lossy().as_bytes());
-                    let _ = stdout.write(b"'\n");
-                    let _ = stdout.flush();
+                    stdout.write(b"removed directory '").try(stderr);
+                    stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                    stdout.write(b"'\n").try(stderr);
+                    stdout.flush().try(stderr);
                 },
                 Err(message) => {
-                    let _ = stderr.write(b"cannot remove directory '");
-                    let _ = stderr.write(&entry.to_string_lossy().as_bytes());
-                    let _ = stderr.write(b"': ");
+                    stderr.write(b"cannot remove directory '").try(stderr);
+                    stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
                 }
             }
         } else if delete_files.contains(&entry) {
             match fs::remove_file(&entry) {
                 Ok(_) => if flags.verbose {
-                    let _ = stdout.write(b"removed '");
-                    let _ = stdout.write(&entry.to_string_lossy().as_bytes());
-                    let _ = stdout.write(b"'\n");
-                    let _ = stdout.flush();
+                    stdout.write(b"removed '").try(stderr);
+                    stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                    stdout.write(b"'\n").try(stderr);
+                    stdout.flush().try(stderr);
                 },
                 Err(message) => {
-                    let _ = stderr.write(b"cannot remove file '");
-                    let _ = stderr.write(&entry.to_string_lossy().as_bytes());
-                    let _ = stderr.write(b"': ");
+                    stderr.write(b"cannot remove file '").try(stderr);
+                    stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
                 }
             }
@@ -226,18 +238,18 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
 /// - If the target file exists and the interactive flag is set, prompt the user if it is okay to overwrite.
 
 /// - Otherwise, this will return true in order to allow writing.
-fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> bool {
+fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
     // Skip to the next source if the target exists and we are not allowed to overwrite it.
     if fs::metadata(&target).is_ok() {
         if target.is_dir() || flags.noclobber {
             return false;
         } else if flags.interactive {
-            let _ = stdout.write(b"overwrite '");
-            let _ = stdout.write(target.to_string_lossy().as_bytes());
-            let _ = stdout.write(b"'? ");
-            let _ = stdout.flush();
+            stdout.write(b"overwrite '").try(stderr);
+            stdout.write(target.to_string_lossy().as_bytes()).try(stderr);
+            stdout.write(b"'? ").try(stderr);
+            stdout.flush().try(stderr);
             let input = &mut String::new();
-            let _ = stdin.read_line(input);
+            stdin.read_line(input).try(stderr);
             if input.chars().next().unwrap() != 'y' { return false; }
         }
     }
@@ -246,19 +258,19 @@ fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin
 
 /// Print the message given by an io::Error to stderr.
 fn print_error(message: io::Error, stderr: &mut Stderr) {
-    let _ = stderr.write(message.description().as_bytes());
-    let _ = stderr.write(b"\n");
-    let _ = stderr.flush();
+    stderr.write(message.description().as_bytes()).try(stderr);
+    stderr.write(b"\n").try(stderr);
+    stderr.flush().try(stderr);
 }
 
 /// If verbose mode is enabled, print the action that was successfully performed.
-fn verbose_print(source: &Path, target: &Path, stdout: &mut StdoutLock) {
-    let _ = stdout.write(b"'");
-    let _ = stdout.write(source.to_string_lossy().as_bytes());
-    let _ = stdout.write(b"' -> '");
-    let _ = stdout.write(target.to_string_lossy().as_bytes());
-    let _ = stdout.write(b"'\n");
-    let _ = stdout.flush();
+fn verbose_print(source: &Path, target: &Path, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    stdout.write(b"'").try(stderr);
+    stdout.write(source.to_string_lossy().as_bytes()).try(stderr);
+    stdout.write(b"' -> '").try(stderr);
+    stdout.write(target.to_string_lossy().as_bytes()).try(stderr);
+    stdout.write(b"'\n").try(stderr);
+    stdout.flush().try(stderr);
 }
 
 /// Uses the target name, target metadata and source path to determine the effective target path.
@@ -286,9 +298,9 @@ fn get_source_metadata(source: &Path, stderr: &mut Stderr) -> Option<Metadata> {
     match fs::metadata(source) {
         Ok(metadata) => Some(metadata),
         Err(message) => {
-            let _ = stderr.write(b"cannot stat '");
-            let _ = stderr.write(source.to_string_lossy().as_bytes());
-            let _ = stderr.write(b"': ");
+            stderr.write(b"cannot stat '").try(stderr);
+            stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+            stderr.write(b"': ").try(stderr);
             print_error(message, stderr);
             return None;
         }
@@ -302,22 +314,34 @@ fn get_target_metadata(target: &Path, source: &Path, stderr: &mut Stderr) -> Met
         Err(_) => {
             let mut path = PathBuf::from(target);
             if path.is_absolute() {
-                let _ = path.pop();
+                if !path.pop() {
+                    stderr.write(b"unable to get parent from '").try(stderr);
+                    stderr.write(target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"'\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    exit(1);
+                }
             } else if &path == &Path::new(".") {
                 path = get_current_directory(stderr);
             } else {
                 resolve_target_prefixes(&mut path, stderr);
-                let _ = path.pop();
+                if !path.pop() {
+                    stderr.write(b"unable to get parent from '").try(stderr);
+                    stderr.write(target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"'\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    exit(1);
+                }
             }
 
             match fs::metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(message) => {
-                    let _ = stderr.write(b"cannot move '");
-                    let _ = stderr.write(source.to_string_lossy().as_bytes());
-                    let _ = stderr.write(b"' to '");
-                    let _ = stderr.write(target.to_string_lossy().as_bytes());
-                    let _ = stderr.write(b"': ");
+                    stderr.write(b"cannot move '").try(stderr);
+                    stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"' to '").try(stderr);
+                    stderr.write(target.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
                     exit(1);
                 }
@@ -331,7 +355,11 @@ fn resolve_target_prefixes(path: &mut PathBuf, stderr: &mut Stderr) {
     let mut temp = get_current_directory(stderr);
     for component in path.iter() {
         if component == ".." {
-            let _ = temp.pop();
+            if !temp.pop() {
+                stderr.write(b"unable to get parent from current working directory\n'").try(stderr);
+                stderr.flush().try(stderr);
+                exit(1);
+            }
         } else {
             temp.push(component);
         }
@@ -344,7 +372,7 @@ fn get_current_directory(stderr: &mut Stderr) -> PathBuf {
     match std::env::current_dir() {
         Ok(pathbuf) => pathbuf,
         Err(message) => {
-            let _ = stderr.write(b"unable to get current working directory: ");
+            stderr.write(b"unable to get current working directory: ").try(stderr);
             print_error(message, stderr);
             exit(1);
         }
@@ -383,15 +411,15 @@ fn check_arguments(arguments: &Vec<String>, stdout: &mut StdoutLock, stderr: &mu
     // Check if there are at least two valid arguments were colleced: a source and a target.
     match sources.len() {
         0 => {
-            let _ = stderr.write(b"missing file operand\nTry 'mv --help' for more information.\n");
-            let _ = stderr.flush();
+            stderr.write(b"missing file operand\nTry 'mv --help' for more information.\n").try(stderr);
+            stderr.flush().try(stderr);
             exit(1);
         },
         1 => {
-            let _ = stderr.write(b"missing target operand after '");
-            let _ = stderr.write(sources[0].to_string_lossy().as_bytes());
-            let _ = stderr.write(b"'\nTry 'mv --help' for more information.\n");
-            let _ = stderr.flush();
+            stderr.write(b"missing target operand after '").try(stderr);
+            stderr.write(sources[0].to_string_lossy().as_bytes()).try(stderr);
+            stderr.write(b"'\nTry 'mv --help' for more information.\n").try(stderr);
+            stderr.flush().try(stderr);
             exit(1);
         }
         _ => ()
