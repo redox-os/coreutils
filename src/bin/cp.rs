@@ -112,18 +112,22 @@ impl Program {
 
     /// Take a list of arguments and attempt to copy each source argument to their respective destination.
     fn execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+        let mut exit_status = 0i32;
         for source in &self.sources {
             // Metadata from the source and target are required to determine both are on the same device.
             let target_metadata = get_target_metadata(&self.target, &source, stderr);
             let source_metadata = match get_source_metadata(&source, stderr) {
                 Some(metadata) => metadata,
-                None => continue // We will skip this source because there was an error.
+                None => {
+                    exit_status = 1;
+                    continue // We will skip this source because there was an error.
+                }
             };
 
             // Copy files from their source to the target.
             if source_metadata.is_dir() {
                 if self.flags.recursive {
-                    copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                    exit_status = copy_directory(&source, &self.target, &self.flags, stderr, stdout);
                 } else {
                     stdout.write(b"omitting directory '").try(stderr);
                     stdout.write(&source.to_string_lossy().as_bytes()).try(stderr);
@@ -135,6 +139,7 @@ impl Program {
                 copy_file(&source, &target, &self.flags, stderr, stdout);
             }
         }
+        exit(exit_status);
     }
 }
 
@@ -166,6 +171,7 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                     stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
                     stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
+                    exit(1);
                 }
             },
             Err(message) => {
@@ -175,13 +181,15 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                 stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                 stderr.write(b"': ").try(stderr);
                 print_error(message, stderr);
+                exit(1);
             }
         }
     }
 }
 
 /// Copy a source directory and all of it's contents to the target destination.
-fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
+fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
+    let mut exit_status = 0i32;
     for entry in WalkDir::new(&source) {
         // Because the target will change for each entry, a mutable PathBuf will be created from the target Path.
         let mut current_target = target.to_path_buf();
@@ -194,6 +202,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                 stderr.write(message.description().as_bytes()).try(stderr);
                 stderr.write(b"\n").try(stderr);
                 stderr.flush().try(stderr);
+                exit_status = 1;
                 continue
             }
         };
@@ -208,6 +217,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                 stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
                 stderr.write(b"'\n").try(stderr);
                 stderr.flush().try(stderr);
+                exit_status = 1;
                 continue
             }
             let suffix = entry.strip_prefix(&temp).unwrap();
@@ -229,6 +239,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                         stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
+                        exit_status = 1;
                     }
                 }
             } else {
@@ -243,11 +254,13 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                         stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
+                        exit_status = 1;
                     }
                 }
             }
         }
     }
+    exit_status
 }
 
 /// Determines if it is okay to overwrite a file that already exists, if it exists.

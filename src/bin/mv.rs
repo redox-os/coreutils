@@ -105,12 +105,16 @@ impl Program {
 
     /// Take a list of arguments and attempt to move each source argument to their respective destination.
     fn execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+        let mut exit_status = 0i32;
         for source in &self.sources {
             // Metadata from the source and target are required to determine both are on the same device.
             let target_metadata = get_target_metadata(&self.target, &source, stderr);
             let source_metadata = match get_source_metadata(&source, stderr) {
                 Some(metadata) => metadata,
-                None => continue // We will skip this source because there was an error.
+                None => {
+                    exit_status = 1;
+                    continue // We will skip this source because there was an error.
+                }
             };
 
             // Move the source file or directory to the target path.
@@ -127,17 +131,19 @@ impl Program {
                         stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
+                        exit(1);
                     }
                 }
             } else {
                 if source_metadata.is_dir() {
-                    copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                    exit_status = copy_directory(&source, &self.target, &self.flags, stderr, stdout);
                 } else {
                     let target = get_target_path(&self.target, &target_metadata, &source, stderr);
                     copy_file(&source, &target, &self.flags, stderr, stdout);
                 }
             }
         }
+        exit(exit_status);
     }
 }
 
@@ -168,6 +174,7 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                     stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
                     stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
+                    exit(1);
                 }
             },
             Err(message) => {
@@ -177,6 +184,7 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                 stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                 stderr.write(b"': ").try(stderr);
                 print_error(message, stderr);
+                exit(1);
             }
         }
     }
@@ -184,7 +192,9 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
 
 /// While directories on the same device may simply be moved using fs::rename(), cross-device moving of directories is
 /// a bit more involved. The walkdir crate was imported to make this easier.
-fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
+fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
+    let mut exit_status = 0i32;
+
     // Keep track of files and directories to be deleted.
     let mut delete_files = Vec::new();
     let mut directory_walk = Vec::new();
@@ -201,6 +211,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                 stderr.write(message.description().as_bytes()).try(stderr);
                 stderr.write(b"\n").try(stderr);
                 stderr.flush().try(stderr);
+                exit_status = 1;
                 continue
             }
         };
@@ -216,6 +227,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                 stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
                 stderr.write(b"'\n").try(stderr);
                 stderr.flush().try(stderr);
+                exit_status = 1;
                 continue
             }
             let suffix = entry.strip_prefix(&temp).unwrap();
@@ -237,6 +249,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                         stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
+                        exit_status = 1;
                     }
                 }
             } else {
@@ -252,6 +265,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                         stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
+                        exit_status = 1;
                     }
                 }
             }
@@ -273,6 +287,7 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                     stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
                     stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
+                    exit_status = 1;
                 }
             }
         } else if delete_files.contains(&entry) {
@@ -288,10 +303,12 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
                     stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
                     stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
+                    exit_status = 1;
                 }
             }
         }
     }
+    exit_status
 }
 
 /// Determines if it is okay to overwrite a file that already exists, if it exists.
