@@ -16,7 +16,7 @@ const MAN_PAGE: &'static str = r#"NAME
     mv - move (rename) files
 
 SYNOPSIS
-    mv [-i | --interactive] [-n | --no-clobber] [-v | --verbose] [-h | --help] SOURCES.. DESTINATION
+    mv [-h | --help] [-i | --interactive] [-n | --no-clobber] [-v | --verbose] SOURCES.. DESTINATION
 
 DESCRIPTION
     If a source is on the same device as it's respective destination, it will be renamed. If it is on a different device, it will be copied.
@@ -45,10 +45,100 @@ AUTHOR
 "#;
 
 /// Contains the sources, target and flags that were given as input arguments.
-struct Arguments {
+struct Program {
     sources: Vec<PathBuf>,
     target:  PathBuf,
     flags:   Flags
+}
+
+impl Program {
+    /// Initialize the program by parsing all of the input arguments.
+    fn initialize(stdout: &mut StdoutLock, stderr: &mut Stderr) -> Program {
+        // Loop through each argument and check for flags.
+        // If the argument is not a flag, add it as a source.
+        let mut sources = Vec::new();
+        let mut flags = Flags { interactive: false, noclobber: false, verbose: false };
+        for argument in env::args().skip(1).collect::<Vec<String>>() {
+            match argument.as_str() {
+                "-h" | "--help" => {
+                    stdout.write(MAN_PAGE.as_bytes()).try(stderr);
+                    stdout.flush().try(stderr);
+                    exit(0);
+                }
+                "-i" | "--interactive" => {
+                    flags.interactive = true;
+                    flags.noclobber = false;
+                }
+                "-n" | "--no-clobber" => {
+                    flags.noclobber = true;
+                    flags.interactive = false;
+                }
+                "-v" | "--verbose" => {
+                    flags.verbose = true;
+                }
+                _ => sources.push(PathBuf::from(argument))
+            }
+        }
+
+        // Check if there are at least two valid arguments were colleced: a source and a target.
+        match sources.len() {
+            0 => {
+                stderr.write(b"missing file operand\nTry 'mv --help' for more information.\n").try(stderr);
+                stderr.flush().try(stderr);
+                exit(1);
+            },
+            1 => {
+                stderr.write(b"missing target operand after '").try(stderr);
+                stderr.write(sources[0].to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"'\nTry 'mv --help' for more information.\n").try(stderr);
+                stderr.flush().try(stderr);
+                exit(1);
+            }
+            _ => ()
+        }
+
+        // The target may be popped from the list of arguments because it is the last argument.
+        // Because there will always be at least two arguments, the result can be unwrapped.
+        let target = sources.pop().unwrap();
+        Program { sources: sources, target: target, flags: flags }
+    }
+
+    /// Take a list of arguments and attempt to move each source argument to their respective destination.
+    fn execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+        for source in &self.sources {
+            // Metadata from the source and target are required to determine both are on the same device.
+            let target_metadata = get_target_metadata(&self.target, &source, stderr);
+            let source_metadata = match get_source_metadata(&source, stderr) {
+                Some(metadata) => metadata,
+                None => continue // We will skip this source because there was an error.
+            };
+
+            // Move the source file or directory to the target path.
+            // If the source and target are on the same device, rename the source.
+            // If they are on different devices, copy the file or directory.
+            if source_metadata.dev() == target_metadata.dev() {
+                let target = get_target_path(&self.target, &target_metadata, &source, stderr);
+                match fs::rename(&source, &target) {
+                    Ok(_) => if self.flags.verbose { verbose_print(&source, &target, stdout, stderr); },
+                    Err(message) => {
+                        stderr.write(b"cannot rename '").try(stderr);
+                        stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' to '").try(stderr);
+                        stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
+                        print_error(message, stderr);
+                    }
+                }
+            } else {
+                if source_metadata.is_dir() {
+                    copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                } else {
+                    let target = get_target_path(&self.target, &target_metadata, &source, stderr);
+                    copy_file(&source, &target, &self.flags, stderr, stdout);
+                }
+            }
+        }
+    }
 }
 
 /// Stores the state of each flag.
@@ -62,47 +152,8 @@ fn main() {
     let stderr = &mut io::stderr();
     let stdout = io::stdout();
     let stdout = &mut stdout.lock();
-    let arguments = env::args().skip(1).collect::<Vec<String>>();
-    mv(check_arguments(&arguments, stdout, stderr), stdout, stderr);
+    Program::initialize(stdout, stderr).execute(stdout, stderr);
 }
-
-/// Take a list of arguments and attempt to move each source argument to their respective destination.
-fn mv(arguments: Arguments, stdout: &mut StdoutLock, stderr: &mut Stderr) {
-    for source in arguments.sources {
-        // Metadata from the source and target are required to determine both are on the same device.
-        let target_metadata = get_target_metadata(&arguments.target, &source, stderr);
-        let target = get_target_path(&arguments.target, &target_metadata, &source, stderr);
-        let source_metadata = match get_source_metadata(&source, stderr) {
-            Some(metadata) => metadata,
-            None => continue // We will skip this source because there was an error.
-        };
-
-        // Move the source file or directory to the target path.
-        // If the source and target are on the same device, rename the source.
-        // If they are on different devices, copy the file or directory.
-        if source_metadata.dev() == target_metadata.dev() {
-            match fs::rename(&source, &target) {
-                Ok(_) => if arguments.flags.verbose { verbose_print(&source, &target, stdout, stderr); },
-                Err(message) => {
-                    stderr.write(b"cannot rename '").try(stderr);
-                    stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
-                    stderr.write(b"' to '").try(stderr);
-                    stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
-                    stderr.write(b"': ").try(stderr);
-                    print_error(message, stderr);
-                }
-            }
-        } else {
-            if source_metadata.is_dir() {
-                copy_directory(&source, &arguments.target, &arguments.flags, stderr, stdout);
-            } else {
-                copy_file(&source, target.as_path(), &arguments.flags, stderr, stdout);
-            }
-        }
-    }
-}
-
-
 
 /// To move a file across devices, the file must first be copied and then deleted.
 fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
@@ -141,7 +192,18 @@ fn copy_directory(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stde
     for entry in WalkDir::new(&source) {
         // Because the target will change for each entry, a mutable PathBuf will be created from the target Path.
         let mut current_target = target.to_path_buf();
-        let entry = entry.unwrap();
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(message) => {
+                stderr.write(b"cannot access '").try(stderr);
+                stderr.write(message.path().unwrap().to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"': ").try(stderr);
+                stderr.write(message.description().as_bytes()).try(stderr);
+                stderr.write(b"\n").try(stderr);
+                stderr.flush().try(stderr);
+                continue
+            }
+        };
         let entry = entry.path();
         directory_walk.push(entry.to_path_buf());
 
@@ -376,56 +438,4 @@ fn get_current_directory(stderr: &mut Stderr) -> PathBuf {
             exit(1);
         }
     }
-}
-
-/// Check the input arguments to determine if enough arguments were given.
-fn check_arguments(arguments: &Vec<String>, stdout: &mut StdoutLock, stderr: &mut Stderr) -> Arguments {
-    let mut sources = Vec::new();
-
-    // Loop through each argument and check for flags.
-    // If the argument is not a flag, add it as a source.
-    let mut flags = Flags { interactive: false, noclobber: false, verbose: false };
-    for argument in arguments {
-        match argument.as_str() {
-            "-h" | "--help" => {
-                let _ = stdout.write(MAN_PAGE.as_bytes());
-                let _ = stdout.flush();
-                exit(0);
-            }
-            "-i" | "--interactive" => {
-                flags.interactive = true;
-                flags.noclobber = false;
-            }
-            "-n" | "--no-clobber" => {
-                flags.noclobber = true;
-                flags.interactive = false;
-            }
-            "-v" | "--verbose" => {
-                flags.verbose = true;
-            }
-            _ => sources.push(PathBuf::from(argument))
-        }
-    }
-
-    // Check if there are at least two valid arguments were colleced: a source and a target.
-    match sources.len() {
-        0 => {
-            stderr.write(b"missing file operand\nTry 'mv --help' for more information.\n").try(stderr);
-            stderr.flush().try(stderr);
-            exit(1);
-        },
-        1 => {
-            stderr.write(b"missing target operand after '").try(stderr);
-            stderr.write(sources[0].to_string_lossy().as_bytes()).try(stderr);
-            stderr.write(b"'\nTry 'mv --help' for more information.\n").try(stderr);
-            stderr.flush().try(stderr);
-            exit(1);
-        }
-        _ => ()
-    }
-
-    // The target may be popped from the list of arguments because it is the last argument.
-    // Because there will always be at least two arguments, the result can be unwrapped.
-    let target = sources.pop().unwrap();
-    Arguments { sources: sources, target: target, flags: flags }
 }
