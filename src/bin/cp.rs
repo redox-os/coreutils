@@ -127,7 +127,8 @@ impl Program {
             // Copy files from their source to the target.
             if source_metadata.is_dir() {
                 if self.flags.recursive {
-                    exit_status = copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                    let status = copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                    if exit_status == 0 { exit_status = status; }
                 } else {
                     stdout.write(b"omitting directory '").try(stderr);
                     stdout.write(&source.to_string_lossy().as_bytes()).try(stderr);
@@ -136,7 +137,8 @@ impl Program {
                 }
             } else {
                 let target = get_target_path(&self.target, &target_metadata, &source, stderr);
-                copy_file(&source, &target, &self.flags, stderr, stdout);
+                let status = copy_file(&source, &target, &self.flags, stderr, stdout);
+                if exit_status == 0 { exit_status = status; }
             }
         }
         exit(exit_status);
@@ -159,7 +161,7 @@ fn main() {
 }
 
 /// Copy a file from the source path to the target destination.
-fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
+fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
     let stdin = io::stdin();
     let stdin = &mut stdin.lock();
     if write_is_allowed(target, flags, stdout, stdin, stderr) {
@@ -171,7 +173,7 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                     stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
                     stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
-                    exit(1);
+                    return 1i32;
                 }
             },
             Err(message) => {
@@ -181,10 +183,11 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                 stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                 stderr.write(b"': ").try(stderr);
                 print_error(message, stderr);
-                exit(1);
+                return 1i32;
             }
         }
     }
+    return 0i32;
 }
 
 /// Copy a source directory and all of it's contents to the target destination.

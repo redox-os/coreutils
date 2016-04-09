@@ -131,15 +131,17 @@ impl Program {
                         stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
-                        exit(1);
+                        exit_status = 1;
                     }
                 }
             } else {
                 if source_metadata.is_dir() {
-                    exit_status = copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                    let status = copy_directory(&source, &self.target, &self.flags, stderr, stdout);
+                    if exit_status == 0 { exit_status = status; }
                 } else {
                     let target = get_target_path(&self.target, &target_metadata, &source, stderr);
-                    copy_file(&source, &target, &self.flags, stderr, stdout);
+                    let status = copy_file(&source, &target, &self.flags, stderr, stdout);
+                    if exit_status == 0 { exit_status = status; }
                 }
             }
         }
@@ -162,7 +164,7 @@ fn main() {
 }
 
 /// To move a file across devices, the file must first be copied and then deleted.
-fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) {
+fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
     let stdin = io::stdin();
     let stdin = &mut stdin.lock();
     if write_is_allowed(target, flags, stdout, stdin, stderr) {
@@ -174,7 +176,7 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                     stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
                     stderr.write(b"': ").try(stderr);
                     print_error(message, stderr);
-                    exit(1);
+                    return 1i32;
                 }
             },
             Err(message) => {
@@ -184,10 +186,11 @@ fn copy_file(source: &Path, target: &Path, flags: &Flags, stderr: &mut Stderr, s
                 stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                 stderr.write(b"': ").try(stderr);
                 print_error(message, stderr);
-                exit(1);
+                return 1i32;
             }
         }
     }
+    return 0i32;
 }
 
 /// While directories on the same device may simply be moved using fs::rename(), cross-device moving of directories is
