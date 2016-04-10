@@ -122,6 +122,7 @@ impl Program {
                         stderr.write(b"invalid option -- '").try(stderr);
                         stderr.write(arg.as_bytes()).try(stderr);
                         stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
+                        stderr.flush().try(stderr);
                         std::process::exit(1);
                     }
                 }
