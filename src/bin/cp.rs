@@ -6,6 +6,7 @@ use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead, Read, Write, Stderr, StdinLock, StdoutLock};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use extra::option::OptionalExt;
@@ -40,6 +41,10 @@ OPTIONS
     --recursive
         Recursively copy directories.
 
+    -u
+    --update
+        Only copy files if the SOURCE is newer than the TARGET, or when the TARGET is missing.
+
     -v
     --verbose
         Print the file changes that have been successfully performed.
@@ -61,7 +66,7 @@ impl Program {
         // Loop through each argument and check for flags.
         // If the argument is not a flag, add it as a source.
         let mut sources = Vec::new();
-        let mut flags = Flags { interactive: false, noclobber: false, recursive: false, verbose: false };
+        let mut flags = Flags { interactive: false, noclobber: false, recursive: false, update: false, verbose: false };
         for argument in env::args().skip(1).collect::<Vec<String>>() {
             match argument.as_str() {
                 "-h" | "--help" => {
@@ -79,6 +84,9 @@ impl Program {
                 }
                 "-r" | "-R" | "--recursive" => {
                     flags.recursive = true;
+                }
+                "-u" | "--update" => {
+                    flags.update = true;
                 }
                 "-v" | "--verbose" => {
                     flags.verbose = true;
@@ -113,10 +121,12 @@ impl Program {
     /// Take a list of arguments and attempt to copy each source argument to their respective destination.
     fn execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         let mut exit_status = 0i32;
+        let stdin = io::stdin();
+        let stdin = &mut stdin.lock();
         for source in &self.sources {
             if source.is_dir() {
                 if self.flags.recursive {
-                    let status = self.copy_directory(&source, stderr, stdout);
+                    let status = self.copy_directory(&source, stderr, stdout, stdin);
                     if exit_status == 0 { exit_status = status; }
                 } else {
                     stdout.write(b"omitting directory '").try(stderr);
@@ -125,7 +135,7 @@ impl Program {
                     stdout.flush().try(stderr);
                 }
             } else {
-                let status = self.copy_file(&source, stderr, stdout);
+                let status = self.copy_file(&source, stderr, stdout, stdin);
                 if exit_status == 0 { exit_status = status; }
             }
         }
@@ -133,30 +143,31 @@ impl Program {
     }
 
     /// Copy a file from the source path to the target destination.
-    fn copy_file(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
+    fn copy_file(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> i32 {
         let target = get_target_path(&self.target, &source, stderr);
-        let stdin = io::stdin();
-        let stdin = &mut stdin.lock();
-        if write_is_allowed(&target, &self.flags, stdout, stdin, stderr) {
-            match fs::copy(&source, &target) {
-                Ok(_) => {
-                    if self.flags.verbose { verbose_print(source, &target, stdout, stderr); }
-                    if let Err(message) = fs::remove_file(source) {
-                        stderr.write(b"cannot remove file '").try(stderr);
+        if write_is_allowed(source, &target, &self.flags, stdout, stdin, stderr) {
+            if target.is_dir() {
+                stderr.write(b"cannot overwrite directory '").try(stderr);
+                stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"' with non-directory '").try(stderr);
+                stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"'\n").try(stderr);
+                stderr.flush().try(stderr);
+                return 1i32;
+            } else {
+                match fs::copy(&source, &target) {
+                    Ok(_) => {
+                        if self.flags.verbose { verbose_print(source, &target, stdout, stderr); }
+                    },
+                    Err(message) => {
+                        stderr.write(b"cannot copy '").try(stderr);
                         stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' to '").try(stderr);
+                        stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
                         return 1i32;
                     }
-                },
-                Err(message) => {
-                    stderr.write(b"cannot copy '").try(stderr);
-                    stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
-                    stderr.write(b"' to '").try(stderr);
-                    stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
-                    stderr.write(b"': ").try(stderr);
-                    print_error(message, stderr);
-                    return 1i32;
                 }
             }
         }
@@ -164,7 +175,7 @@ impl Program {
     }
 
     /// Copy a source directory and all of it's contents to the target destination.
-    fn copy_directory(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
+    fn copy_directory(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> i32 {
         let mut exit_status = 0i32;
         for entry in WalkDir::new(source) {
             // Because the target will change for each entry, a mutable PathBuf will be created from the target Path.
@@ -204,33 +215,53 @@ impl Program {
 
             // If the entry is a directory, create the directory.
             // If the entry is a file, copy the file.
-            let stdin = io::stdin();
-            let stdin = &mut stdin.lock();
-            if write_is_allowed(&current_target, &self.flags, stdout, stdin, stderr) {
+            if write_is_allowed(&entry, &current_target, &self.flags, stdout, stdin, stderr) {
                 if entry.is_dir() {
-                    match fs::create_dir(&current_target) {
-                        Ok(_) => if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); },
-                        Err(message) => {
-                            stderr.write(b"cannot create directory '").try(stderr);
-                            stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
-                            stderr.write(b"': ").try(stderr);
-                            print_error(message, stderr);
-                            exit_status = 1;
+                    if fs::metadata(&current_target).is_err() {
+                        match fs::create_dir(&current_target) {
+                            Ok(_) => if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); },
+                            Err(message) => {
+                                stderr.write(b"cannot create directory '").try(stderr);
+                                stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"': ").try(stderr);
+                                print_error(message, stderr);
+                                exit_status = 1;
+                            }
                         }
+                    } else if current_target.is_dir() {
+                        if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                    } else {
+                        stderr.write(b"cannot overwrite non-directory '").try(stderr);
+                        stderr.write(current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' with directory '").try(stderr);
+                        stderr.write(entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"'\n").try(stderr);
+                        stderr.flush().try(stderr);
+                        exit_status = 1;
                     }
                 } else {
-                    match fs::copy(&entry, &current_target) {
-                        Ok(_) => {
-                            if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
-                        },
-                        Err(message) => {
-                            stderr.write(b"cannot copy '").try(stderr);
-                            stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
-                            stderr.write(b"' to '").try(stderr);
-                            stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
-                            stderr.write(b"': ").try(stderr);
-                            print_error(message, stderr);
-                            exit_status = 1;
+                    if current_target.is_dir() {
+                        stderr.write(b"cannot overwrite directory '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' with non-directory '").try(stderr);
+                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"'\n").try(stderr);
+                        stderr.flush().try(stderr);
+                        exit_status = 1;
+                    } else {
+                        match fs::copy(&entry, &current_target) {
+                            Ok(_) => {
+                                if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                            },
+                            Err(message) => {
+                                stderr.write(b"cannot copy '").try(stderr);
+                                stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"' to '").try(stderr);
+                                stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"': ").try(stderr);
+                                print_error(message, stderr);
+                                exit_status = 1;
+                            }
                         }
                     }
                 }
@@ -245,6 +276,7 @@ struct Flags {
     interactive: bool,
     noclobber:   bool,
     recursive:   bool,
+    update:      bool,
     verbose:     bool,
 }
 
@@ -260,12 +292,18 @@ fn main() {
 /// - If the target file exists and the no-clobber flag is set, return false.
 /// - If the target file exists and the interactive flag is set, prompt the user if it is okay to overwrite.
 /// - Otherwise, this will return true in order to allow writing.
-fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
+fn write_is_allowed(source: &Path, target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
     // Skip to the next source if the target exists and we are not allowed to overwrite it.
     if fs::metadata(&target).is_ok() {
-        if target.is_dir() || flags.noclobber {
+        if flags.update {
+            let source = fs::metadata(&source).unwrap().mtime();
+            let target = fs::metadata(&target).unwrap().mtime();
+            return source > target;
+        }
+        if target.is_dir() && flags.noclobber {
             return false;
-        } else if flags.interactive {
+        }
+        if flags.interactive {
             stdout.write(b"overwrite '").try(stderr);
             stdout.write(target.to_string_lossy().as_bytes()).try(stderr);
             stdout.write(b"'? ").try(stderr);
