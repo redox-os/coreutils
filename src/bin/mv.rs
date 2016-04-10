@@ -13,7 +13,7 @@ use extra::option::OptionalExt;
 use walkdir::WalkDir;
 
 const MAN_PAGE: &'static str = r#"NAME
-    mv - move (rename) files
+    mv - move or rename files and directories
 
 SYNOPSIS
     mv [-h | --help] [-i | --interactive] [-n | --no-clobber] [-v | --verbose] SOURCES.. DESTINATION
@@ -36,6 +36,10 @@ OPTIONS
     --no-clobber
         Do not overwrite existing files.
 
+    -u
+    --update
+        Only move files if the SOURCE is newer than the TARGET, or when the TARGET is missing.
+
     -v
     --verbose
         Print the file changes that have been successfully performed.
@@ -57,7 +61,7 @@ impl Program {
         // Loop through each argument and check for flags.
         // If the argument is not a flag, add it as a source.
         let mut sources = Vec::new();
-        let mut flags = Flags { interactive: false, noclobber: false, verbose: false };
+        let mut flags = Flags { interactive: false, noclobber: false, update: false, verbose: false };
         for argument in env::args().skip(1).collect::<Vec<String>>() {
             match argument.as_str() {
                 "-h" | "--help" => {
@@ -72,6 +76,9 @@ impl Program {
                 "-n" | "--no-clobber" => {
                     flags.noclobber = true;
                     flags.interactive = false;
+                }
+                "-u" | "--update" => {
+                    flags.update = true;
                 }
                 "-v" | "--verbose" => {
                     flags.verbose = true;
@@ -106,6 +113,8 @@ impl Program {
     /// Take a list of arguments and attempt to move each source argument to their respective destination.
     fn execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         let mut exit_status = 0i32;
+        let stdin = io::stdin();
+        let stdin = &mut stdin.lock();
         for source in &self.sources {
             // Metadata from the source and target are required to determine both are on the same device.
             let target_metadata = get_target_metadata(&self.target, &source, stderr);
@@ -121,25 +130,19 @@ impl Program {
             // If the source and target are on the same device, rename the source.
             // If they are on different devices, copy the file or directory.
             if source_metadata.dev() == target_metadata.dev() {
-                let target = get_target_path(&self.target, &source, stderr);
-                match fs::rename(&source, &target) {
-                    Ok(_) => if self.flags.verbose { verbose_print(&source, &target, stdout, stderr); },
-                    Err(message) => {
-                        stderr.write(b"cannot rename '").try(stderr);
-                        stderr.write(&source.to_string_lossy().as_bytes()).try(stderr);
-                        stderr.write(b"' to '").try(stderr);
-                        stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
-                        stderr.write(b"': ").try(stderr);
-                        print_error(message, stderr);
-                        exit_status = 1;
-                    }
+                if source_metadata.is_dir() {
+                    let status = self.rename_directory(&source, stderr, stdout, stdin);
+                    if exit_status == 0 { exit_status = status; }
+                } else {
+                    let status = self.rename_file(&source, stderr, stdout, stdin);
+                    if exit_status == 0 { exit_status = status; }
                 }
             } else {
                 if source_metadata.is_dir() {
-                    let status = self.copy_directory(&source, stderr, stdout);
+                    let status = self.copy_directory(&source, stderr, stdout, stdin);
                     if exit_status == 0 { exit_status = status; }
                 } else {
-                    let status = self.copy_file(&source, stderr, stdout);
+                    let status = self.copy_file(&source, stderr, stdout, stdin);
                     if exit_status == 0 { exit_status = status; }
                 }
             }
@@ -147,40 +150,202 @@ impl Program {
         exit(exit_status);
     }
 
-    /// To move a file across devices, the file must first be copied and then deleted.
-    fn copy_file(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
-        let stdin = io::stdin();
-        let stdin = &mut stdin.lock();
-        let target = get_target_path(&self.target, &source, stderr);
-        if write_is_allowed(&target, &self.flags, stdout, stdin, stderr) {
-            match fs::copy(&source, &target) {
-                Ok(_) => {
-                    if self.flags.verbose { verbose_print(source, &target, stdout, stderr); }
-                    if let Err(message) = fs::remove_file(source) {
-                        stderr.write(b"cannot remove file '").try(stderr);
+    /// Renames a file from the source to the target path.
+    fn rename_file(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> i32 {
+        let target = get_target_path(&self.target, source, stderr);
+        if write_is_allowed(source, &target, &self.flags, stdout, stdin, stderr) {
+            if target.is_dir() {
+                stderr.write(b"cannot overwrite directory '").try(stderr);
+                stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"' with non-directory '").try(stderr);
+                stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"'\n").try(stderr);
+                stderr.flush().try(stderr);
+                return 1i32;
+            } else {
+                match fs::rename(source, &target) {
+                    Ok(_) => if self.flags.verbose { verbose_print(source, &target, stdout, stderr); },
+                    Err(message) => {
+                        stderr.write(b"cannot rename '").try(stderr);
                         stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' to '").try(stderr);
+                        stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
                         stderr.write(b"': ").try(stderr);
                         print_error(message, stderr);
                         return 1i32;
                     }
-                },
-                Err(message) => {
-                    stderr.write(b"cannot copy '").try(stderr);
-                    stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
-                    stderr.write(b"' to '").try(stderr);
-                    stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
-                    stderr.write(b"': ").try(stderr);
-                    print_error(message, stderr);
-                    return 1i32;
                 }
             }
         }
         return 0i32;
     }
 
+    /// To move a file across devices, the file must first be copied and then deleted.
+    fn copy_file(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> i32 {
+        let target = get_target_path(&self.target, &source, stderr);
+        if write_is_allowed(source, &target, &self.flags, stdout, stdin, stderr) {
+            if target.is_dir() {
+                stderr.write(b"cannot overwrite directory '").try(stderr);
+                stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"' with non-directory '").try(stderr);
+                stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                stderr.write(b"'\n").try(stderr);
+                stderr.flush().try(stderr);
+                return 1i32;
+            } else {
+                match fs::copy(&source, &target) {
+                    Ok(_) => {
+                        if self.flags.verbose { verbose_print(source, &target, stdout, stderr); }
+                        if let Err(message) = fs::remove_file(source) {
+                            stderr.write(b"cannot remove file '").try(stderr);
+                            stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                            stderr.write(b"': ").try(stderr);
+                            print_error(message, stderr);
+                            return 1i32;
+                        }
+                    },
+                    Err(message) => {
+                        stderr.write(b"cannot move '").try(stderr);
+                        stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' to '").try(stderr);
+                        stderr.write(&target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
+                        print_error(message, stderr);
+                        return 1i32;
+                    }
+                }
+            }
+        }
+        return 0i32;
+    }
+
+    /// Renames a directory and all of it's contents from a source to the target path.
+    fn rename_directory(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> i32 {
+        let mut exit_status = 0i32;
+        let mut delete_files = Vec::new();
+        let mut directory_walk = Vec::new();
+
+        for entry in WalkDir::new(&source) {
+            // Because the target will change for each entry, a mutable PathBuf will be created from the target Path.
+            let mut current_target = self.target.clone();
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(message) => {
+                    stderr.write(b"cannot access '").try(stderr);
+                    stderr.write(message.path().unwrap().to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"': ").try(stderr);
+                    stderr.write(message.description().as_bytes()).try(stderr);
+                    stderr.write(b"\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    exit_status = 1;
+                    continue
+                }
+            };
+            let entry = entry.path();
+            directory_walk.push(entry.to_path_buf());
+
+            // Pushing an absolute path onto a PathBuf causes the PathBuf to be overwritten.
+            // Therefore, we will strip the source path from the entry path.
+            if entry.is_absolute() {
+                let mut temp = source.to_path_buf();
+                if !temp.pop() {
+                    stderr.write(b"unable to get parent from '").try(stderr);
+                    stderr.write(source.to_string_lossy().as_bytes()).try(stderr);
+                    stderr.write(b"'\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    exit_status = 1;
+                    continue
+                }
+                let suffix = entry.strip_prefix(&temp).unwrap();
+                current_target.push(suffix);
+            } else {
+                current_target.push(&entry);
+            }
+
+            // If the entry is a directory, rename the directory.
+            // If the entry is a file, rename the file.
+            if write_is_allowed(source, &current_target, &self.flags, stdout, stdin, stderr) {
+                if entry.is_dir() {
+                    if fs::metadata(&current_target).is_err() {
+                        match fs::rename(source, &current_target) {
+                            Ok(_) => {
+                                if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                            },
+                            Err(message) => {
+                                stderr.write(b"cannot rename directory '").try(stderr);
+                                stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"': ").try(stderr);
+                                print_error(message, stderr);
+                                exit_status = 1;
+                            }
+                        }
+                    } else if current_target.is_dir() {
+                        if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                        delete_files.push(source.to_path_buf());
+                    } else {
+                        stderr.write(b"cannot overwrite non-directory '").try(stderr);
+                        stderr.write(current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' with directory '").try(stderr);
+                        stderr.write(entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"'\n").try(stderr);
+                        stderr.flush().try(stderr);
+                        exit_status = 1;
+                    }
+                } else {
+                    if current_target.is_dir() {
+                        stderr.write(b"cannot overwrite directory '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' with non-directory '").try(stderr);
+                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"'\n").try(stderr);
+                        stderr.flush().try(stderr);
+                        exit_status = 1;
+                    } else {
+                        match fs::rename(&entry, &current_target) {
+                            Ok(_) => {
+                                if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                            },
+                            Err(message) => {
+                                stderr.write(b"cannot rename '").try(stderr);
+                                stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"' to '").try(stderr);
+                                stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"': ").try(stderr);
+                                print_error(message, stderr);
+                                exit_status = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Delete all of the directories that are marked for deletion.
+        for entry in directory_walk.iter().rev() {
+            if delete_files.contains(&entry) {
+                match fs::remove_dir(&entry) {
+                    Ok(_) => if self.flags.verbose {
+                        stdout.write(b"removed directory '").try(stderr);
+                        stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stdout.write(b"'\n").try(stderr);
+                        stdout.flush().try(stderr);
+                    },
+                    Err(message) => {
+                        stderr.write(b"cannot remove directory '").try(stderr);
+                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"': ").try(stderr);
+                        print_error(message, stderr);
+                        exit_status = 1;
+                    }
+                }
+            }
+        }
+        exit_status
+    }
+
     /// While directories on the same device may simply be moved using fs::rename(), cross-device moving of directories is
     /// a bit more involved. The walkdir crate was imported to make this easier.
-    fn copy_directory(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock) -> i32 {
+    fn copy_directory(&self, source: &Path, stderr: &mut Stderr, stdout: &mut StdoutLock, stdin: &mut StdinLock) -> i32 {
         let mut exit_status = 0i32;
 
         // Keep track of files and directories to be deleted.
@@ -226,34 +391,58 @@ impl Program {
 
             // If the entry is a directory, create the directory.
             // If the entry is a file, copy the file.
-            let stdin = io::stdin();
-            let stdin = &mut stdin.lock();
-            if write_is_allowed(&current_target, &self.flags, stdout, stdin, stderr) {
+            if write_is_allowed(source, &current_target, &self.flags, stdout, stdin, stderr) {
                 if entry.is_dir() {
-                    match fs::create_dir(&current_target) {
-                        Ok(_) => if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); },
-                        Err(message) => {
-                            stderr.write(b"cannot create directory '").try(stderr);
-                            stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
-                            stderr.write(b"': ").try(stderr);
-                            print_error(message, stderr);
-                            exit_status = 1;
+                    if fs::metadata(&current_target).is_err() {
+                        match fs::create_dir(&current_target) {
+                            Ok(_) => {
+                                if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                                delete_files.push(entry.to_path_buf());
+                            },
+                            Err(message) => {
+                                stderr.write(b"cannot create directory '").try(stderr);
+                                stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"': ").try(stderr);
+                                print_error(message, stderr);
+                                exit_status = 1;
+                            }
                         }
+                    } else if current_target.is_dir() {
+                        if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                        delete_files.push(entry.to_path_buf());
+                    } else {
+                        stderr.write(b"cannot overwrite non-directory '").try(stderr);
+                        stderr.write(current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' with directory '").try(stderr);
+                        stderr.write(entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"'\n").try(stderr);
+                        stderr.flush().try(stderr);
+                        exit_status = 1;
                     }
                 } else {
-                    match fs::copy(&entry, &current_target) {
-                        Ok(_) => {
-                            if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
-                            delete_files.push(entry.to_path_buf());
-                        },
-                        Err(message) => {
-                            stderr.write(b"cannot copy '").try(stderr);
-                            stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
-                            stderr.write(b"' to '").try(stderr);
-                            stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
-                            stderr.write(b"': ").try(stderr);
-                            print_error(message, stderr);
-                            exit_status = 1;
+                    if current_target.is_dir() {
+                        stderr.write(b"cannot overwrite directory '").try(stderr);
+                        stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"' with non-directory '").try(stderr);
+                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                        stderr.write(b"'\n").try(stderr);
+                        stderr.flush().try(stderr);
+                        exit_status = 1;
+                    } else {
+                        match fs::copy(&entry, &current_target) {
+                            Ok(_) => {
+                                if self.flags.verbose { verbose_print(&entry, &current_target, stdout, stderr); }
+                                delete_files.push(entry.to_path_buf());
+                            },
+                            Err(message) => {
+                                stderr.write(b"cannot move '").try(stderr);
+                                stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"' to '").try(stderr);
+                                stderr.write(&current_target.to_string_lossy().as_bytes()).try(stderr);
+                                stderr.write(b"': ").try(stderr);
+                                print_error(message, stderr);
+                                exit_status = 1;
+                            }
                         }
                     }
                 }
@@ -262,36 +451,38 @@ impl Program {
 
         // Delete files and directories that were copied.
         for entry in directory_walk.iter().rev() {
-            if entry.is_dir() {
-                match fs::remove_dir(&entry) {
-                    Ok(_) => if self.flags.verbose {
-                        stdout.write(b"removed directory '").try(stderr);
-                        stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
-                        stdout.write(b"'\n").try(stderr);
-                        stdout.flush().try(stderr);
-                    },
-                    Err(message) => {
-                        stderr.write(b"cannot remove directory '").try(stderr);
-                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
-                        stderr.write(b"': ").try(stderr);
-                        print_error(message, stderr);
-                        exit_status = 1;
+            if delete_files.contains(&entry) {
+                if entry.is_dir() {
+                    match fs::remove_dir(&entry) {
+                        Ok(_) => if self.flags.verbose {
+                            stdout.write(b"removed directory '").try(stderr);
+                            stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                            stdout.write(b"'\n").try(stderr);
+                            stdout.flush().try(stderr);
+                        },
+                        Err(message) => {
+                            stderr.write(b"cannot remove directory '").try(stderr);
+                            stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                            stderr.write(b"': ").try(stderr);
+                            print_error(message, stderr);
+                            exit_status = 1;
+                        }
                     }
-                }
-            } else if delete_files.contains(&entry) {
-                match fs::remove_file(&entry) {
-                    Ok(_) => if self.flags.verbose {
-                        stdout.write(b"removed '").try(stderr);
-                        stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
-                        stdout.write(b"'\n").try(stderr);
-                        stdout.flush().try(stderr);
-                    },
-                    Err(message) => {
-                        stderr.write(b"cannot remove file '").try(stderr);
-                        stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
-                        stderr.write(b"': ").try(stderr);
-                        print_error(message, stderr);
-                        exit_status = 1;
+                } else {
+                    match fs::remove_file(&entry) {
+                        Ok(_) => if self.flags.verbose {
+                            stdout.write(b"removed '").try(stderr);
+                            stdout.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                            stdout.write(b"'\n").try(stderr);
+                            stdout.flush().try(stderr);
+                        },
+                        Err(message) => {
+                            stderr.write(b"cannot remove file '").try(stderr);
+                            stderr.write(&entry.to_string_lossy().as_bytes()).try(stderr);
+                            stderr.write(b"': ").try(stderr);
+                            print_error(message, stderr);
+                            exit_status = 1;
+                        }
                     }
                 }
             }
@@ -304,6 +495,7 @@ impl Program {
 struct Flags {
     interactive: bool,
     noclobber:   bool,
+    update:      bool,
     verbose:     bool,
 }
 
@@ -319,12 +511,18 @@ fn main() {
 /// - If the target file exists and the no-clobber flag is set, return false.
 /// - If the target file exists and the interactive flag is set, prompt the user if it is okay to overwrite.
 /// - Otherwise, this will return true in order to allow writing.
-fn write_is_allowed(target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
+fn write_is_allowed(source: &Path, target: &Path, flags: &Flags, stdout: &mut StdoutLock, stdin: &mut StdinLock, stderr: &mut Stderr) -> bool {
     // Skip to the next source if the target exists and we are not allowed to overwrite it.
     if fs::metadata(&target).is_ok() {
-        if target.is_dir() || flags.noclobber {
+        if flags.update {
+            let source = fs::metadata(&source).unwrap().mtime();
+            let target = fs::metadata(&target).unwrap().mtime();
+            return source > target;
+        }
+        if target.is_dir() && flags.noclobber {
             return false;
-        } else if flags.interactive {
+        }
+        if flags.interactive {
             stdout.write(b"overwrite '").try(stderr);
             stdout.write(target.to_string_lossy().as_bytes()).try(stderr);
             stdout.write(b"'? ").try(stderr);
