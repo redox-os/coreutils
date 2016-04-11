@@ -12,7 +12,7 @@ use std::process::exit;
 use extra::option::OptionalExt;
 use walkdir::WalkDir;
 
-const MAN_PAGE: &'static str = r#"NAME
+const MAN_PAGE: &'static str = /* @MANSTART{cp} */r#"NAME
     cp - copy files and directories
 
 SYNOPSIS
@@ -51,7 +51,7 @@ OPTIONS
 
 AUTHOR
     Written by Michael Murphy.
-"#;
+"#; /* @MANEND */
 
 /// Contains the sources, target and flags that were given as input arguments.
 struct Program {
@@ -105,7 +105,7 @@ impl Program {
             1 => {
                 stderr.write(b"missing target operand after '").try(stderr);
                 stderr.write(sources[0].to_string_lossy().as_bytes()).try(stderr);
-                stderr.write(b"'\nTry 'mv --help' for more information.\n").try(stderr);
+                stderr.write(b"'\nTry 'cp --help' for more information.\n").try(stderr);
                 stderr.flush().try(stderr);
                 exit(1);
             }

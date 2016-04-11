@@ -12,7 +12,7 @@ use std::process::exit;
 use extra::option::OptionalExt;
 use walkdir::WalkDir;
 
-const MAN_PAGE: &'static str = r#"NAME
+const MAN_PAGE: &'static str = /* @MANSTART{mv} */r#"NAME
     mv - move or rename files and directories
 
 SYNOPSIS
@@ -46,7 +46,7 @@ OPTIONS
 
 AUTHOR
     Written by Michael Murphy.
-"#;
+"#; /* @MANEND */
 
 /// Contains the sources, target and flags that were given as input arguments.
 struct Program {
