@@ -2,10 +2,12 @@
 
 extern crate extra;
 
+use std::cell::Cell; // Provide mutable fields in immutable structs
 use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::{self, Read, Stderr, StdoutLock, Write};
+use std::process::exit;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{cat} */ r#"NAME
@@ -53,7 +55,7 @@ OPTIONS
 
     -v
     --show-nonprinting
-        use ^ and M- notation,except for LFD and TAB.
+        use caret (^) and M- notation, except for LFD and TAB.
 
     -h
     --help
@@ -64,24 +66,28 @@ AUTHOR
 "#; /* @MANEND */
 
 struct Program {
-    number:          bool,
-    number_nonblank: bool,
-    show_ends:       bool,
-    show_tabs:       bool,
-    squeeze_blank:   bool,
-    paths:           Vec<String>,
+    exit_status:      Cell<i32>,
+    number:           bool,
+    number_nonblank:  bool,
+    show_ends:        bool,
+    show_tabs:        bool,
+    show_nonprinting: bool,
+    squeeze_blank:    bool,
+    paths:            Vec<String>,
 }
 
 impl Program {
     /// Initialize the program's arguments and flags.
     fn initialize(stdout: &mut StdoutLock, stderr: &mut Stderr) -> Program {
         let mut cat = Program {
-            number:          false,
-            number_nonblank: false,
-            show_ends:       false,
-            show_tabs:       false,
-            squeeze_blank:   false,
-            paths:           Vec::new()
+            exit_status:      Cell::new(0i32),
+            number:           false,
+            number_nonblank:  false,
+            show_ends:        false,
+            show_tabs:        false,
+            show_nonprinting: false,
+            squeeze_blank:    false,
+            paths:            Vec::new()
         };
         for arg in env::args().skip(1) {
             if arg.starts_with('-') {
@@ -89,10 +95,10 @@ impl Program {
                     "-h" | "--help" => {
                         stdout.write(MAN_PAGE.as_bytes()).try(stderr);
                         stdout.flush().try(stderr);
-                        std::process::exit(0);
+                        exit(0);
                     }
                     "-A" | "--show-all" => {
-                        // TODO: implement -v
+                        cat.show_nonprinting = true;
                         cat.show_ends = true;
                         cat.show_tabs = true;
                     },
@@ -101,7 +107,7 @@ impl Program {
                         cat.number = false;
                     },
                     "-e" => {
-                        // TODO: implement -v
+                        cat.show_nonprinting = true;
                         cat.show_ends = true;
                     },
                     "-E" | "--show-ends" => cat.show_ends = true,
@@ -111,20 +117,19 @@ impl Program {
                     },
                     "-s" | "--squeeze-blank" => cat.squeeze_blank = true,
                     "-t" => {
-                        // TODO: implement -v
+                        cat.show_nonprinting = true;
                         cat.show_tabs = true;
                     },
                     "-T" => cat.show_tabs = true,
                     "-v" | "--show-nonprinting" => {
-                        // TODO: implement -v, --show-nonprinting
-                        continue
+                        cat.show_nonprinting = true;
                     },
                     _ => {
                         stderr.write(b"invalid option -- '").try(stderr);
                         stderr.write(arg.as_bytes()).try(stderr);
                         stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
                         stderr.flush().try(stderr);
-                        std::process::exit(1);
+                        exit(1);
                     }
                 }
             } else {
@@ -135,17 +140,16 @@ impl Program {
     }
 
     /// Execute the parameters given to the program.
-    fn execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    fn and_execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) -> i32 {
         let stdin = io::stdin();
         let mut stdin = stdin.lock();
-        let mut exit_status = 0i32;
 
         if self.paths.len() == 0 {
             io::copy(&mut stdin, stdout).try(stderr);
         } else {
             let mut line_count = 1;
             for path in &self.paths {
-                if self.number || self.number_nonblank || self.show_ends || self.show_tabs || self.squeeze_blank {
+                if self.number || self.number_nonblank || self.show_ends || self.show_tabs || self.squeeze_blank || self.show_nonprinting {
                     let file = match fs::File::open(&path) {
                         Ok(file) => file,
                         Err(message) => {
@@ -154,36 +158,75 @@ impl Program {
                             stderr.write(message.description().as_bytes()).try(stderr);
                             stderr.write(b"\n").try(stderr);
                             stderr.flush().try(stderr);
-                            exit_status = 1;
+                            self.exit_status.set(1i32);;
                             continue
                         }
                     };
-                    let mut current_line: Vec<u8> = Vec::new();
+                    let mut character_count = 0;
                     let mut last_line_was_blank = false;
-                    for byte in file.bytes().map(|x| x.unwrap_or(b' ')) {
-                        if byte == b'\n' {
-                            if current_line.is_empty() {
-                                if last_line_was_blank && self.squeeze_blank {
-                                    continue
-                                } else if !last_line_was_blank {
-                                    last_line_was_blank = true;
+
+                    for byte in file.bytes().map(|x| x.unwrap()) {
+                        if (self.number && character_count == 0) || (character_count == 0 && self.number_nonblank && byte != b'\n') {
+                            stdout.write(b"     ").try(stderr);
+                            stdout.write(line_count.to_string().as_bytes()).try(stderr);
+                            stdout.write(b"  ").try(stderr);
+                            line_count += 1;
+                        }
+                        match byte {
+                            0...8 | 11...31 => if self.show_nonprinting {
+                                push_caret(stdout, stderr, byte+64);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            },
+                            9 => {
+                                if self.show_tabs {
+                                    push_caret(stdout, stderr, b'I');
+                                } else {
+                                    stdout.write(&[byte]).try(stderr);
                                 }
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
                             }
-                            if self.number || (self.number_nonblank && !current_line.is_empty()) {
-                                stdout.write(format!("     {}  ", line_count).as_bytes()).try(stderr);
-                                line_count += 1;
-                            }
-                            stdout.write(current_line.as_slice()).try(stderr);
-                            if self.show_ends { stdout.write(b"$\n").try(stderr); } else { stdout.write(b"\n").try(stderr); }
-                            stdout.flush().try(stderr);
-                            current_line.clear();
-                        } else {
-                            if self.show_tabs && byte == b'\t' {
-                                current_line.push(b'^');
-                                current_line.push(b'I');
+                            10 => {
+                                if character_count == 0 {
+                                    if self.squeeze_blank && last_line_was_blank {
+                                        continue
+                                    } else if !last_line_was_blank {
+                                        last_line_was_blank = true;
+                                    }
+                                } else {
+                                    last_line_was_blank = false;
+                                    character_count = 0;
+                                }
+                                if self.show_ends {
+                                    stdout.write(b"$\n").try(stderr);
+                                } else {
+                                    stdout.write(b"\n").try(stderr);
+                                }
+                                stdout.flush().try(stderr);
+                            },
+                            32...126 => {
+                                stdout.write(&[byte]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            },
+                            127 => if self.show_nonprinting {
+                                push_caret(stdout, stderr, b'?');
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            },
+                            128...159 => if self.show_nonprinting {
+                                stdout.write(b"M-^").try(stderr);
+                                stdout.write(&[byte-64]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
                             } else {
-                                current_line.push(byte);
-                            }
+                                stdout.write(&[byte]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            },
+                            _ => if self.show_nonprinting {
+                                stdout.write(b"M-").try(stderr);
+                                stdout.write(&[byte-128]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            } else {
+                                stdout.write(&[byte]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            },
                         }
                     }
                 } else {
@@ -198,13 +241,26 @@ impl Program {
                 }
             }
         }
-        std::process::exit(exit_status);
+        self.exit_status.get()
     }
+}
+
+/// Increase the character count by one if number printing is enabled.
+fn count_character(character_count: &mut usize, number: &bool, number_nonblank: &bool) {
+    if *number || *number_nonblank {
+        *character_count += 1;
+    }
+}
+
+/// Print a caret notation to stdout.
+fn push_caret(stdout: &mut StdoutLock, stderr: &mut Stderr, notation: u8) {
+    stdout.write(&[b'^']).try(stderr);
+    stdout.write(&[notation]).try(stderr);
 }
 
 fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    Program::initialize(&mut stdout, &mut stderr).execute(&mut stdout, &mut stderr);
+    exit(Program::initialize(&mut stdout, &mut stderr).and_execute(&mut stdout, &mut stderr));
 }
