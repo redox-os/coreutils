@@ -7,6 +7,7 @@ use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::{self, Read, Stderr, StdoutLock, Write};
+use std::process::exit;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"NAME
@@ -93,7 +94,7 @@ impl Program {
                     "-h" | "--help" => {
                         stdout.write(MAN_PAGE.as_bytes()).try(stderr);
                         stdout.flush().try(stderr);
-                        std::process::exit(0);
+                        exit(0);
                     }
                     "-A" | "--show-all" => {
                         cat.show_nonprinting = true;
@@ -127,7 +128,7 @@ impl Program {
                         stderr.write(arg.as_bytes()).try(stderr);
                         stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
                         stderr.flush().try(stderr);
-                        std::process::exit(1);
+                        exit(1);
                     }
                 }
             } else {
@@ -210,11 +211,10 @@ impl Program {
                                 stdout.write(b"M-^").try(stderr);
                                 stdout.write(&[byte-64]).try(stderr);
                             },
-                            160...255 => {
+                            _ => {
                                 stdout.write(b"M-").try(stderr);
                                 stdout.write(&[byte-128]).try(stderr);
                             },
-                            _ => unreachable!() // u8 number range is from 0-255
                         }
                     }
                 } else {
@@ -229,16 +229,18 @@ impl Program {
                 }
             }
         }
-        return self.exit_status.get();
+        self.exit_status.get()
     }
 }
 
+/// Increase the character count by one if number printing is enabled.
 fn count_character(character_count: &mut usize, number: &bool, number_nonblank: &bool) {
     if *number || *number_nonblank {
         *character_count += 1;
     }
 }
 
+/// Print a caret notation to stdout.
 fn push_caret(stdout: &mut StdoutLock, stderr: &mut Stderr, notation: u8) {
     stdout.write(&[b'^']).try(stderr);
     stdout.write(&[notation]).try(stderr);
@@ -248,5 +250,5 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    std::process::exit(Program::initialize(&mut stdout, &mut stderr).and_execute(&mut stdout, &mut stderr));
+    exit(Program::initialize(&mut stdout, &mut stderr).and_execute(&mut stdout, &mut stderr));
 }
