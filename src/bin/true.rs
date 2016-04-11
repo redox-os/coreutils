@@ -12,6 +12,7 @@ SYNOPSIS
 DESCRIPTION
     Exit with a status code indicating success.
 "#; /* @MANEND */
+
 fn main() {
     process::exit(0);
 }
