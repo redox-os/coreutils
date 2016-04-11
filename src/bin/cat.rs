@@ -217,30 +217,6 @@ impl Program {
                             _ => unreachable!() // u8 number range is from 0-255
                         }
                     }
-                    // for byte in file.bytes().map(|x| x.unwrap()) {
-                    //
-                    //     if byte == b'\n' {
-                    //         if current_line.is_empty() {
-                    //             if last_line_was_blank && self.squeeze_blank {
-                    //                 continue
-                    //             } else if !last_line_was_blank {
-                    //                 last_line_was_blank = true;
-                    //             }
-                    //         }
-                    //         if self.number || (self.number_nonblank && !current_line.is_empty()) {
-                    //             stderr.write(b"     ").try(stderr);
-                    //             stderr.write(line_count.to_string().as_bytes()).try(stderr);
-                    //             stderr.write(b"  ").try(stderr);
-                    //             line_count += 1;
-                    //         }
-                    //         stdout.write(current_line.as_slice()).try(stderr);
-                    //         if self.show_ends { stdout.write(b"$\n").try(stderr); } else { stdout.write(b"\n").try(stderr); }
-                    //         stdout.flush().try(stderr);
-                    //         current_line.clear();
-                    //     } else {
-                    //
-                    //     }
-                    // }
                 } else {
                     if path == "-" {
                         io::copy(&mut stdin, stdout).try(stderr);
