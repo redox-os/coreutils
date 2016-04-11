@@ -206,14 +206,25 @@ impl Program {
                                 stdout.write(&[byte]).try(stderr);
                                 count_character(&mut character_count, &self.number, &self.number_nonblank);
                             },
-                            127 => push_caret(stdout, stderr, b'?'),
-                            128...159 => {
+                            127 => if self.show_nonprinting {
+                                push_caret(stdout, stderr, b'?');
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            },
+                            128...159 => if self.show_nonprinting {
                                 stdout.write(b"M-^").try(stderr);
                                 stdout.write(&[byte-64]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            } else {
+                                stdout.write(&[byte]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
                             },
-                            _ => {
+                            _ => if self.show_nonprinting {
                                 stdout.write(b"M-").try(stderr);
                                 stdout.write(&[byte-128]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
+                            } else {
+                                stdout.write(&[byte]).try(stderr);
+                                count_character(&mut character_count, &self.number, &self.number_nonblank);
                             },
                         }
                     }
