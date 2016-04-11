@@ -10,11 +10,12 @@ use std::io::{self, Read, Stderr, StdoutLock, Write};
 use std::process::exit;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = r#"NAME
+const MAN_PAGE: &'static str = /* @MANSTART{cat} */ r#"NAME
     cat - concatenate files and print on the standard output
 
 SYNOPSIS
-    cat [-h | --help] [-A | --show-all] [-b | --number-nonblank] [-e] [-E | --show-ends] [-n | --number] [-s | --squeeze-blank] [-t] [-T] FILES...
+    cat [-h | --help] [-A | --show-all] [-b | --number-nonblank] [-e] [-E | --show-ends]
+        [-n | --number] [-s | --squeeze-blank] [-t] [-T] FILES...
 
 DESCRIPTION
     Concatenates all files to the standard output.
@@ -62,7 +63,7 @@ OPTIONS
 
 AUTHOR
     Written by Michael Murphy.
-"#;
+"#; /* @MANEND */
 
 struct Program {
     exit_status:      Cell<i32>,
