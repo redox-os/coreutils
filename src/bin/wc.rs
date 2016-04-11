@@ -13,30 +13,40 @@ use extra::io::WriteExt;
 
 static MAN_PAGE: &'static str = /* @MANSTART{wc} */ r#"
 NAME
-        wc - count words, bytes and lines of a file or byte stream.
-    SYNOPSIS
-        wc [-h | --help] [-c | --bytes] [-w | --words] [-l | --lines] [FILE 1] [FILE 2]...
-    DESCRIPTION
-        This utility will dump word count, line count, and byte count of a file or byte stream. If multiple files are given, it will print a total count. If no file name is given, 'wc' reads from stdin until EOF.
+    wc - count words, bytes and lines of a file or byte stream.
 
-        Flags can be arbitrarily combined into a single flag, for example, '-c -w' (count bytes and count words) can be reduced to '-cw'.
+SYNOPSIS
+    wc [-h | --help] [-c | --bytes] [-w | --words] [-l | --lines] [FILE 1] [FILE 2]...
 
-        If no flags are given, 'wc' defaults to '-cwl'.
-    OPTIONS
-        -h
-        --help
-            Print this manual page.
-        -c
-        --bytes
-            Count bytes.
-        -w
-        --words
-            Count words (i.e. contiguous strings seperated by whitespaces).
-        -l
-        --lines
-            Count lines (seperated by NL).
-    AUTHOR
-        This program was written mainly by Alice Maz.
+DESCRIPTION
+    This utility will dump word count, line count, and byte count of a file or byte stream. If
+    multiple files are given, it will print a total count. If no file name is given, 'wc' reads
+    from stdin until EOF.
+
+    Flags can be arbitrarily combined into a single flag, for example, '-c -w' (count bytes and
+    count words) can be reduced to '-cw'.
+
+    If no flags are given, 'wc' defaults to '-cwl'.
+
+OPTIONS
+    -h
+    --help
+        Print this manual page.
+
+    -c
+    --bytes
+        Count bytes.
+
+    -w
+    --words
+        Count words (i.e. contiguous strings seperated by whitespaces).
+
+    -l
+    --lines
+        Count lines (seperated by NL).
+
+AUTHOR
+    This program was written mainly by Alice Maz.
 "#; /* @MANEND */
 
 #[derive(Copy, Clone, Default)]

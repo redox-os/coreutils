@@ -11,62 +11,68 @@ use extra::option::OptionalExt;
 
 
 static USAGE: &'static str = r#"usage: cut -b list [-n] [file ...]
-       cut -c list [file ...]
-       cut -f list [-s] [-d delim] [file ...]
+    cut -c list [file ...]
+    cut -f list [-s] [-d delim] [file ...]
 "#;
 
 static MAN_PAGE : &'static str = /* @MANSTART{cut} */ r#"
 NAME
-     cut -- cut out selected portions of each line of a file
+    cut -- cut out selected portions of each line of a file
 
 SYNOPSIS
-     cut -b list [-n] [file ...]
-     cut -c list [file ...]
-     cut -f list [-d delim] [-s] [file ...]
+    cut -b list [-n] [file ...]
+    cut -c list [file ...]
+    cut -f list [-d delim] [-s] [file ...]
 
 DESCRIPTION
-     The cut utility cuts out selected portions of each line (as specified by list) from each file and writes them to the standard output.  If
-     no file arguments are specified, or a file argument is a single dash (`-'), cut reads from the standard input.  The items specified by
-     list can be in terms of column position or in terms of fields delimited by a special character.  Column numbering starts from 1.
+    The cut utility cuts out selected portions of each line (as specified by list) from each file
+    and writes them to the standard output. If no file arguments are specified, or a file argument
+    is a single dash (`-'), cut reads from the standard input. The items specified by list can be
+    in terms of column position or in terms of fields delimited by a special character. Column
+    numbering starts from 1.
 
-     The list option argument is a comma or whitespace separated set of numbers and/or number ranges.  Number ranges consist of a number, a
-     dash (`-'), and a second number and select the fields or columns from the first number to the second, inclusive.  Numbers or number
-     ranges may be preceded by a dash, which selects all fields or columns from 1 to the last number.  Numbers or number ranges may be fol-
-     lowed by a dash, which selects all fields or columns from the last number to the end of the line.  Numbers and number ranges may be
-     repeated, overlapping, and in any order.  If a field or column is specified multiple times, it will appear only once in the output.  It
-     is not an error to select fields or columns not present in the input line.
+    The list option argument is a comma or whitespace separated set of numbers and/or number
+    ranges. Number ranges consist of a number, a dash (`-'), and a second number and select the
+    fields or columns from the first number to the second, inclusive. Numbers or number ranges may
+    be preceded by a dash, which selects all fields or columns from 1 to the last number. Numbers
+    or number ranges may be followed by a dash, which selects all fields or columns from the last
+    number to the end of the line. Numbers and number ranges may be repeated, overlapping, and in
+    any order. If a field or column is specified multiple times, it will appear only once in the
+    output. It is not an error to select fields or columns not present in the input line.
 
 OPTIONS
+    -b list
+        The list specifies byte positions.
 
-     -b list
-             The list specifies byte positions.
+    -c list
+        The list specifies character positions.
 
-     -c list
-             The list specifies character positions.
+    -d delim
+        Use delim as the field delimiter character instead of the tab character.
 
-     -d delim
-             Use delim as the field delimiter character instead of the tab character.
+    -f list
+        The list specifies fields, separated in the input by the field delimiter character (see the
+        -d option.) Output fields are separated by a single occurrence of the field delimiter
+        character.
 
-     -f list
-             The list specifies fields, separated in the input by the field delimiter character (see the -d option.)  Output fields are sepa-
-             rated by a single occurrence of the field delimiter character.
-
-     -s      Suppress lines with no field delimiter characters.  Unless specified, lines with no delimiters are passed through unmodified.
+    -s
+        Suppress lines with no field delimiter characters. Unless specified, lines with no
+        delimiters are passed through unmodified.
 
 EXIT STATUS
-     The cut utility exits 0 on success, and >0 if an error occurs.
+    The cut utility exits 0 on success, and >0 if an error occurs.
 
 EXAMPLES
-     Extract users' login names and shells from the system passwd(5) file as ``name:shell'' pairs:
+    Extract users' login names and shells from the system passwd(5) file as ``name:shell'' pairs:
 
-           cut -d : -f 1,7 /etc/passwd
+        cut -d : -f 1,7 /etc/passwd
 
-     Show the names and login times of the currently logged in users:
+    Show the names and login times of the currently logged in users:
 
-           who | cut -c 1-16,26-38
+        who | cut -c 1-16,26-38
 
 AUTHOR
-     Written by Hernán E. Grecco.
+    Written by Hernán E. Grecco.
 "#; /* @MANEND */
 
 /// The Selection object.

@@ -17,7 +17,10 @@ SYNOPSIS
     sleep [-h | --help] NUMBER[SUFFIX]...
 
 DESCRIPTION
-    Pause the shell for NUMBER seconds. An optional SUFFIX may be applied, such as 's' for seconds (default), 'm' for minutes, 'h' for hours or 'd' for day. Given multiple arguments, it will pause for the amount of time specified by the sum of their values. This implementation supports floating point numbers as input.
+    Pause the shell for NUMBER seconds. An optional SUFFIX may be applied, such as 's' for seconds
+    (default), 'm' for minutes, 'h' for hours or 'd' for day. Given multiple arguments, it will
+    pause for the amount of time specified by the sum of their values. This implementation supports
+    floating point numbers as input.
 
 EXAMPLE
     The following are three possible arguments with the same effect:

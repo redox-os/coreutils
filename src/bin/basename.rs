@@ -12,18 +12,22 @@ SYNOPSIS
     basename [-z --zero] [-s | --suffix] SUFFIX [-a | --multiple] NAME...
 
 DESCRIPTION
-    Print NAME with any leading directory components removed. If a SUFFIX is provided, the suffix will be removed from NAME.
+    Print NAME with any leading directory components removed. If a SUFFIX is provided, the suffix
+    will be removed from NAME.
 
 OPTIONS
     -a
     --multiple
         Support multiple arguments and treat each as a NAME
+
     -s
     --suffix=SUFFIX
         remove a trailing SUFFIX; implies -a
+
     -z
     --zero
         end each output line with NUL, not newline
+
     -h
     --help
         display this help and exit

@@ -16,7 +16,9 @@ SYNOPSIS
     head [[-h | --help] | [[-n | --lines] LINES] | [[-c | --bytes] BYTES]] [FILE ...]
 
 DESCRIPTION
-    Print the first 10 lines of each FILE to standard output. If there are no files, read the standard input. If there are multiple files, prefix each one with a header containing it's name.
+    Print the first 10 lines of each FILE to standard output. If there are no files, read the
+    standard input. If there are multiple files, prefix each one with a header containing it's
+    name.
 
 OPTIONS
     -h
