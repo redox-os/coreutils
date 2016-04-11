@@ -23,6 +23,4 @@ fn main() {
             stdout.writeln(b"y").try(&mut stderr);
         }
     };
-    // ticki: Dafuq, borrowck?
-    // stratact: But I love the borrowck! :)
 }

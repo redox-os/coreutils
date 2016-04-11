@@ -8,7 +8,8 @@ use std::io::{self, BufRead, Read, Write};
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
 
-static MAN_PAGE: &'static str = r#"NAME
+static MAN_PAGE: &'static str = /* @MANSTART{head} */ r#"
+NAME
     head - output the first part of a file
 
 SYNOPSIS
@@ -32,7 +33,7 @@ OPTIONS
 
 AUTHOR
     Written by Žad Deljkić.
-"#;
+"#; /* @MANEND */
 
 #[derive(Copy, Clone)]
 struct Options {

@@ -11,8 +11,8 @@ use std::process::exit;
 use extra::option::OptionalExt;
 use extra::io::WriteExt;
 
-static MAN_PAGE: &'static str = r#"
-    NAME
+static MAN_PAGE: &'static str = /* @MANSTART{wc} */ r#"
+NAME
         wc - count words, bytes and lines of a file or byte stream.
     SYNOPSIS
         wc [-h | --help] [-c | --bytes] [-w | --words] [-l | --lines] [FILE 1] [FILE 2]...
@@ -37,7 +37,7 @@ static MAN_PAGE: &'static str = r#"
             Count lines (seperated by NL).
     AUTHOR
         This program was written mainly by Alice Maz.
-"#;
+"#; /* @MANEND */
 
 #[derive(Copy, Clone, Default)]
 struct Counts {

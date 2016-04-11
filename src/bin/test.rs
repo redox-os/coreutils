@@ -9,7 +9,8 @@ use std::process::exit;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = r#"NAME
+const MAN_PAGE: &'static str = /* @MANSTART{test} */ r#"
+NAME
     test - perform tests on files and text
 
 SYNOPSIS
@@ -112,7 +113,7 @@ EXAMPLES
 
 AUTHOR
     Written by Michael Murphy.
-"#;
+"#; /* @MANEND */
 
 const SUCCESS: i32 = 0;
 const FAILED:  i32 = 1;

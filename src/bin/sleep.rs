@@ -9,7 +9,8 @@ use std::thread;
 use std::time::Duration;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = r#"NAME
+const MAN_PAGE: &'static str = /* @MANSTART{sleep} */ r#"
+NAME
     sleep - delay for a specified amount of time.
 
 SYNOPSIS
@@ -30,7 +31,7 @@ OPTIONS
 
 AUTHOR
     Written by Michael Murphy.
-"#;
+"#; /* @MANEND */
 
 const MISSING_OPERAND: &'static str = "missing operand\n";
 const HELP_INFO:       &'static str = "Try 'sleep --help' for more information.\n";

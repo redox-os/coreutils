@@ -4,7 +4,8 @@ extern crate extra;
 use std::io::{self, Write};
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = r#"NAME
+const MAN_PAGE: &'static str = /* @MANSTART{basename} */ r#"
+NAME
     basename - strip directory and suffix from filenames
 
 SYNOPSIS
@@ -37,7 +38,7 @@ EXAMPLE
 
 AUTHOR
     Written by Michael Murphy.
-"#;
+"#; /* @MANEND */
 
 const HELP_INFO:       &'static str = "Try ‘basename --help’ for more information.\n";
 const MISSING_OPERAND: &'static str = "missing operand\n";

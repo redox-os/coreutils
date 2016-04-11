@@ -9,7 +9,8 @@ use std::io::{self, BufRead, Read, Write};
 use extra::option::OptionalExt;
 use extra::io::{WriteExt, fail};
 
-static MAN_PAGE: &'static str = r#"NAME
+static MAN_PAGE: &'static str = /* @MANSTART{tail} */ r#"
+NAME
     tail - output the last part of a file
 
 SYNOPSIS
@@ -41,7 +42,7 @@ OPTIONS
 
 AUTHOR
     Written by Žad Deljkić.
-"#;
+"#; /* @MANEND */
 
 #[derive(Copy, Clone)]
 struct Options {

@@ -5,15 +5,18 @@ use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::slice;
 use std::str::FromStr;
+
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
+
 
 static USAGE: &'static str = r#"usage: cut -b list [-n] [file ...]
        cut -c list [file ...]
        cut -f list [-s] [-d delim] [file ...]
 "#;
 
-static MAN_PAGE : &'static str = r#"NAME
+static MAN_PAGE : &'static str = /* @MANSTART{cut} */ r#"
+NAME
      cut -- cut out selected portions of each line of a file
 
 SYNOPSIS
@@ -64,7 +67,7 @@ EXAMPLES
 
 AUTHOR
      Written by Hernán E. Grecco.
-"#;
+"#; /* @MANEND */
 
 /// The Selection object.
 #[derive(Debug, PartialEq)]
