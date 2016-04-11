@@ -6,6 +6,21 @@ use std::env;
 use std::io::{stdout, stderr, Write};
 use extra::option::OptionalExt;
 
+const MAN_PAGE: &'static str = /* @MANSTART{echo} */ r#"
+NAME
+    echo - display a line of text
+
+SYNOPSIS
+    echo [STRING]...
+
+DESCRIPTION
+    Print the STRING(s) to standard output.
+
+OPTIONS
+    -n
+        do not output the trailing newline
+"#; /* @MANEND */
+
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();

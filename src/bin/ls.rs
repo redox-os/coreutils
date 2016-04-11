@@ -7,6 +7,17 @@ use std::fs;
 use std::io::{stdout, stderr, Write};
 use extra::option::OptionalExt;
 
+const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
+NAME
+    ls - list directory contents
+
+SYNOPSIS
+    ls [FILE]...
+
+DESCRIPTION
+    List information about the FILE(s), or the current directory
+"#; /* @MANEND */
+
 fn print_path(path: &str) {
     let mut entries = Vec::new();
 
@@ -38,11 +49,9 @@ fn print_path(path: &str) {
 }
 
 fn main() {
-    let path = env::args().nth(1);
-
-    if let Some(ref x) = path {
+    if let Some(ref x) = env::args().nth(1) {
         print_path(x);
     } else {
         print_path(".");
-    } // Dafuq borrowck! Really you need to do deref coercions better.
+    }
 }

@@ -8,6 +8,17 @@ use std::io;
 use extra::option::OptionalExt;
 use extra::io::fail;
 
+const MAN_PAGE: &'static str = /* @MANSTART{touch} */ r#"
+NAME
+    touch - create file(s)
+
+SYNOPSIS
+    touch FILE...
+
+DESCRIPTION
+    Create the FILE(s) arguments provided
+"#; /* @MANEND */
+
 fn main() {
     let mut stderr = io::stderr();
 

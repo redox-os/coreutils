@@ -7,6 +7,17 @@ use std::io;
 
 use extra::option::OptionalExt;
 
+const MAN_PAGE: &'static str = /* @MANSTART{ps} */ r#"
+NAME
+    ps - report a snapshot of the current processes
+
+SYNOPSIS
+    ps
+
+DESCRIPTION
+    Displays information about processes and threads that are currently active
+"#; /* @MANEND */
+
 fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();

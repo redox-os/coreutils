@@ -9,6 +9,17 @@ use std::io::{stdout, stderr};
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
 
+const MAN_PAGE: &'static str = /* @MANSTART{realpath} */ r#"
+NAME
+    realpath - return the canonicalized absolute pathname
+
+SYNOPSIS
+    realpath FILE...
+
+DESCRIPTION
+    realpath gets the aboslute pathname of FILE(s) and prints them out on seperate lines
+"#; /* @MANEND */
+
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();

@@ -8,6 +8,17 @@ use std::io::{stdout, stderr, Write};
 use extra::io::WriteExt;
 use extra::option::OptionalExt;
 
+const MAN_PAGE: &'static str = /* @MANSTART{du} */ r#"
+NAME
+    du - list directory content with sizes
+
+SYNOPSIS
+    du [FILE]...
+
+DESCRIPTION
+    List the name and size of the FILE(s), or the current directory
+"#; /* @MANEND */
+
 fn print_path(path: &str) {
     let stdout = stdout();
     let mut stdout = stdout.lock();
