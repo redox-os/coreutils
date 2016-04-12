@@ -1,6 +1,7 @@
 extern crate extra;
 
 use std::env;
+use std::fmt;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::slice;
@@ -130,7 +131,7 @@ impl FromStr for Selection {
                 // Range: M-N
                 (Some(&Ok(begin)), Some(&Ok(end))) => fill(&mut selected, begin - 1, end),
 
-                _ => return Err(ParseSelectionError{ _priv: () }),
+                _ => return Err(ParseSelectionError{ part: String::from(part) }),
             }
         }
         Ok(Selection {
@@ -140,7 +141,14 @@ impl FromStr for Selection {
     }
 }
 
-struct ParseSelectionError { _priv: () }
+struct ParseSelectionError { part: String }
+
+/// If an unwrap fails, print this message.
+impl fmt::Debug for ParseSelectionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "illegal part: {}", self.part)
+    }
+}
 
 /// Iterator that simultaneoulsy iters over a value and a boolean iterator,
 /// yielding a value from the first when the second is True.
@@ -427,6 +435,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use std::io;
+    use std::str::FromStr;
 
     use super::{cut_characters, cut_bytes, cut_fields, Selection};
 
@@ -510,10 +519,10 @@ mod tests {
 
     #[test]
     fn parse_err() {
-        assert!(Selection::from_str("").is_none());
-        assert!(Selection::from_str("X").is_none());
-        assert!(Selection::from_str("1;5").is_none());
-        assert!(Selection::from_str("1,3,5-X ").is_none());
+        assert!(Selection::from_str("").is_err());
+        assert!(Selection::from_str("X").is_err());
+        assert!(Selection::from_str("1;5").is_err());
+        assert!(Selection::from_str("1,3,5-X ").is_err());
     }
 
 
