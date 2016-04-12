@@ -3,6 +3,7 @@ extern crate extra;
 
 use std::io::{self, Write};
 use extra::option::OptionalExt;
+use std::process;
 
 const MAN_PAGE: &'static str = /* @MANSTART{basename} */ r#"
 NAME
@@ -74,14 +75,14 @@ fn main() {
                             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
                             stderr.flush().try(&mut stderr);
                             stdout.flush().try(&mut stderr);
-                            std::process::exit(1);
+                            process::exit(1);
                         }
                     },
                     "-z" | "--zero"     => zero = true,
                     "-h" | "--help"     => {
                         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
                         stdout.flush().try(&mut stderr);
-                        std::process::exit(1);
+                        process::exit(1);
                     },
                     _ => {
                         stderr.write_all("invalid option -- ‘".as_bytes()).try(&mut stderr);
@@ -90,7 +91,7 @@ fn main() {
                         stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
                         stderr.flush().try(&mut stderr);
                         stdout.flush().try(&mut stderr);
-                        std::process::exit(1);
+                        process::exit(1);
                     }
                 }
             } else {
@@ -100,7 +101,7 @@ fn main() {
         } else {
             stdout.write_all(MISSING_OPERAND.as_bytes()).try(&mut stderr);
             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-            std::process::exit(0);
+            process::exit(0);
         }
     }
 
@@ -118,7 +119,7 @@ fn main() {
                     stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
                     stderr.flush().try(&mut stderr);
                     stdout.flush().try(&mut stderr);
-                    std::process::exit(1);
+                    process::exit(1);
                 }
 
                 // Otherwise, set the suffix variable to the argument we found.
@@ -159,7 +160,7 @@ fn basename(zero: bool, input: &str, suffix: &str, stdout: &mut io::StdoutLock, 
                 stderr.write_all(path.as_bytes()).try(stderr);
                 stderr.write_all("’\n".as_bytes()).try(stderr);
                 stderr.flush().try(stderr);
-                std::process::exit(1);
+                process::exit(1);
             }
 
         },
@@ -168,7 +169,7 @@ fn basename(zero: bool, input: &str, suffix: &str, stdout: &mut io::StdoutLock, 
             stderr.write_all(path.as_bytes()).try(stderr);
             stderr.write_all("’\n".as_bytes()).try(stderr);
             stderr.flush().try(stderr);
-            std::process::exit(1);
+            process::exit(1);
         }
     };
 
