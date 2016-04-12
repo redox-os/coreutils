@@ -6,7 +6,7 @@ use std::cell::Cell; // Provide mutable fields in immutable structs
 use std::env;
 use std::error::Error;
 use std::fs;
-use std::io::{self, Read, Stderr, StdoutLock, Write};
+use std::io::{self, BufReader, Read, Stderr, StdoutLock, Write};
 use std::process::exit;
 use extra::option::OptionalExt;
 
@@ -165,7 +165,7 @@ impl Program {
                     let mut character_count = 0;
                     let mut last_line_was_blank = false;
 
-                    for byte in file.bytes().map(|x| x.unwrap()) {
+                    for byte in BufReader::new(&file).bytes().map(|x| x.unwrap()) {
                         if (self.number && character_count == 0) || (character_count == 0 && self.number_nonblank && byte != b'\n') {
                             stdout.write(b"     ").try(stderr);
                             stdout.write(line_count.to_string().as_bytes()).try(stderr);
