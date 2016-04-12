@@ -143,13 +143,15 @@ impl Program {
     fn and_execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) -> i32 {
         let stdin = io::stdin();
         let stdin = &mut stdin.lock();
+        let line_count = &mut 0usize;
+        let flags_enabled = self.number || self.number_nonblank || self.show_ends || self.show_tabs ||
+                            self.squeeze_blank || self.show_nonprinting;
 
-        if self.paths.is_empty() {
+        if self.paths.is_empty() && flags_enabled {
+            self.cat_stdin(line_count, stdin, stdout, stderr);
+        } else if self.paths.is_empty() {
             io::copy(stdin, stdout).try(stderr);
         } else {
-            let flags_enabled = self.number || self.number_nonblank || self.show_ends || self.show_tabs ||
-                                self.squeeze_blank || self.show_nonprinting;
-            let line_count = &mut 0usize;
             for path in &self.paths {
                 if flags_enabled && path == "-" {
                     self.cat_stdin(line_count, stdin, stdout, stderr);
