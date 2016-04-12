@@ -94,36 +94,34 @@ fn tail<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()>
                 try!(writer.write_all(line.as_bytes()));
             }
         }
+    } else if opts.skip {
+        let bytes = input.bytes().skip(opts.num);
+
+        for byte_res in bytes {
+            match byte_res {
+                Ok(byte) => try!(writer.write_all(&[byte])),
+                Err(err) => return Err(err),
+            };
+        }
     } else {
-        if opts.skip {
-            let bytes = input.bytes().skip(opts.num);
+        let bytes = input.bytes();
+        let mut deque = VecDeque::new();
 
-            for byte_res in bytes {
-                match byte_res {
-                    Ok(byte) => try!(writer.write_all(&[byte])),
-                    Err(err) => return Err(err),
-                };
-            }
-        } else {
-            let bytes = input.bytes();
-            let mut deque = VecDeque::new();
+        for byte_res in bytes {
+            match byte_res {
+                Ok(byte) => {
+                    deque.push_back(byte);
 
-            for byte_res in bytes {
-                match byte_res {
-                    Ok(byte) => {
-                        deque.push_back(byte);
-
-                        if deque.len() > opts.num {
-                            deque.pop_front();
-                        }
+                    if deque.len() > opts.num {
+                        deque.pop_front();
                     }
-                    Err(err) => return Err(err),
-                };
-            }
+                }
+                Err(err) => return Err(err),
+            };
+        }
 
-            for byte in deque {
-                try!(writer.write_all(&[byte]));
-            }
+        for byte in deque {
+            try!(writer.write_all(&[byte]));
         }
     }
 
