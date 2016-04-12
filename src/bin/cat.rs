@@ -5,8 +5,8 @@ extern crate extra;
 use std::cell::Cell; // Provide mutable fields in immutable structs
 use std::env;
 use std::error::Error;
-use std::fs;
-use std::io::{self, BufReader, Read, Stderr, StdoutLock, Write};
+use std::fs::{self, File};
+use std::io::{self, BufReader, Read, Stderr, StdinLock, StdoutLock, Write};
 use std::process::exit;
 use extra::option::OptionalExt;
 
@@ -90,7 +90,7 @@ impl Program {
             paths:            Vec::new()
         };
         for arg in env::args().skip(1) {
-            if arg.starts_with('-') {
+            if arg.starts_with('-') && &arg != "-" {
                 match arg.as_str() {
                     "-h" | "--help" => {
                         stdout.write(MAN_PAGE.as_bytes()).try(stderr);
@@ -142,14 +142,18 @@ impl Program {
     /// Execute the parameters given to the program.
     fn and_execute(&self, stdout: &mut StdoutLock, stderr: &mut Stderr) -> i32 {
         let stdin = io::stdin();
-        let mut stdin = stdin.lock();
+        let stdin = &mut stdin.lock();
 
         if self.paths.is_empty() {
-            io::copy(&mut stdin, stdout).try(stderr);
+            io::copy(stdin, stdout).try(stderr);
         } else {
-            let mut line_count = 1;
+            let flags_enabled = self.number || self.number_nonblank || self.show_ends || self.show_tabs ||
+                                self.squeeze_blank || self.show_nonprinting;
+            let line_count = &mut 0usize;
             for path in &self.paths {
-                if self.number || self.number_nonblank || self.show_ends || self.show_tabs || self.squeeze_blank || self.show_nonprinting {
+                if flags_enabled && path == "-" {
+                    self.cat_stdin(line_count, stdin, stdout, stderr);
+                } else if flags_enabled {
                     let file = match fs::File::open(&path) {
                         Ok(file) => file,
                         Err(message) => {
@@ -162,84 +166,171 @@ impl Program {
                             continue
                         }
                     };
-                    let mut character_count = 0;
-                    let mut last_line_was_blank = false;
 
-                    for byte in BufReader::new(&file).bytes().map(|x| x.unwrap()) {
-                        if (self.number && character_count == 0) || (character_count == 0 && self.number_nonblank && byte != b'\n') {
-                            stdout.write(b"     ").try(stderr);
-                            stdout.write(line_count.to_string().as_bytes()).try(stderr);
-                            stdout.write(b"  ").try(stderr);
-                            line_count += 1;
-                        }
-                        match byte {
-                            0...8 | 11...31 => if self.show_nonprinting {
-                                push_caret(stdout, stderr, byte+64);
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            },
-                            9 => {
-                                if self.show_tabs {
-                                    push_caret(stdout, stderr, b'I');
-                                } else {
-                                    stdout.write(&[byte]).try(stderr);
-                                }
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            }
-                            10 => {
-                                if character_count == 0 {
-                                    if self.squeeze_blank && last_line_was_blank {
-                                        continue
-                                    } else if !last_line_was_blank {
-                                        last_line_was_blank = true;
-                                    }
-                                } else {
-                                    last_line_was_blank = false;
-                                    character_count = 0;
-                                }
-                                if self.show_ends {
-                                    stdout.write(b"$\n").try(stderr);
-                                } else {
-                                    stdout.write(b"\n").try(stderr);
-                                }
-                                stdout.flush().try(stderr);
-                            },
-                            32...126 => {
-                                stdout.write(&[byte]).try(stderr);
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            },
-                            127 => if self.show_nonprinting {
-                                push_caret(stdout, stderr, b'?');
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            },
-                            128...159 => if self.show_nonprinting {
-                                stdout.write(b"M-^").try(stderr);
-                                stdout.write(&[byte-64]).try(stderr);
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            } else {
-                                stdout.write(&[byte]).try(stderr);
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            },
-                            _ => if self.show_nonprinting {
-                                stdout.write(b"M-").try(stderr);
-                                stdout.write(&[byte-128]).try(stderr);
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            } else {
-                                stdout.write(&[byte]).try(stderr);
-                                count_character(&mut character_count, &self.number, &self.number_nonblank);
-                            },
-                        }
-                    }
+                    self.cat_file(&file, line_count, stdout, stderr);
                 } else if path == "-" {
-                    io::copy(&mut stdin, stdout).try(stderr);
+                    io::copy(stdin, stdout).try(stderr);
                 } else {
-                    let file = fs::File::open(&path);
-                    let mut file = file.try(stderr);
+                    let file = &mut match fs::File::open(&path) {
+                        Ok(file) => file,
+                        Err(message) => {
+                            stderr.write(&path.as_bytes()).try(stderr);
+                            stderr.write(b": ").try(stderr);
+                            stderr.write(message.description().as_bytes()).try(stderr);
+                            stderr.write(b"\n").try(stderr);
+                            stderr.flush().try(stderr);
+                            self.exit_status.set(1i32);;
+                            continue
+                        }
+                    };
 
-                    io::copy(&mut file, stdout).try(stderr);
+                    io::copy(file, stdout).try(stderr);
                 }
             }
         }
         self.exit_status.get()
+    }
+
+    /// Cats a file based on the flag arguments given to the program.
+    fn cat_file(&self, file: &File, line_count: &mut usize, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+        let mut character_count = 0;
+        let mut last_line_was_blank = false;
+
+        for byte in BufReader::new(file).bytes().map(|x| x.unwrap()) {
+            if (self.number && character_count == 0) || (character_count == 0 && self.number_nonblank && byte != b'\n') {
+                stdout.write(b"     ").try(stderr);
+                stdout.write(line_count.to_string().as_bytes()).try(stderr);
+                stdout.write(b"  ").try(stderr);
+                *line_count += 1;
+            }
+            match byte {
+                0...8 | 11...31 => if self.show_nonprinting {
+                    push_caret(stdout, stderr, byte+64);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                9 => {
+                    if self.show_tabs {
+                        push_caret(stdout, stderr, b'I');
+                    } else {
+                        stdout.write(&[byte]).try(stderr);
+                    }
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                }
+                10 => {
+                    if character_count == 0 {
+                        if self.squeeze_blank && last_line_was_blank {
+                            continue
+                        } else if !last_line_was_blank {
+                            last_line_was_blank = true;
+                        }
+                    } else {
+                        last_line_was_blank = false;
+                        character_count = 0;
+                    }
+                    if self.show_ends {
+                        stdout.write(b"$\n").try(stderr);
+                    } else {
+                        stdout.write(b"\n").try(stderr);
+                    }
+                    stdout.flush().try(stderr);
+                },
+                32...126 => {
+                    stdout.write(&[byte]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                127 => if self.show_nonprinting {
+                    push_caret(stdout, stderr, b'?');
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                128...159 => if self.show_nonprinting {
+                    stdout.write(b"M-^").try(stderr);
+                    stdout.write(&[byte-64]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                } else {
+                    stdout.write(&[byte]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                _ => if self.show_nonprinting {
+                    stdout.write(b"M-").try(stderr);
+                    stdout.write(&[byte-128]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                } else {
+                    stdout.write(&[byte]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+            }
+        }
+    }
+
+    /// Cats stdin based on the flag arguments given to the program.
+    fn cat_stdin(&self, line_count: &mut usize, stdin: &mut StdinLock, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+        let mut character_count = 0;
+        let mut last_line_was_blank = false;
+
+        for byte in stdin.bytes().map(|x| x.unwrap()) {
+            if (self.number && character_count == 0) || (character_count == 0 && self.number_nonblank && byte != b'\n') {
+                stdout.write(b"     ").try(stderr);
+                stdout.write(line_count.to_string().as_bytes()).try(stderr);
+                stdout.write(b"  ").try(stderr);
+                *line_count += 1;
+            }
+            match byte {
+                0...8 | 11...31 => if self.show_nonprinting {
+                    push_caret(stdout, stderr, byte+64);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                9 => {
+                    if self.show_tabs {
+                        push_caret(stdout, stderr, b'I');
+                    } else {
+                        stdout.write(&[byte]).try(stderr);
+                    }
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                }
+                10 => {
+                    if character_count == 0 {
+                        if self.squeeze_blank && last_line_was_blank {
+                            continue
+                        } else if !last_line_was_blank {
+                            last_line_was_blank = true;
+                        }
+                    } else {
+                        last_line_was_blank = false;
+                        character_count = 0;
+                    }
+                    if self.show_ends {
+                        stdout.write(b"$\n").try(stderr);
+                    } else {
+                        stdout.write(b"\n").try(stderr);
+                    }
+                    stdout.flush().try(stderr);
+                },
+                32...126 => {
+                    stdout.write(&[byte]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                127 => if self.show_nonprinting {
+                    push_caret(stdout, stderr, b'?');
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                128...159 => if self.show_nonprinting {
+                    stdout.write(b"M-^").try(stderr);
+                    stdout.write(&[byte-64]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                } else {
+                    stdout.write(&[byte]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+                _ => if self.show_nonprinting {
+                    stdout.write(b"M-").try(stderr);
+                    stdout.write(&[byte-128]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                } else {
+                    stdout.write(&[byte]).try(stderr);
+                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+                },
+            }
+        }
     }
 }
 
