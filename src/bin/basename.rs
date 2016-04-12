@@ -100,7 +100,7 @@ fn main() {
         } else {
             stdout.write_all(MISSING_OPERAND.as_bytes()).try(&mut stderr);
             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-            return;
+            std::process::exit(0);
         }
     }
 
@@ -141,11 +141,11 @@ fn main() {
 /// suffix, the suffix will be removed.
 fn basename(zero: bool, input: &str, suffix: &str, stdout: &mut io::StdoutLock, stderr: &mut io::Stderr) {
     // If the suffix variable is set, remove the suffix from the path string.
-    let path = if !suffix.is_empty() {
+    let path = if suffix.is_empty() {
+        input
+    } else {
         let (prefix, input_suffix) = input.split_at(input.len() - suffix.len());
         if input_suffix == suffix { prefix } else { input }
-    } else {
-        input
     };
 
     // Only print the basename of the the path.

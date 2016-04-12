@@ -144,7 +144,7 @@ impl Program {
         let stdin = io::stdin();
         let mut stdin = stdin.lock();
 
-        if self.paths.len() == 0 {
+        if self.paths.is_empty() {
             io::copy(&mut stdin, stdout).try(stderr);
         } else {
             let mut line_count = 1;
@@ -229,15 +229,13 @@ impl Program {
                             },
                         }
                     }
+                } else if path == "-" {
+                    io::copy(&mut stdin, stdout).try(stderr);
                 } else {
-                    if path == "-" {
-                        io::copy(&mut stdin, stdout).try(stderr);
-                    } else {
-                        let file = fs::File::open(&path);
-                        let mut file = file.try(stderr);
+                    let file = fs::File::open(&path);
+                    let mut file = file.try(stderr);
 
-                        io::copy(&mut file, stdout).try(stderr);
-                    }
+                    io::copy(&mut file, stdout).try(stderr);
                 }
             }
         }

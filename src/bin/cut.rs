@@ -85,6 +85,16 @@ struct Selection {
 }
 
 impl Selection {
+    /// Creates an iterator that yields selected values from a second iterator.
+    fn select_from<I>(&self, values: I) -> SelectFromIter<I>
+        where I: Iterator
+    {
+        SelectFromIter::new(values, self.selected.iter(), self.to_eol)
+    }
+}
+
+impl FromStr for Selection {
+    type Err = ParseSelectionError;
     /// Constructs a Selection object from a list option argument.
     ///
     /// The list option argument is a comma or whitespace separated set of numbers and/or
@@ -95,7 +105,7 @@ impl Selection {
     /// which selects all fields or columns from the last number to the end of the line.
     /// Numbers and number ranges may be repeated, overlapping, and in any order.
     /// If a field or column is specified multiple times, it will appear only once in the output.
-    fn from_str(list: &str) -> Option<Self> {
+    fn from_str(list: &str) -> Result<Self, ParseSelectionError> {
 
         let empty = usize::from_str("");
 
@@ -104,7 +114,7 @@ impl Selection {
 
         for part in list.split(|c| c == ',' || c == ' ') {
             let subparts: Vec<Result<usize, std::num::ParseIntError>> =
-                part.split("-").map(|x| usize::from_str(x.trim())).collect();
+                part.split('-').map(|x| usize::from_str(x.trim())).collect();
 
             // Matching a slice is currently unstable.
             match (subparts.get(0), subparts.get(1)) {
@@ -120,22 +130,17 @@ impl Selection {
                 // Range: M-N
                 (Some(&Ok(begin)), Some(&Ok(end))) => fill(&mut selected, begin - 1, end),
 
-                _ => return None,
+                _ => return Err(ParseSelectionError{ _priv: () }),
             }
         }
-        Some(Selection {
+        Ok(Selection {
             selected: selected,
             to_eol: to_eol,
         })
     }
-
-    /// Creates an iterator that yields selected values from a second iterator.
-    fn select_from<I>(&self, values: I) -> SelectFromIter<I>
-        where I: Iterator
-    {
-        SelectFromIter::new(values, self.selected.iter(), self.to_eol)
-    }
 }
+
+struct ParseSelectionError { _priv: () }
 
 /// Iterator that simultaneoulsy iters over a value and a boolean iterator,
 /// yielding a value from the first when the second is True.
@@ -221,8 +226,8 @@ fn fill(v: &mut Vec<bool>, begin: usize, end: usize) {
     if end > v.len() {
         v.resize(end, false);
     }
-    for index in begin..end {
-        v[index] = true;
+    for index in v.iter_mut().take(end).skip(begin) {
+        *index = true;
     }
 }
 
@@ -380,7 +385,10 @@ fn main() {
     }
 
     let mode = mode.fail(USAGE, &mut stderr);
-    let selection = Selection::from_str(&list).fail("illegal list value", &mut stderr);
+    let selection = match Selection::from_str(&list) {
+        Ok(selection) => selection,
+        Err(_) => fail("illegal list value", &mut stderr)
+    };
 
     if mode != Mode::Fields && (delimiter.is_some() || skip_if_missing.is_some()) {
         fail(USAGE, &mut stderr);

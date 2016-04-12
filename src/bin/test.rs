@@ -159,27 +159,27 @@ fn evaluate_expression(first: &str, operator: Option<&String>, second_argument: 
                         "!=" => evaluate_bool(first != second),
                         "-eq" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            return evaluate_bool(left == right);
+                            evaluate_bool(left == right)
                         },
                         "-ge" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            return evaluate_bool(left >= right);
+                            evaluate_bool(left >= right)
                         },
                         "-gt" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            return evaluate_bool(left > right);
+                            evaluate_bool(left > right)
                         },
                         "-le" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            return evaluate_bool(left <= right);
+                            evaluate_bool(left <= right)
                         },
                         "-lt" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            return evaluate_bool(left < right);
+                            evaluate_bool(left < right)
                         },
                         "-ne" => {
                             let (left, right) = parse_integers(first, second, stderr);
-                            return evaluate_bool(left != right);
+                            evaluate_bool(left != right)
                         },
                         "-ef" => files_have_same_device_and_inode_numbers(first, second),
                         "-nt" => file_is_newer_than(first, second),
@@ -189,14 +189,14 @@ fn evaluate_expression(first: &str, operator: Option<&String>, second_argument: 
                             stderr.write_all(op.as_bytes()).try(stderr);
                             stderr.write_all(&[b'\n']).try(stderr);
                             stderr.flush().try(stderr);
-                            return FAILED
+                            FAILED
                         }
                     }
                 },
                 None => {
                     stderr.write_all(b"parse error: condition expected\n").try(stderr);
                     stderr.flush().try(stderr);
-                    return FAILED
+                    FAILED
                 }
             }
         },
@@ -245,7 +245,7 @@ fn file_is_newer_than(first: &str, second: &str) -> i32 {
 fn get_modified_file_time(filename: &str) -> Option<std::time::SystemTime> {
     match fs::metadata(filename) {
         Ok(file) => match file.modified() {
-            Ok(time) => return Some(time),
+            Ok(time) => Some(time),
             Err(_)   => None
         },
         Err(_) => None
@@ -280,9 +280,8 @@ fn match_flag_argument(character: Option<char>, arguments: Option<&String>) -> i
             'f' => file_is_regular(arguments),
             //'g' => file_is_set_group_id(arguments),
             //'G' => file_is_owned_by_effective_group_id(arguments),
-            'h' => file_is_symlink(arguments),
+            'h' | 'L' => file_is_symlink(arguments),
             //'k' => file_has_sticky_bit(arguments),
-            'L' => file_is_symlink(arguments),
             //'O' => file_is_owned_by_effective_user_id(arguments),
             //'p' => file_is_named_pipe(arguments),
             'r' => file_has_read_permission(arguments),
