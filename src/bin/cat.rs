@@ -169,7 +169,7 @@ impl Program {
                         }
                     };
 
-                    self.cat_file(&file, line_count, stdout, stderr);
+                    self.cat_file(file, line_count, stdout, stderr);
                 } else if path == "-" {
                     io::copy(stdin, stdout).try(stderr);
                 } else {
@@ -194,7 +194,7 @@ impl Program {
     }
 
     /// Cats a file based on the flag arguments given to the program.
-    fn cat_file(&self, file: &File, line_count: &mut usize, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    fn cat_file(&self, file: File, line_count: &mut usize, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         let mut character_count = 0;
         let mut last_line_was_blank = false;
 
