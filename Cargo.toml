@@ -67,6 +67,10 @@ name = "mv"
 path = "src/bin/mv.rs"
 
 [[bin]]
+name = "printenv"
+path = "src/bin/printenv.rs"
+
+[[bin]]
 name = "ps"
 path = "src/bin/ps.rs"
 
