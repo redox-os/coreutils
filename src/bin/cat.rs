@@ -25,14 +25,14 @@ DESCRIPTION
 OPTIONS
     -A
     --show-all
-        equivalent to -v -E -T
+        equivalent to -vET
 
     -b
     --number-nonblank
         number nonempty output lines, overriding -n
 
     -e
-        equivalent to -v -E
+        equivalent to -vE
 
     -E
     --show-ends
@@ -47,7 +47,7 @@ OPTIONS
         supress repeated empty output lines
 
     -t
-        equivalent to -v -T
+        equivalent to -vT
 
     -T
     --show_tabs
@@ -89,51 +89,89 @@ impl Program {
             squeeze_blank:    false,
             paths:            Vec::new()
         };
-        for arg in env::args().skip(1) {
-            if arg.starts_with('-') && &arg != "-" {
-                match arg.as_str() {
-                    "-h" | "--help" => {
-                        stdout.write(MAN_PAGE.as_bytes()).try(stderr);
-                        stdout.flush().try(stderr);
-                        exit(0);
+        for argument in env::args().skip(1) {
+            if argument.starts_with('-') && &argument != "-" {
+                if argument.starts_with("--") {
+                    match argument.as_str() {
+                        "--help" => {
+                            stdout.write(MAN_PAGE.as_bytes()).try(stderr);
+                            stdout.flush().try(stderr);
+                            exit(0);
+                        }
+                        "--show-all" => {
+                            cat.show_nonprinting = true;
+                            cat.show_ends = true;
+                            cat.show_tabs = true;
+                        },
+                        "--number-nonblank" => {
+                            cat.number_nonblank = true;
+                            cat.number = false;
+                        },
+                        "--show-ends" => cat.show_ends = true,
+                        "--number" => {
+                            cat.number = true;
+                            cat.number_nonblank = false;
+                        },
+                        "--squeeze-blank" => cat.squeeze_blank = true,
+                        "--show-tabs" => cat.show_tabs = true,
+                        "--show-nonprinting" => {
+                            cat.show_nonprinting = true;
+                        },
+                        _ => {
+                            stderr.write(b"invalid option -- '").try(stderr);
+                            stderr.write(argument.as_bytes()).try(stderr);
+                            stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
+                            stderr.flush().try(stderr);
+                            exit(1);
+                        }
                     }
-                    "-A" | "--show-all" => {
-                        cat.show_nonprinting = true;
-                        cat.show_ends = true;
-                        cat.show_tabs = true;
-                    },
-                    "-b" | "--number-nonblank" => {
-                        cat.number_nonblank = true;
-                        cat.number = false;
-                    },
-                    "-e" => {
-                        cat.show_nonprinting = true;
-                        cat.show_ends = true;
-                    },
-                    "-E" | "--show-ends" => cat.show_ends = true,
-                    "-n" | "--number" => {
-                        cat.number = true;
-                        cat.number_nonblank = false;
-                    },
-                    "-s" | "--squeeze-blank" => cat.squeeze_blank = true,
-                    "-t" => {
-                        cat.show_nonprinting = true;
-                        cat.show_tabs = true;
-                    },
-                    "-T" => cat.show_tabs = true,
-                    "-v" | "--show-nonprinting" => {
-                        cat.show_nonprinting = true;
-                    },
-                    _ => {
-                        stderr.write(b"invalid option -- '").try(stderr);
-                        stderr.write(arg.as_bytes()).try(stderr);
-                        stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
-                        stderr.flush().try(stderr);
-                        exit(1);
+                } else {
+                    for character in argument.bytes().skip(1) {
+                        match character {
+                            b'h' => {
+                                stdout.write(MAN_PAGE.as_bytes()).try(stderr);
+                                stdout.flush().try(stderr);
+                                exit(0);
+                            }
+                            b'A' => {
+                                cat.show_nonprinting = true;
+                                cat.show_ends = true;
+                                cat.show_tabs = true;
+                            },
+                            b'b'=> {
+                                cat.number_nonblank = true;
+                                cat.number = false;
+                            },
+                            b'e' => {
+                                cat.show_nonprinting = true;
+                                cat.show_ends = true;
+                            },
+                            b'E'=> cat.show_ends = true,
+                            b'n' => {
+                                cat.number = true;
+                                cat.number_nonblank = false;
+                            },
+                            b's' => cat.squeeze_blank = true,
+                            b't' => {
+                                cat.show_nonprinting = true;
+                                cat.show_tabs = true;
+                            },
+                            b'T' => cat.show_tabs = true,
+                            b'v' => {
+                                cat.show_nonprinting = true;
+                            },
+                            _ => {
+                                stderr.write(b"invalid option -- '").try(stderr);
+                                stderr.write(&[character]).try(stderr);
+                                stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
+                                stderr.flush().try(stderr);
+                                exit(1);
+                            }
+                        }
                     }
                 }
             } else {
-                cat.paths.push(arg);
+                cat.paths.push(argument);
             }
         }
         cat
