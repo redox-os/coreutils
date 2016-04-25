@@ -18,9 +18,9 @@ fn main() {
 
     let mut args = env::args().skip(1);
     if let Some(name) = args.next() {
-        let mut command = Command::new(name);
+        let mut command = Command::new(&name);
         for arg in args {
-            command.arg(arg);
+            command.arg(&arg);
         }
         command.spawn().try(&mut stderr).wait().try(&mut stderr);
     }
