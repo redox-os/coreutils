@@ -10,6 +10,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `cat`
 - `clear`
 - `cp`
+- `date`
 - `du`
 - `echo`
 - `env`
@@ -30,6 +31,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `sleep`
 - `tail`
 - `test`
+- `time`
 - `touch`
 - `true`
 - `wc`
