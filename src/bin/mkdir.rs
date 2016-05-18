@@ -17,6 +17,10 @@ SYNOPSIS
 
 DESCRIPTION
     The mkdir utility creates the directories named as operands.
+
+OPTIONS
+    --help
+        print this message
 "#; /* @MANEND */
 
 fn main() {
@@ -29,7 +33,7 @@ fn main() {
     }
 
     if env::args().count() == 2 {
-        if let Some(arg) = env::args().last() {
+        if let Some(arg) = env::args().nth(1) {
             if arg == "--help" {
                 stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
                 stdout.flush().try(&mut stderr);
