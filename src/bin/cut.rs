@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate extra;
 
 use std::env;

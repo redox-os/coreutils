@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 use std::io::{stdout, Write};
 
 const MAN_PAGE: &'static str = /* @MANSTART{clear} */ r#"
