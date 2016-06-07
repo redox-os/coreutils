@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![feature(fs_time)]
 extern crate extra;
 
 use std::fs;
