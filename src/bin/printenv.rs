@@ -11,13 +11,13 @@ use extra::option::OptionalExt;
 const MAN_PAGE: &'static str = /* @MANSTART{printenv} */ r#"
 NAME
     printenv - print environment variables
-    
+
 SYNOPSIS
     printenv [-h | --help] VARIABLES...
-    
+
 DESCRIPTION
     Print the values of the specified environment VARIABLES.
-    
+
 OPTIONS
     -h
     --help
@@ -41,6 +41,7 @@ fn main() {
             stdout.flush().try(&mut stderr);
             exit(0);
         }
+
         let value = env::var(arg).try(&mut stderr);
         stdout.writeln(value.as_bytes()).try(&mut stderr);
     }
