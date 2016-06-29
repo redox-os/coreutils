@@ -20,7 +20,8 @@ DESCRIPTION
     destionation files are specified, then multiple copies of SOURCE_FILE are created.
 
 OPTIONS
-    --help, -h
+    -h
+    --help
         print this message
 "#; /* @MANEND */
 

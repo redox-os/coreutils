@@ -13,7 +13,7 @@ NAME
     mkdir - make directories
 
 SYNOPSIS
-    mkdir DIRECTORIES...
+    mkdir [ -h | --help ] DIRECTORIES...
 
 DESCRIPTION
     The mkdir utility creates the directories named as operands.

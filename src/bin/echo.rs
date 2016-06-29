@@ -1,17 +1,18 @@
-//#![deny(warnings)]
+#![deny(warnings)]
 
 extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr, Write};
 use extra::option::OptionalExt;
+use std::process::exit;
 
 const MAN_PAGE: &'static str = /* @MANSTART{echo} */ r#"
 NAME
     echo - display a line of text
 
 SYNOPSIS
-    echo [STRING]...
+    echo [ -h | --help ] [STRING]...
 
 DESCRIPTION
     Print the STRING(s) to standard output.
@@ -30,6 +31,11 @@ fn main() {
     let mut newline = true;
 
     if let Some(arg) = args.nth(1) {
+        if arg.as_str() == "-h" || arg.as_str() == "--help" {
+            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+            stdout.flush().try(&mut stderr);
+            exit(0);
+        }
         if arg == "-n" {
             newline = false;
             if let Some(arg) = args.nth(0) {
