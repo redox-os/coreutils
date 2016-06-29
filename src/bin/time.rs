@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 
 extern crate extra;
 
@@ -6,8 +6,18 @@ use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::Command;
 use std::time::Instant;
-
 use extra::option::OptionalExt;
+
+const MAN_PAGE: &'static str = /* @MANSTART{time} */ r#"
+NAME
+    time - timer for commands
+    
+SYNOPSIS
+    time [COMMAND] [ARGUEMENT]...
+    
+DESCRIPTION
+    Runs the command taken as the first arguement and outputs the time the command took to execute.
+"#; /* @MANEND */
 
 fn main() {
     let stdout = stdout();
