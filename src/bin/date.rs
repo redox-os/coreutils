@@ -14,8 +14,8 @@ SYNOPSIS
     date
 
 DESCRIPTION
-    Prints the system time from the Unix Epoch
-"#; /* MANEND */
+    Prints the system time and date
+"#; /* @MANEND */
 
 fn main() {
     let stdout = stdout();
