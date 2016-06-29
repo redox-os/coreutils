@@ -4,8 +4,18 @@ extern crate extra;
 
 use std::io::{stdout, stderr, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
-
 use extra::option::OptionalExt;
+
+const MAN_PAGE: &'static str = /* @MANSTART{date} */ r#"
+NAME
+    date - prints the system time
+    
+SYNOPSIS
+    date
+
+DESCRIPTION
+    Prints the system time from the Unix Epoch
+"#; /* MANEND */
 
 fn main() {
     let stdout = stdout();
