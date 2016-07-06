@@ -4,6 +4,7 @@ extern crate extra;
 
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
 use extra::option::OptionalExt;
 use std::process::exit;
@@ -31,26 +32,25 @@ fn list_entry(name: &str, stdout: &mut StdoutLock, stderr: &mut Stderr) {
 
 fn list_dir(path: &str, stdout: &mut StdoutLock, stderr: &mut Stderr) {
     if fs::metadata(path).try(stderr).is_dir() {
-        let dir = fs::read_dir(path).try(stderr);
+        let read_dir = Path::new(path).read_dir().try(stderr);
 
-        let mut entries = Vec::new();
-        for entry_result in dir {
-            let entry = entry_result.try(stderr);
-            let directory = entry.file_type().map(|x| x.is_dir()).unwrap_or(false);
-
-            let file_name = entry.file_name();
-            let path_str = file_name.to_str().try(stderr);
-            entries.push(path_str.to_owned());
-
-            if directory {
-                entries.last_mut().unwrap().push('/');
+        let mut entries = vec![];
+        for dir in read_dir {
+            let dir = match dir {
+                Ok(x) => x,
+                Err(_) => continue,
+            };
+            let mut file_name = dir.file_name().to_string_lossy().into_owned();
+            if dir.file_type().try(stderr).is_dir() {
+                file_name.push('/');
             }
+            entries.push(file_name);
         }
 
         entries.sort();
 
-        for entry in entries {
-            list_entry(&entry, stdout, stderr);
+        for entry in entries.iter() {
+            list_entry(entry, stdout, stderr);
         }
     } else {
         list_entry(path, stdout, stderr);
