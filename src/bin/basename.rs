@@ -57,16 +57,15 @@ fn main() {
     let mut multiple    = false;
     let mut zero        = false;
     let mut suffix      = String::new();
-    let first_name: Option<String>;
+    let first_path: String;
 
-    // Check input arguments for options.
     loop {
         if let Some(argument) = arguments.next() {
             // If the first character begins with a `-` then it is an option.
             if argument.chars().take(1).next().unwrap_or(' ') == '-' {
                 match argument.as_str() {
                     "-a" | "--multiple" => multiple = true,
-                    "-s" | "--suffix"   => {
+                    "-s" | "--suffix" => {
                         if let Some(arg) = arguments.next() {
                             suffix = arg;
                             multiple = true;
@@ -74,15 +73,14 @@ fn main() {
                             stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
                             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
                             stderr.flush().try(&mut stderr);
-                            stdout.flush().try(&mut stderr);
                             process::exit(1);
                         }
                     },
-                    "-z" | "--zero"     => zero = true,
-                    "-h" | "--help"     => {
+                    "-z" | "--zero" => zero = true,
+                    "-h" | "--help" => {
                         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
                         stdout.flush().try(&mut stderr);
-                        process::exit(1);
+                        process::exit(0);
                     },
                     _ => {
                         stderr.write_all("invalid option -- ‘".as_bytes()).try(&mut stderr);
@@ -90,89 +88,91 @@ fn main() {
                         stderr.write_all("’\n".as_bytes()).try(&mut stderr);
                         stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
                         stderr.flush().try(&mut stderr);
-                        stdout.flush().try(&mut stderr);
                         process::exit(1);
                     }
                 }
             } else {
-                first_name = Some(argument); // Store the last argument so that it isn't lost.
+                first_path = argument; // Store the last argument so that it isn't lost.
                 break
             }
         } else {
             stdout.write_all(MISSING_OPERAND.as_bytes()).try(&mut stderr);
             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-            process::exit(0);
+            process::exit(1);
         }
     }
 
-    // Begin printing the basename of each following argument.
-    if let Some(name) = first_name {
-        if !multiple {
-            // If multiple isn't set and there is more than one
-            // argument, the second argument is the suffix.
-            if let Some(potential_suffix) = arguments.next() {
-                // Check if there is an extra operand and exit if true.
-                if let Some(extra_operand) = arguments.next() {
-                    stderr.write_all("extra operand ‘".as_bytes()).try(&mut stderr);
-                    stderr.write_all(extra_operand.as_bytes()).try(&mut stderr);
-                    stderr.write_all("’\n".as_bytes()).try(&mut stderr);
-                    stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-                    stderr.flush().try(&mut stderr);
-                    stdout.flush().try(&mut stderr);
-                    process::exit(1);
-                }
-
-                // Otherwise, set the suffix variable to the argument we found.
-                suffix = potential_suffix;
-            }
-        }
-        basename(zero, &name, &suffix, &mut stdout, &mut stderr);
-    }
-
-    // If the multiple arguments flag was set, execute a loop to print each name.
     if multiple {
-        for argument in arguments {
-            basename(zero, &argument, &suffix, &mut stdout, &mut stderr);
-        }
+        // Print the first path's basename
+        basename(zero, &first_path, &suffix, &mut stdout, &mut stderr);
+        // and then print every pathname after that.
+        for path in arguments { basename(zero, &path, &suffix, &mut stdout, &mut stderr); }
+    } else {
+        // If there is an additional variable, set this variable as the suffix to remove
+        arguments.next().map(|potential_suffix| {
+            // If there is an extra variable after that, print an error about an extra operand
+            arguments.next().map(|extra_operand| {
+                stderr.write_all("extra operand ‘".as_bytes()).try(&mut stderr);
+                stderr.write_all(extra_operand.as_bytes()).try(&mut stderr);
+                stderr.write_all("’\n".as_bytes()).try(&mut stderr);
+                stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+                stderr.flush().try(&mut stderr);
+                process::exit(1);
+            });
+            suffix = potential_suffix;
+        });
+        basename(zero, &first_path, &suffix, &mut stdout, &mut stderr);
     }
 }
 
 /// Takes a file path as input and returns the basename of that path. If `zero` is set to true,
 /// the name will be printed without a newline. If a suffix is set and the path contains that
 /// suffix, the suffix will be removed.
-fn basename(zero: bool, input: &str, suffix: &str, stdout: &mut io::StdoutLock, stderr: &mut io::Stderr) {
-    // If the suffix variable is set, remove the suffix from the path string.
-    let path = if suffix.is_empty() {
-        input
-    } else {
-        let (prefix, input_suffix) = input.split_at(input.len() - suffix.len());
-        if input_suffix == suffix { prefix } else { input }
-    };
-
-    // Only print the basename of the the path.
-    let new_path = std::path::Path::new(&path);
-    match new_path.file_name() {
-        Some(base) => {
-            if let Some(filename) = base.to_str() {
-                stdout.write_all(filename.as_bytes()).try(stderr);
-            } else {
-                stderr.write_all("invalid unicode in path ‘".as_bytes()).try(stderr);
-                stderr.write_all(path.as_bytes()).try(stderr);
-                stderr.write_all("’\n".as_bytes()).try(stderr);
-                stderr.flush().try(stderr);
-                process::exit(1);
-            }
-
-        },
-        None => {
-            stderr.write_all("invalid path ‘".as_bytes()).try(stderr);
+fn basename(zero: bool, path: &str, suffix: &str, stdout: &mut io::StdoutLock, stderr: &mut io::Stderr) {
+    match get_basename(path, suffix) {
+        Ok(filename) => stdout.write_all(filename.as_bytes()).try(stderr),
+        Err(why) => {
+            // An error occurred, so this will select the correct message to print
+            let err_message = match why {
+                BaseError::Path    => "invalid path ‘".as_bytes(),
+                BaseError::Unicode => "invalid unicode in path ‘".as_bytes()
+            };
+            stderr.write_all(err_message).try(stderr);
             stderr.write_all(path.as_bytes()).try(stderr);
             stderr.write_all("’\n".as_bytes()).try(stderr);
             stderr.flush().try(stderr);
             process::exit(1);
         }
-    };
+    }
 
-    // If zero is not enabled, print a newline.
     if !zero { stdout.write_all(b"\n").try(stderr); }
+}
+
+#[derive(Debug, PartialEq)]
+enum BaseError { Path, Unicode }
+
+/// Either return the basename as a byte slice or return a `BaseError`
+fn get_basename<'a>(path: &'a str, suffix: &str) -> Result<&'a str, BaseError> {
+    // Remove the suffix from the path and attempt to collect the file name in that path
+    std::path::Path::new(remove_suffix(path, suffix)).file_name()
+        // If there was an error in obtaining the filename from the path, return an error
+        .map_or(Err(BaseError::Path), |base| {
+            // Convert the filename back into a string, else return a unicode error.
+            base.to_str().map_or(Err(BaseError::Unicode), |filename| Ok(filename))
+        })
+}
+
+/// Removes the suffix from the input
+fn remove_suffix<'a>(input: &'a str, suffix: &str) -> &'a str {
+    if suffix.is_empty() {
+        input
+    } else {
+        let (prefix, input_suffix) = input.split_at(input.chars().count() - suffix.chars().count());
+        if input_suffix == suffix { prefix } else { input }
+    }
+}
+
+#[test]
+fn test_basename() {
+    assert_eq!(Ok("a"), get_basename("a.b", ".b"));
 }
