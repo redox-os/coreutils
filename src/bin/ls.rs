@@ -66,7 +66,7 @@ fn list_dir(path: &str, flags_struct: &Flags, stdout: &mut StdoutLock, stderr: &
                 Ok(x) => x,
                 Err(_) => continue,
             };
-            let mut to_return = "".to_string();
+            let mut to_return = String::new();
             to_return.push_str(dir.file_name().to_string_lossy().into_owned().as_str());
             if dir.file_type().try(stderr).is_dir() {
                 to_return.push('/');
@@ -102,8 +102,8 @@ fn main() {
     let mut path_file = ".".to_string();
 
     let mut flags_struct = Flags {
-        mode : false,
-        size : false,
+        mode: false,
+        size: false,
     };
 
     for arg in env::args().skip(1){
@@ -115,7 +115,7 @@ fn main() {
             },
             "-m" | "--mode" => flags_struct.mode = true,
             "-s" | "--size" => flags_struct.size = true,
-            e @ _ => {
+            e => {
                 if ! e.starts_with("-") {
                     path_file = e.to_string();
                 } else {
