@@ -12,7 +12,7 @@ NAME
     yes - print the letter y or a given word, forever.
 
 SYNOPSIS
-    seq [ [ -h | --help ] | [ word ] ]
+    yes [ [ -h | --help ] | [ word ] ]
 
 DESCRIPTION
     The yes utility prints the word passed as an operand, forever. If no operand is passed, then
