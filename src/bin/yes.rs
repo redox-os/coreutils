@@ -39,9 +39,9 @@ fn main() {
         }
     }
 
-    let answer = env::args().skip(1).next();
-    if let Some(x) = answer {
-        let print = x.as_bytes();
+    if env::args().count() >= 2 {
+        let answer = env::args().skip(1).collect::<Vec<_>>().join(" ");
+        let print = answer.as_bytes();
         loop {
             stdout.writeln(print).try(&mut stderr);
         }
