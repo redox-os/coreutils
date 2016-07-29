@@ -17,7 +17,7 @@ SYNOPSIS
 
 DESCRIPTION
     The cp utility copies the contents of the SOURCE_FILE to the DESTINATION_FILES. If multiple
-    destionation files are specified, then multiple copies of SOURCE_FILE are created.
+    destination files are specified, then multiple copies of SOURCE_FILE are created.
 
 OPTIONS
     -h
