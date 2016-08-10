@@ -37,6 +37,6 @@ fn main() {
         }
     }
 
-    let mut file = File::open("memory:").try(&mut stderr);
+    let mut file = File::open("sys:/memory").try(&mut stderr);
     copy(&mut file, &mut stdout).try(&mut stderr);
 }
