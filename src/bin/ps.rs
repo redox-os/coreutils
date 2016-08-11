@@ -38,6 +38,6 @@ fn main() {
         }
     }
 
-    let mut file = File::open("context:").try(&mut stderr);
+    let mut file = File::open("sys:/context").try(&mut stderr);
     copy(&mut file, &mut stdout).try(&mut stderr);
 }
