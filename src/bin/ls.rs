@@ -5,7 +5,7 @@ extern crate extra;
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
+use std::io::{stdout, stderr, Stderr, Write};
 use extra::option::OptionalExt;
 use std::process::exit;
 
@@ -25,12 +25,7 @@ OPTIONS
         display this help and exit
 "#; /* @MANEND */
 
-fn list_entry(name: &str, stdout: &mut StdoutLock, stderr: &mut Stderr) {
-    stdout.write(name.as_bytes()).try(stderr);
-    stdout.write(b"\n").try(stderr);
-}
-
-fn list_dir(path: &str, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+fn list_dir(path: &str, string: &mut String, stderr: &mut Stderr) {
     if fs::metadata(path).try(stderr).is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
 
@@ -50,10 +45,12 @@ fn list_dir(path: &str, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         entries.sort();
 
         for entry in entries.iter() {
-            list_entry(entry, stdout, stderr);
+            string.push_str(entry);
+            string.push('\n');
         }
     } else {
-        list_entry(path, stdout, stderr);
+        string.push_str(path);
+        string.push('\n');
     }
 }
 fn main() {
@@ -69,13 +66,15 @@ fn main() {
         }
     }
 
+    let mut string = String::new();
     let mut args = env::args().skip(1);
     if let Some(ref x) = args.next() {
-        list_dir(x, &mut stdout, &mut stderr);
+        list_dir(x, &mut string, &mut stderr);
         for y in args {
-            list_dir(&y, &mut stdout, &mut stderr);
+            list_dir(&y, &mut string, &mut stderr);
         }
     } else {
-        list_dir(".", &mut stdout, &mut stderr);
+        list_dir(".", &mut string, &mut stderr);
     }
+    stdout.write(string.as_bytes()).try(&mut stderr);
 }
