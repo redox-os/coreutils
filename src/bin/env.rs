@@ -4,7 +4,6 @@ extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr, Write};
-use extra::io::WriteExt;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{env} */ r#"
@@ -38,9 +37,12 @@ fn main() {
         }
     }
 
+    let mut string = String::new();
     for (key, value) in env::vars() {
-        stdout.write(key.as_bytes()).try(&mut stderr);
-        stdout.write(b"=").try(&mut stderr);
-        stdout.writeln(value.as_bytes()).try(&mut stderr);
+        string.push_str(&key);
+        string.push('=');
+        string.push_str(&value);
+        string.push('\n')
     }
+    stdout.write(string.as_bytes()).try(&mut stderr);
 }
