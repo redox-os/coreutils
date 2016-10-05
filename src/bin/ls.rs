@@ -29,18 +29,14 @@ fn list_dir(path: &str, string: &mut String, stderr: &mut Stderr) {
     if fs::metadata(path).try(stderr).is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
 
-        let mut entries = vec![];
-        for dir in read_dir {
-            let dir = match dir {
-                Ok(x) => x,
-                Err(_) => continue,
-            };
-            let mut file_name = dir.file_name().to_string_lossy().into_owned();
-            if dir.file_type().try(stderr).is_dir() {
-                file_name.push('/');
-            }
-            entries.push(file_name);
-        }
+        let mut entries: Vec<String> = read_dir.filter_map(|x| x.ok()).map(|dir| {
+                let mut file_name = dir.file_name().to_string_lossy().into_owned();
+                if dir.file_type().try(stderr).is_dir() {
+                    file_name.push('/');
+                }
+                file_name
+            })
+            .collect();
 
         entries.sort();
 
@@ -53,12 +49,13 @@ fn list_dir(path: &str, string: &mut String, stderr: &mut Stderr) {
         string.push('\n');
     }
 }
+
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    for arg in env::args().skip(1){
+    for arg in env::args().skip(1) {
         if arg.as_str() == "-h" || arg.as_str() == "--help" {
             stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
             stdout.flush().try(&mut stderr);
@@ -67,11 +64,10 @@ fn main() {
     }
 
     let mut string = String::new();
-    let mut args = env::args().skip(1);
-    if let Some(ref x) = args.next() {
-        list_dir(x, &mut string, &mut stderr);
-        for y in args {
-            list_dir(&y, &mut string, &mut stderr);
+    let args = env::args().skip(1);
+    if args.len() > 0 {
+        for dir in args {
+            list_dir(&dir, &mut string, &mut stderr);
         }
     } else {
         list_dir(".", &mut string, &mut stderr);
