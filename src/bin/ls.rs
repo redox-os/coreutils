@@ -44,16 +44,11 @@ fn list_dir(path: &str, long_format: bool, string: &mut String, stderr: &mut Std
 
         for entry in entries.iter() {
             if long_format {
-                let entry_path = if path == "." || path == "./" {
-                    entry.clone()
-                } else {
-                    let mut entry_path = path.to_owned();
-                    if !entry_path.ends_with('/') {
-                        entry_path.push('/');
-                    }
-                    entry_path.push_str(&entry);
-                    entry_path
-                };
+                let mut entry_path = path.to_owned();
+                if !entry_path.ends_with('/') {
+                    entry_path.push('/');
+                }
+                entry_path.push_str(&entry);
 
                 let metadata = fs::metadata(entry_path).try(stderr);
                 string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ", metadata.mode(), metadata.uid(), metadata.gid(), metadata.size()/1024));
