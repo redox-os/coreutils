@@ -99,9 +99,10 @@ fn to_human_readable_string(size: u64) -> String {
 
     static UNITS: [&'static str; 7] = ["", "K", "M", "G", "T", "P", "E"];
 
-    let digit_groups = ((64 - size.leading_zeros()) / 10) as i32;
+    let sizef = size as f64;
+    let digit_groups = (sizef.log10() / 1024f64.log10()) as i32;
     format!("{:.1}{}",
-            size as f64 / 1024f64.powf(digit_groups as f64),
+            sizef / 1024f64.powf(digit_groups as f64),
             UNITS[digit_groups as usize])
 }
 
