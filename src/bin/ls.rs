@@ -55,7 +55,7 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
 
                 let metadata = fs::metadata(entry_path).try(stderr);
                 if human_readable {
-                    string.push_str(&format!("{:>7o} {:>5} {:>5} {} ",
+                    string.push_str(&format!("{:>7o} {:>5} {:>5} {:>6} ",
                                              metadata.mode(),
                                              metadata.uid(),
                                              metadata.gid(),
@@ -74,7 +74,7 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
     } else {
         if long_format {
             if human_readable {
-                string.push_str(&format!("{:>7o} {:>5} {:>5} {} ",
+                string.push_str(&format!("{:>7o} {:>5} {:>5} {:>6} ",
                                          metadata.mode(),
                                          metadata.uid(),
                                          metadata.gid(),
