@@ -55,9 +55,17 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
 
                 let metadata = fs::metadata(entry_path).try(stderr);
                 if human_readable {
-                    string.push_str(&format!("{:>7o} {:>5} {:>5} {} ", metadata.mode(), metadata.uid(), metadata.gid(), to_human_readable_string(metadata.size())));
+                    string.push_str(&format!("{:>7o} {:>5} {:>5} {} ",
+                                             metadata.mode(),
+                                             metadata.uid(),
+                                             metadata.gid(),
+                                             to_human_readable_string(metadata.size())));
                 } else {
-                    string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ", metadata.mode(), metadata.uid(), metadata.gid(), metadata.size()));
+                    string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ",
+                                             metadata.mode(),
+                                             metadata.uid(),
+                                             metadata.gid(),
+                                             metadata.size()));
                 }
             }
             string.push_str(entry);
@@ -66,9 +74,17 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
     } else {
         if long_format {
             if human_readable {
-                string.push_str(&format!("{:>7o} {:>5} {:>5} {} ", metadata.mode(), metadata.uid(), metadata.gid(), to_human_readable_string(metadata.size())));
+                string.push_str(&format!("{:>7o} {:>5} {:>5} {} ",
+                                         metadata.mode(),
+                                         metadata.uid(),
+                                         metadata.gid(),
+                                         to_human_readable_string(metadata.size())));
             } else {
-                string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ", metadata.mode(), metadata.uid(), metadata.gid(), metadata.size()));
+                string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ",
+                                         metadata.mode(),
+                                         metadata.uid(),
+                                         metadata.gid(),
+                                         metadata.size()));
             }
         }
         string.push_str(path);
@@ -85,7 +101,9 @@ fn to_human_readable_string(size: u64) -> String {
     let units = ["", "K", "M", "G", "T", "P", "E"];
 
     let digit_groups = (sizef.log10() / 1024f64.log10()) as i32;
-    format!("{:.1}{}", sizef / 1024f64.powi(digit_groups), units[digit_groups as usize])
+    format!("{:.1}{}",
+            sizef / 1024f64.powi(digit_groups),
+            units[digit_groups as usize])
 }
 
 fn main() {
@@ -127,9 +145,9 @@ fn test_human_readable() {
     assert_eq!(to_human_readable_string(333), "333");
     assert_eq!(to_human_readable_string(1024 * 1), "1.0K");
     assert_eq!(to_human_readable_string(1024 * 1 + 100), "1.1K");
-    assert_eq!(to_human_readable_string(1024 * 1024 * 2), "2.0M");
-    assert_eq!(to_human_readable_string(1024 * 1024 * 1024 * 3), "3.0G");
-    assert_eq!(to_human_readable_string(1024 * 1024 * 1024 * 1024 * 4), "4.0T");
-    assert_eq!(to_human_readable_string(1024 * 1024 * 1024 * 1024 * 1024 * 5), "5.0P");
-    assert_eq!(to_human_readable_string(1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 6), "6.0E");
+    assert_eq!(to_human_readable_string(1024u64.pow(2) * 2), "2.0M");
+    assert_eq!(to_human_readable_string(1024u64.pow(3) * 3), "3.0G");
+    assert_eq!(to_human_readable_string(1024u64.pow(4) * 4), "4.0T");
+    assert_eq!(to_human_readable_string(1024u64.pow(5) * 5), "5.0P");
+    assert_eq!(to_human_readable_string(1024u64.pow(6) * 6), "6.0E");
 }
