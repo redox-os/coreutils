@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
@@ -7,8 +8,10 @@ use std::fs;
 use std::path::Path;
 use std::io::{stdout, stderr, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
-use extra::option::OptionalExt;
 use std::process::exit;
+
+use coreutils::to_human_readable_string;
+use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
 NAME
@@ -54,18 +57,14 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
                 entry_path.push_str(&entry);
 
                 let metadata = fs::metadata(entry_path).try(stderr);
+                string.push_str(&format!("{:>7o} {:>5} {:>5} ",
+                                         metadata.mode(),
+                                         metadata.uid(),
+                                         metadata.gid()));
                 if human_readable {
-                    string.push_str(&format!("{:>7o} {:>5} {:>5} {:>6} ",
-                                             metadata.mode(),
-                                             metadata.uid(),
-                                             metadata.gid(),
-                                             to_human_readable_string(metadata.size())));
+                    string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
                 } else {
-                    string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ",
-                                             metadata.mode(),
-                                             metadata.uid(),
-                                             metadata.gid(),
-                                             metadata.size()));
+                    string.push_str(&format!("{:>8} ", metadata.size()));
                 }
             }
             string.push_str(entry);
@@ -73,37 +72,19 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
         }
     } else {
         if long_format {
-            if human_readable {
-                string.push_str(&format!("{:>7o} {:>5} {:>5} {:>6} ",
-                                         metadata.mode(),
-                                         metadata.uid(),
-                                         metadata.gid(),
-                                         to_human_readable_string(metadata.size())));
-            } else {
-                string.push_str(&format!("{:>7o} {:>5} {:>5} {:>8} ",
-                                         metadata.mode(),
-                                         metadata.uid(),
-                                         metadata.gid(),
-                                         metadata.size()));
-            }
+            string.push_str(&format!("{:>7o} {:>5} {:>5} ",
+                                     metadata.mode(),
+                                     metadata.uid(),
+                                     metadata.gid()));
+             if human_readable {
+                 string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
+             } else {
+                 string.push_str(&format!("{:>8} ", metadata.size()));
+             }
         }
         string.push_str(path);
         string.push('\n');
     }
-}
-
-fn to_human_readable_string(size: u64) -> String {
-    if size < 1024 {
-        return format!("{}", size);
-    }
-
-    static UNITS: [&'static str; 7] = ["", "K", "M", "G", "T", "P", "E"];
-
-    let sizef = size as f64;
-    let digit_groups = (sizef.log10() / 1024f64.log10()) as i32;
-    format!("{:.1}{}",
-            sizef / 1024f64.powf(digit_groups as f64),
-            UNITS[digit_groups as usize])
 }
 
 fn main() {
