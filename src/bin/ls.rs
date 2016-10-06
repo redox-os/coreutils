@@ -97,13 +97,12 @@ fn to_human_readable_string(size: u64) -> String {
         return format!("{}", size);
     }
 
-    let sizef = size as f64;
-    let units = ["", "K", "M", "G", "T", "P", "E"];
+    static UNITS: [&'static str; 7] = ["", "K", "M", "G", "T", "P", "E"];
 
-    let digit_groups = (sizef.log10() / 1024f64.log10()) as i32;
+    let digit_groups = ((64 - size.leading_zeros()) / 10) as i32;
     format!("{:.1}{}",
-            sizef / 1024f64.powi(digit_groups),
-            units[digit_groups as usize])
+            size as f64 / 1024f64.powi(digit_groups),
+            UNITS[digit_groups as usize])
 }
 
 fn main() {
@@ -142,9 +141,9 @@ fn main() {
 #[test]
 fn test_human_readable() {
     assert_eq!(to_human_readable_string(0), "0");
-    assert_eq!(to_human_readable_string(333), "333");
-    assert_eq!(to_human_readable_string(1024 * 1), "1.0K");
-    assert_eq!(to_human_readable_string(1024 * 1 + 100), "1.1K");
+    assert_eq!(to_human_readable_string(1023), "1023");
+    assert_eq!(to_human_readable_string(1024), "1.0K");
+    assert_eq!(to_human_readable_string(1024 + 100), "1.1K");
     assert_eq!(to_human_readable_string(1024u64.pow(2) * 2), "2.0M");
     assert_eq!(to_human_readable_string(1024u64.pow(3) * 3), "3.0G");
     assert_eq!(to_human_readable_string(1024u64.pow(4) * 4), "4.0T");
