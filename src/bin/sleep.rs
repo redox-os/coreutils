@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 
 extern crate extra;
 
@@ -77,18 +77,27 @@ fn argument_to_ms(argument: &str, stderr: &mut Stderr) -> u64 {
     // s = seconds; m = minutes; h = hours; d = days
     let (prefix, suffix) = argument.split_at(argument.len()-1);
     if let Ok(number) = prefix.parse::<f64>() {
-        match suffix {
-            "s" => (number * 1000f64) as u64,
-            "m" => (number * 60000f64) as u64,
-            "h" => (number * 3600000f64) as u64,
-            "d" => (number * 86400000f64) as u64,
-            _   => {
-                stderr.write(b"invalid time interval '").try(&mut *stderr);
-                stderr.write(argument.as_bytes()).try(&mut *stderr);
-                stderr.write(b"\'\n").try(&mut *stderr);
-                stderr.flush().try(&mut *stderr);
-                exit(1);
+        // Time to sleep must be positive, as we can't time travel yet
+        if number.is_sign_positive() {
+            match suffix {
+                "s" => (number * 1000f64) as u64,
+                "m" => (number * 60000f64) as u64,
+                "h" => (number * 3600000f64) as u64,
+                "d" => (number * 86400000f64) as u64,
+                _   => {
+                    stderr.write(b"invalid time interval '").try(&mut *stderr);
+                    stderr.write(argument.as_bytes()).try(&mut *stderr);
+                    stderr.write(b"\'\n").try(&mut *stderr);
+                    stderr.flush().try(&mut *stderr);
+                    exit(1);
+                }
             }
+        } else { 
+            stderr.write(b"negative ('").try(&mut *stderr);
+            stderr.write(argument.as_bytes()).try(&mut *stderr);
+            stderr.write(b"\') time intervals unsupported\n").try(&mut *stderr);
+            stderr.flush().try(&mut *stderr);
+            exit(1);
         }
     } else {
         stderr.write(b"invalid time interval '").try(&mut *stderr);
