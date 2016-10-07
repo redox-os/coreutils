@@ -6,7 +6,7 @@ extern crate extra;
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::io::{stdout, stderr, Stderr, Write};
+use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 
@@ -25,6 +25,7 @@ DESCRIPTION
 
 OPTIONS
     -h
+    --human-readable
         with -l, print human readable sizes
     --help
         display this help and exit
@@ -32,7 +33,20 @@ OPTIONS
         use a long listing format
 "#; /* @MANEND */
 
-fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut String, stderr: &mut Stderr) {
+#[derive(Copy, Clone, Debug, Default)]
+struct Flags {
+    long_format: bool,
+    help: bool,
+    human_readable: bool,
+}
+
+fn list_dir(path: &str, flags: Flags, string: &mut String, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    if flags.help {
+        stdout.write(MAN_PAGE.as_bytes()).try(stderr);
+        stdout.flush().try(stderr);
+        exit(0);
+    }
+
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
@@ -49,7 +63,7 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
         entries.sort();
 
         for entry in entries.iter() {
-            if long_format {
+            if flags.long_format {
                 let mut entry_path = path.to_owned();
                 if !entry_path.ends_with('/') {
                     entry_path.push('/');
@@ -61,7 +75,7 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
                                          metadata.mode(),
                                          metadata.uid(),
                                          metadata.gid()));
-                if human_readable {
+                if flags.human_readable {
                     string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
                 } else {
                     string.push_str(&format!("{:>8} ", metadata.size()));
@@ -71,12 +85,12 @@ fn list_dir(path: &str, long_format: bool, human_readable: bool, string: &mut St
             string.push('\n');
         }
     } else {
-        if long_format {
+        if flags.long_format {
             string.push_str(&format!("{:>7o} {:>5} {:>5} ",
                                      metadata.mode(),
                                      metadata.uid(),
                                      metadata.gid()));
-             if human_readable {
+             if flags.human_readable {
                  string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
              } else {
                  string.push_str(&format!("{:>8} ", metadata.size()));
@@ -92,29 +106,36 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    let mut long_format = false;
-    let mut human_readable = false;
-    let mut args = Vec::new();
+    let mut flags = Flags::default();
+    let mut dirs = Vec::new();
     for arg in env::args().skip(1) {
-        if arg.as_str() == "--help" {
-            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(0);
-        } else if arg.as_str() == "-l" {
-            long_format = true;
-        } else if arg.as_str() == "-h" {
-            human_readable = true;
-        } else {
-            args.push(arg);
+        if arg.starts_with("--") {
+            match &arg[2..] {
+                "help" => flags.help = true,
+                "human-readable" => flags.human_readable = true,
+                _ => (),
+            }
+        }
+        else if arg.starts_with("-") {
+            for ch in arg[1..].chars() {
+                match ch {
+                    'l' => flags.long_format = true,
+                    'h' => flags.human_readable = true,
+                    _ => break,
+                }
+            }
+        }
+        else {
+            dirs.push(arg);
         }
     }
 
     let mut string = String::new();
-    if args.is_empty() {
-        list_dir(".", long_format, human_readable, &mut string, &mut stderr);
+    if dirs.is_empty() {
+        list_dir(".", flags, &mut string, &mut stdout, &mut stderr);
     } else {
-        for dir in args {
-            list_dir(&dir, long_format, human_readable, &mut string, &mut stderr);
+        for dir in dirs {
+            list_dir(&dir, flags, &mut string, &mut stdout, &mut stderr);
         }
     }
     stdout.write(string.as_bytes()).try(&mut stderr);
