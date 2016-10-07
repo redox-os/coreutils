@@ -109,14 +109,23 @@ fn main() {
     let mut flags = Flags::default();
     let mut dirs = Vec::new();
     for arg in env::args().skip(1) {
-        if arg.starts_with("-") {
-            match arg.as_str() {
-                "--help" => flags.help = true,
-                "-l" => flags.long_format = true,
-                "-h" | "--human-readable" => flags.human_readable = true,
+        if arg.starts_with("--") {
+            match &arg[2..] {
+                "help" => flags.help = true,
+                "human-readable" => flags.human_readable = true,
                 _ => (),
             }
-        } else {
+        }
+        else if arg.starts_with("-") {
+            for ch in arg[1..].chars() {
+                match ch {
+                    'l' => flags.long_format = true,
+                    'h' => flags.human_readable = true,
+                    _ => break,
+                }
+            }
+        }
+        else {
             dirs.push(arg);
         }
     }
