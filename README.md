@@ -11,6 +11,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `clear`
 - `cp`
 - `date`
+- `dd`
 - `du`
 - `echo`
 - `env`
