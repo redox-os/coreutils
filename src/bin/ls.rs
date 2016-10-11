@@ -10,7 +10,7 @@ use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 
-use coreutils::to_human_readable_string;
+use coreutils::{ArgParser, Flag, to_human_readable_string};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
@@ -33,15 +33,8 @@ OPTIONS
         use a long listing format
 "#; /* @MANEND */
 
-#[derive(Copy, Clone, Debug, Default)]
-struct Flags {
-    long_format: bool,
-    help: bool,
-    human_readable: bool,
-}
-
-fn list_dir(path: &str, flags: Flags, string: &mut String, stdout: &mut StdoutLock, stderr: &mut Stderr) {
-    if flags.help {
+fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    if parser.enabled_flag(Flag::Long("help")) {
         stdout.write(MAN_PAGE.as_bytes()).try(stderr);
         stdout.flush().try(stderr);
         exit(0);
@@ -63,7 +56,7 @@ fn list_dir(path: &str, flags: Flags, string: &mut String, stdout: &mut StdoutLo
         entries.sort();
 
         for entry in entries.iter() {
-            if flags.long_format {
+            if parser.enabled_flag(Flag::Short('l')) {
                 let mut entry_path = path.to_owned();
                 if !entry_path.ends_with('/') {
                     entry_path.push('/');
@@ -75,7 +68,7 @@ fn list_dir(path: &str, flags: Flags, string: &mut String, stdout: &mut StdoutLo
                                          metadata.mode(),
                                          metadata.uid(),
                                          metadata.gid()));
-                if flags.human_readable {
+                if parser.enabled_flag(Flag::Long("human-readable")) {
                     string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
                 } else {
                     string.push_str(&format!("{:>8} ", metadata.size()));
@@ -85,12 +78,12 @@ fn list_dir(path: &str, flags: Flags, string: &mut String, stdout: &mut StdoutLo
             string.push('\n');
         }
     } else {
-        if flags.long_format {
+        if parser.enabled_flag(Flag::Short('l')) {
             string.push_str(&format!("{:>7o} {:>5} {:>5} ",
                                      metadata.mode(),
                                      metadata.uid(),
                                      metadata.gid()));
-             if flags.human_readable {
+            if parser.enabled_flag(Flag::Long("human-readable")) {
                  string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
              } else {
                  string.push_str(&format!("{:>8} ", metadata.size()));
@@ -106,36 +99,18 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    let mut flags = Flags::default();
-    let mut dirs = Vec::new();
-    for arg in env::args().skip(1) {
-        if arg.starts_with("--") {
-            match &arg[2..] {
-                "help" => flags.help = true,
-                "human-readable" => flags.human_readable = true,
-                _ => (),
-            }
-        }
-        else if arg.starts_with("-") {
-            for ch in arg[1..].chars() {
-                match ch {
-                    'l' => flags.long_format = true,
-                    'h' => flags.human_readable = true,
-                    _ => break,
-                }
-            }
-        }
-        else {
-            dirs.push(arg);
-        }
-    }
+    let mut parser = ArgParser::new(3)
+        .add_flag("l", "long-format")
+        .add_flag("h", "human-readable")
+        .add_flag("", "help");
+    parser.initialize(env::args());
 
     let mut string = String::new();
-    if dirs.is_empty() {
-        list_dir(".", flags, &mut string, &mut stdout, &mut stderr);
+    if parser.args.is_empty() {
+        list_dir(".", &parser, &mut string, &mut stdout, &mut stderr);
     } else {
-        for dir in dirs {
-            list_dir(&dir, flags, &mut string, &mut stdout, &mut stderr);
+        for dir in parser.args.iter() {
+            list_dir(&dir, &parser, &mut string, &mut stdout, &mut stderr);
         }
     }
     stdout.write(string.as_bytes()).try(&mut stderr);
