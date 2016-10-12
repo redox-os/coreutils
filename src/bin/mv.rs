@@ -1,10 +1,13 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{stderr, stdout, Write};
+use std::process::exit;
+use coreutils::{ArgParser, Flag};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{mv} */ r#"
@@ -26,19 +29,18 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
 
-    if env::args().count() == 2 {
-        if let Some(arg) = env::args().nth(1) {
-            if arg == "--help" || arg == "-h" {
-                stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-                stdout.flush().try(&mut stderr);
-                return;
-            }
-        }
+    if parser.enabled_flag(Flag::Long("help")) {
+        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
     }
 
-    let ref src = env::args().nth(1).fail("No source argument. Use --help to see the usage.", &mut stderr);
-    let ref dst = env::args().nth(2).fail("No destination argument. Use --help to see the usage.", &mut stderr);
+    let ref src = parser.args.get(0).fail("No source argument. Use --help to see the usage.", &mut stderr);
+    let ref dst = parser.args.get(1).fail("No destination argument. Use --help to see the usage.", &mut stderr);
 
     fs::rename(src, dst).try(&mut stderr);
 }

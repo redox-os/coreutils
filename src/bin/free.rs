@@ -1,12 +1,14 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs::File;
 use std::io::{stderr, stdout, copy, Write};
-use extra::option::OptionalExt;
 use std::process::exit;
+use coreutils::{ArgParser, Flag};
+use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{free} */ r#"
 NAME
@@ -28,13 +30,14 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
 
-    for arg in env::args().skip(1){
-        if arg.as_str() == "-h" || arg.as_str() == "--help" {
-            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(0);
-        }
+    if parser.enabled_flag(Flag::Long("help")) {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
     }
 
     let mut file = File::open("sys:/memory").try(&mut stderr);

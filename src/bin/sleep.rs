@@ -1,5 +1,6 @@
 //#![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
@@ -7,6 +8,7 @@ use std::io::{self, Write, Stderr};
 use std::process::exit;
 use std::thread;
 use std::time::Duration;
+use coreutils::{ArgParser, Flag};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{sleep} */ r#"
@@ -43,19 +45,20 @@ fn main() {
     let stdout     = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut args   = env::args().skip(1);
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
 
-    if let Some(arg) = args.next() {
-        match arg.as_str() {
-            "-h" | "--help" => {
-                stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            },
-            _ => {
-                thread::sleep(Duration::from_millis(argument_to_ms(&arg, &mut stderr)));
-                for argument in args {
-                    thread::sleep(Duration::from_millis(argument_to_ms(&argument, &mut stderr)));
-                }
-            }
+    if parser.enabled_flag(Flag::Long("help")) {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    }
+
+    if !parser.args.is_empty() {
+        thread::sleep(Duration::from_millis(argument_to_ms(&parser.args[0], &mut stderr)));
+        for argument in &parser.args[1..] {
+            thread::sleep(Duration::from_millis(argument_to_ms(&argument, &mut stderr)));
         }
     } else {
         stderr.write(MISSING_OPERAND.as_bytes()).try(&mut stderr);
@@ -92,7 +95,7 @@ fn argument_to_ms(argument: &str, stderr: &mut Stderr) -> u64 {
                     exit(1);
                 }
             }
-        } else { 
+        } else {
             stderr.write(b"negative ('").try(&mut *stderr);
             stderr.write(argument.as_bytes()).try(&mut *stderr);
             stderr.write(b"\') time intervals unsupported\n").try(&mut *stderr);

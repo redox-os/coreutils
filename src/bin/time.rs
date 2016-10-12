@@ -1,13 +1,14 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr, Write};
-use std::process::Command;
+use std::process::{exit, Command};
 use std::time::Instant;
+use coreutils::{ArgParser, Flag};
 use extra::option::OptionalExt;
-use std::process::exit;
 
 const MAN_PAGE: &'static str = /* @MANSTART{time} */ r#"
 NAME
@@ -29,28 +30,28 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
 
-    for arg in env::args().skip(1){
-        if arg.as_str() == "-h" || arg.as_str() == "--help" {
-            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(0);
-        }
+    if parser.enabled_flag(Flag::Long("help")) {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
     }
 
     let time = Instant::now();
 
-    let mut args = env::args().skip(1);
-    if let Some(name) = args.next() {
-        let mut command = Command::new(&name);
-        for arg in args {
-            command.arg(&arg);
+    if !parser.args.is_empty() {
+        let mut command = Command::new(&parser.args[0]);
+        for arg in &parser.args[1..] {
+            command.arg(arg);
         }
         command.spawn().try(&mut stderr).wait().try(&mut stderr);
     }
 
     let duration = time.elapsed();
     stdout.write(&format!("{}m{:.3}s\n", duration.as_secs() / 60,
-                                   (duration.as_secs()%60) as f64 + (duration.subsec_nanos() as f64)/1000000000.0
-                ).as_bytes()).try(&mut stderr);
+                          (duration.as_secs()%60) as f64 + (duration.subsec_nanos() as f64)/1000000000.0)
+        .as_bytes()).try(&mut stderr);
 }
