@@ -1,11 +1,13 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs::File;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
+use coreutils::{ArgParser, Flag};
 use extra::option::OptionalExt;
 use extra::io::fail;
 
@@ -29,22 +31,23 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
 
-    for arg in env::args().skip(1){
-        if arg.as_str() == "-h" || arg.as_str() == "--help" {
-            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(0);
-        }
+    if parser.enabled_flag(Flag::Long("help")) {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
     }
 
-    if env::args().count() < 2 {
+    if parser.args.is_empty() {
         fail("no arguments.", &mut stderr);
     }
-
-    // TODO update file modification date/time
-
-    for arg in env::args().skip(1) {
-        File::create(&arg).try(&mut stderr);
+    else {
+        // TODO update file modification date/time
+        for arg in env::args().skip(1) {
+            File::create(&arg).try(&mut stderr);
+        }
     }
 }
