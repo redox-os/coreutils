@@ -39,8 +39,8 @@ fn main() {
         exit(0);
     }
 
-    let ref src = parser.args.get(1).fail("No source argument. Use --help to see the usage.", &mut stderr);
-    let ref dst = parser.args.get(2).fail("No destination argument. Use --help to see the usage.", &mut stderr);
+    let ref src = parser.args.get(0).fail("No source argument. Use --help to see the usage.", &mut stderr);
+    let ref dst = parser.args.get(1).fail("No destination argument. Use --help to see the usage.", &mut stderr);
 
     fs::rename(src, dst).try(&mut stderr);
 }
