@@ -1,13 +1,14 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs::File;
 use std::io::{self, stdout, stderr, Read, Write, Stderr};
-use std::iter;
 use std::ops::{Add, AddAssign};
 use std::process::exit;
+use coreutils::{ArgParser, Flag};
 use extra::option::OptionalExt;
 use extra::io::WriteExt;
 
@@ -49,14 +50,14 @@ AUTHOR
     This program was written mainly by Alice Maz.
 "#; /* @MANEND */
 
-#[derive(Copy, Clone, Default)]
-struct Counts {
+#[derive(Copy, Clone, Debug, Default)]
+struct Counter {
     lines: u64,
     words: u64,
     bytes: u64,
 }
 
-impl Counts {
+impl Counter {
     #[inline]
     fn new<T: Read>(input: T) -> Self {
         let mut line_count = 0;
@@ -80,15 +81,15 @@ impl Counts {
             byte_count += 1;
         }
 
-        Counts { lines: line_count, words: word_count, bytes: byte_count }
+        Counter { lines: line_count, words: word_count, bytes: byte_count }
     }
 }
 
-impl Add for Counts {
-    type Output = Counts;
+impl Add for Counter {
+    type Output = Counter;
 
     fn add(self, other: Self) -> Self {
-        Counts {
+        Counter {
             lines: self.lines + other.lines,
             words: self.words + other.words,
             bytes: self.bytes + other.bytes
@@ -96,19 +97,12 @@ impl Add for Counts {
     }
 }
 
-impl AddAssign for Counts {
+impl AddAssign for Counter {
     fn add_assign(&mut self, _rhs: Self) {
         self.lines += _rhs.lines;
         self.words += _rhs.words;
         self.bytes += _rhs.bytes;
     }
-}
-
-#[derive(Copy, Clone, Default)]
-struct Flags {
-    count_lines: bool,
-    count_words: bool,
-    count_bytes: bool,
 }
 
 fn u64_num_digits(val: u64) -> usize {
@@ -119,132 +113,130 @@ fn u64_num_digits(val: u64) -> usize {
     }
 }
 
-impl Flags {
-    fn print_counts<W: Write>(self, mut counts: Vec<(Counts, String)>, stdout: &mut W, stderr: &mut Stderr) {
-        use std::cmp::max;
+fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>, stdout: &mut W, stderr: &mut Stderr) {
+    use std::cmp::max;
 
-        let mut max_lines_digits = 0;
-        let mut max_words_digits = 0;
-        let mut max_bytes_digits = 0;
+    let mut max_lines_digits = 0;
+    let mut max_words_digits = 0;
+    let mut max_bytes_digits = 0;
 
-        for &mut (count, _) in &mut counts {
-            if self.count_lines {
-                max_lines_digits = max(max_lines_digits, u64_num_digits(count.lines));
-            }
-            if self.count_words {
-                max_words_digits = max(max_words_digits, u64_num_digits(count.words));
-            }
-            if self.count_bytes {
-                max_bytes_digits = max(max_bytes_digits, u64_num_digits(count.bytes));
-            }
+    for &mut (count, _) in &mut counts {
+        if parser.enabled_flag(Flag::Long("lines")) {
+            max_lines_digits = max(max_lines_digits, u64_num_digits(count.lines));
         }
-
-        for &mut (count, ref mut path) in &mut counts {
-            self.print_count(count, path,
-                max_lines_digits - u64_num_digits(count.lines) + 1,
-                max_words_digits - u64_num_digits(count.words) + 1,
-                max_bytes_digits - u64_num_digits(count.bytes) + 1,
-                stdout, stderr)
+        if parser.enabled_flag(Flag::Long("words")) {
+            max_words_digits = max(max_words_digits, u64_num_digits(count.words));
+        }
+        if parser.enabled_flag(Flag::Long("bytes")) {
+            max_bytes_digits = max(max_bytes_digits, u64_num_digits(count.bytes));
         }
     }
 
-    fn print_count<'a, W: Write>(self, count: Counts, path: &'a str, lines_padding: usize, words_padding: usize, bytes_padding: usize, stdout: &mut W, stderr: &mut Stderr) {
-        stdout.write(b"    ").try(stderr);
-
-        if self.count_lines {
-            stdout.write(count.lines.to_string().as_bytes()).try(stderr);
-            for _ in 0..lines_padding {
-                stdout.write(b" ").try(stderr);
-            }
-        }
-        if self.count_words {
-            stdout.write(count.words.to_string().as_bytes()).try(stderr);
-            for _ in 0..words_padding {
-                stdout.write(b" ").try(stderr);
-            }
-        }
-        if self.count_bytes {
-            stdout.write(count.bytes.to_string().as_bytes()).try(stderr);
-            for _ in 0..bytes_padding {
-                stdout.write(b" ").try(stderr);
-            }
-        }
-
-        stdout.writeln(path.as_bytes()).try(&mut *stderr);
-    }
-
-    fn default_to(&mut self) {
-        // Defaults to behavior of -lwc
-        if !(self.count_lines || self.count_words || self.count_bytes) {
-            self.count_lines = true;
-            self.count_words = true;
-            self.count_bytes = true;
-        }
+    for &mut (count, ref mut path) in &mut counts {
+        print_count(&parser, count, path, Counter {
+            lines:
+                if parser.enabled_flag(Flag::Long("lines")) {
+                    (max_lines_digits - u64_num_digits(count.lines) + 1) as u64
+                } else {
+                    0
+                },
+            words:
+                if parser.enabled_flag(Flag::Long("words")) {
+                    (max_words_digits - u64_num_digits(count.words) + 1) as u64
+                } else {
+                    0
+                },
+            bytes:
+                if parser.enabled_flag(Flag::Long("bytes")) {
+                    (max_bytes_digits - u64_num_digits(count.bytes) + 1) as u64
+                } else {
+                    0
+                },
+        },
+        stdout, stderr)
     }
 }
 
-fn main() {
-    let mut opts = Flags::default();
-    let mut first_file = String::new();
-    let mut args = env::args().skip(1);
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
+fn print_count<'a, W: Write>(parser: &ArgParser, count: Counter, path: &'a str, padding: Counter, stdout: &mut W, stderr: &mut Stderr) {
+    stdout.write(b"    ").try(stderr);
 
-    while let Some(arg) = args.next() {
-        // TODO add -m, maybe add -L
-        if arg.starts_with("-") {
-            match arg.as_str() {
-                "--lines" | "-l" => opts.count_lines = true,
-                "--words" | "-w" => opts.count_words = true,
-                "--bytes" | "-c" => opts.count_bytes = true,
-                "--help"  | "-h" => {
-                    stdout.writeln(MAN_PAGE.as_bytes()).try(&mut stderr);
-                    return;
-                },
-                _ => {
-                    stderr.write(b"error: unknown flag, ").try(&mut stderr);
-                    stderr.write(arg.as_bytes()).try(&mut stderr);
-                    stderr.flush().try(&mut stderr);
-                    exit(1);
-                },
-            }
-        } else { // This is a file name
-            first_file = arg;
-            break;
+    if parser.enabled_flag(Flag::Long("lines")) {
+        stdout.write(count.lines.to_string().as_bytes()).try(stderr);
+        for _ in 0..padding.lines {
+            stdout.write(b" ").try(stderr);
+        }
+    }
+    if parser.enabled_flag(Flag::Long("words")) {
+        stdout.write(count.words.to_string().as_bytes()).try(stderr);
+        for _ in 0..padding.words {
+            stdout.write(b" ").try(stderr);
+        }
+    }
+    if parser.enabled_flag(Flag::Long("bytes")) {
+        stdout.write(count.bytes.to_string().as_bytes()).try(stderr);
+        for _ in 0..padding.bytes {
+            stdout.write(b" ").try(stderr);
         }
     }
 
-    opts.default_to();
+    stdout.writeln(path.as_bytes()).try(&mut *stderr);
+}
 
-    if first_file.is_empty() {
+fn main() {
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = stderr();
+    let mut parser = ArgParser::new(4)
+        .add_flag("l", "lines")
+        .add_flag("w", "words")
+        .add_flag("c", "bytes")
+        .add_flag("h", "help");
+    parser.initialize(env::args());
+
+    if parser.enabled_flag(Flag::Long("help")) {
+        stdout.writeln(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    }
+
+    if !(parser.enabled_flag(Flag::Long("lines")) ||
+         parser.enabled_flag(Flag::Long("words")) ||
+         parser.enabled_flag(Flag::Long("bytes"))) {
+        parser.enable_all();
+    }
+
+    if parser.args.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        opts.print_count(Counts::new(stdin), "stdin", 1, 1, 1, &mut stdout, &mut stderr);
+        print_count(&parser,
+            Counter::new(stdin),
+            "stdin",
+            Counter {lines: 1, words: 1, bytes: 1},
+            &mut stdout,
+            &mut stderr);
     } else {
         let mut files = Vec::new();
-        let mut total_count = Counts::default();
-        let more_than_one: bool = args.len() > 0;
+        let mut total_count = Counter::default();
 
-        for path in iter::once(first_file).chain(args) {
+        for path in parser.args.iter() {
             //TODO would be easy to use stdin for - but
             //that is probably something the shell should handle?
             //unix it's all just fds so it's whatever dunno here tho
             //(also - is specific to sh/bash fwiw).
 
-            let file = File::open(&path).try(&mut stderr);
-            let file_count = Counts::new(file);
+            let file = File::open(path).try(&mut stderr);
+            let file_count = Counter::new(file);
             total_count += file_count;
 
             files.push((file_count, path.to_owned()));
         }
 
-        if more_than_one {
+        if parser.args.len() > 1 {
             files.push((total_count, "total".to_owned()));
         }
 
-        opts.print_counts(files, &mut stdout, &mut stderr);
+        print_counts(&parser, files, &mut stdout, &mut stderr);
     }
 }
 
