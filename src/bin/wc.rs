@@ -49,14 +49,14 @@ AUTHOR
     This program was written mainly by Alice Maz.
 "#; /* @MANEND */
 
-#[derive(Copy, Clone, Default)]
-struct Counts {
+#[derive(Copy, Clone, Debug, Default)]
+struct Counter {
     lines: u64,
     words: u64,
     bytes: u64,
 }
 
-impl Counts {
+impl Counter {
     #[inline]
     fn new<T: Read>(input: T) -> Self {
         let mut line_count = 0;
@@ -80,15 +80,15 @@ impl Counts {
             byte_count += 1;
         }
 
-        Counts { lines: line_count, words: word_count, bytes: byte_count }
+        Counter { lines: line_count, words: word_count, bytes: byte_count }
     }
 }
 
-impl Add for Counts {
-    type Output = Counts;
+impl Add for Counter {
+    type Output = Counter;
 
     fn add(self, other: Self) -> Self {
-        Counts {
+        Counter {
             lines: self.lines + other.lines,
             words: self.words + other.words,
             bytes: self.bytes + other.bytes
@@ -96,7 +96,7 @@ impl Add for Counts {
     }
 }
 
-impl AddAssign for Counts {
+impl AddAssign for Counter {
     fn add_assign(&mut self, _rhs: Self) {
         self.lines += _rhs.lines;
         self.words += _rhs.words;
@@ -120,7 +120,7 @@ fn u64_num_digits(val: u64) -> usize {
 }
 
 impl Flags {
-    fn print_counts<W: Write>(self, mut counts: Vec<(Counts, String)>, stdout: &mut W, stderr: &mut Stderr) {
+    fn print_counts<W: Write>(self, mut counts: Vec<(Counter, String)>, stdout: &mut W, stderr: &mut Stderr) {
         use std::cmp::max;
 
         let mut max_lines_digits = 0;
@@ -148,7 +148,7 @@ impl Flags {
         }
     }
 
-    fn print_count<'a, W: Write>(self, count: Counts, path: &'a str, lines_padding: usize, words_padding: usize, bytes_padding: usize, stdout: &mut W, stderr: &mut Stderr) {
+    fn print_count<'a, W: Write>(self, count: Counter, path: &'a str, lines_padding: usize, words_padding: usize, bytes_padding: usize, stdout: &mut W, stderr: &mut Stderr) {
         stdout.write(b"    ").try(stderr);
 
         if self.count_lines {
@@ -221,10 +221,10 @@ fn main() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
 
-        opts.print_count(Counts::new(stdin), "stdin", 1, 1, 1, &mut stdout, &mut stderr);
+        opts.print_count(Counter::new(stdin), "stdin", 1, 1, 1, &mut stdout, &mut stderr);
     } else {
         let mut files = Vec::new();
-        let mut total_count = Counts::default();
+        let mut total_count = Counter::default();
         let more_than_one: bool = args.len() > 0;
 
         for path in iter::once(first_file).chain(args) {
@@ -234,7 +234,7 @@ fn main() {
             //(also - is specific to sh/bash fwiw).
 
             let file = File::open(&path).try(&mut stderr);
-            let file_count = Counts::new(file);
+            let file_count = Counter::new(file);
             total_count += file_count;
 
             files.push((file_count, path.to_owned()));
