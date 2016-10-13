@@ -79,6 +79,12 @@ impl ArgParser {
             }
         }
     }
+
+    pub fn enable_all(&mut self) {
+        for &mut (_,_, ref mut switch) in self.flags.iter_mut() {
+            *switch = true;
+        }
+    }
 }
 
 pub fn to_human_readable_string(size: u64) -> String {
