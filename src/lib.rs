@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Flag {
     Short(char),
     Long(&'static str),
@@ -83,6 +83,27 @@ impl ArgParser {
     pub fn enable_all(&mut self) {
         for &mut (_,_, ref mut switch) in self.flags.iter_mut() {
             *switch = true;
+        }
+    }
+
+    pub fn set_flag(&mut self, flag: Flag, state: bool) {
+        match flag {
+            Flag::Short(short) => {
+                for &mut (ref parsed, _, ref mut switch) in &mut self.flags {
+                    if Some(short) == *parsed {
+                        *switch = state;
+                        return;
+                    }
+                }
+            }
+            Flag::Long(long) => {
+                for &mut (_, ref parsed, ref mut switch) in &mut self.flags {
+                    if Some(long.to_owned()) == *parsed {
+                        *switch = state;
+                        return;
+                    }
+                }
+            }
         }
     }
 }
