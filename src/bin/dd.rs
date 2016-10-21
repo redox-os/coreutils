@@ -47,9 +47,9 @@ fn main() {
     let mut out_total = 0;
     let mut running = true;
     let mut buffer = vec![0; bs];
-    let mut start = Instant::now();
     let mut last_print = 0;
     let mut last_print_out = 0;
+    let start = Instant::now();
     while running {
         let in_count = input.read(&mut buffer).expect("dd: failed to read if");
         if in_count < bs {
