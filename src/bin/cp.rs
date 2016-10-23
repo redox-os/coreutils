@@ -5,7 +5,7 @@ extern crate extra;
 
 use std::env;
 use std::fs;
-use std::io::{self, stderr, stdout, Write};
+use std::io::{stderr, stdout, Write};
 use std::path;
 use std::process::exit;
 use coreutils::{ArgParser, Flag};
@@ -50,9 +50,12 @@ fn main() {
         fail("No destination argument. Use --help to see the usage.", &mut stderr);
     }
     else if parser.args.len() == 2 {
-        let mut src_file = fs::File::create(&parser.args[0]).try(&mut stderr);
-        let mut dst_file = fs::File::create(&parser.args[1]).try(&mut stderr);
-        io::copy(&mut src_file, &mut dst_file).try(&mut stderr);
+        let src = path::Path::new(&parser.args[0]);
+        let mut dst = path::PathBuf::from(&parser.args[1]);
+        if dst.is_dir() {
+            dst.push(src.file_name().try(&mut stderr))
+        }
+        fs::copy(src, dst).try(&mut stderr);
     }
     else {
         // This unwrap won't panic since it's been verified not to be empty
