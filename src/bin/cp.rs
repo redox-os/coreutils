@@ -47,7 +47,7 @@ fn main() {
         fail("No source argument. Use --help to see the usage.", &mut stderr);
     }
     else if parser.args.len() == 1 {
-        fail("No destination arguments. Use --help to see the usage.", &mut stderr);
+        fail("No destination argument. Use --help to see the usage.", &mut stderr);
     }
     else if parser.args.len() == 2 {
         let mut src_file = fs::File::create(&parser.args[0]).try(&mut stderr);
@@ -57,11 +57,11 @@ fn main() {
     else {
         // This unwrap won't panic since it's been verified not to be empty
         let dst = parser.args.pop().unwrap();
-        let dst = path::Path::new(&dst);
+        let dst = path::PathBuf::from(dst);
         if dst.is_dir() {
             for ref arg in parser.args {
                 let src = path::Path::new(arg);
-                fs::copy(src, dst).try(&mut stderr);
+                fs::copy(src, dst.join(src.file_name().try(&mut stderr))).try(&mut stderr);
             }
         }
         else if dst.is_file() {
