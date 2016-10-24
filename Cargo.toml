@@ -144,3 +144,7 @@ path = "src/bin/wc.rs"
 [[bin]]
 name = "yes"
 path = "src/bin/yes.rs"
+
+[[bin]]
+name = "tee"
+path = "src/bin/tee.rs"
