@@ -118,6 +118,10 @@ name = "sleep"
 path = "src/bin/sleep.rs"
 
 [[bin]]
+name = "sort"
+path = "src/bin/sort.rs"
+
+[[bin]]
 name = "tail"
 path = "src/bin/tail.rs"
 
