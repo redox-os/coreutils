@@ -10,7 +10,7 @@ use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 
-use coreutils::{ArgParser, Flag, to_human_readable_string};
+use coreutils::{ArgParser, to_human_readable_string};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
@@ -34,7 +34,7 @@ OPTIONS
 "#; /* @MANEND */
 
 fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut StdoutLock, stderr: &mut Stderr) {
-    if parser.enabled_flag(Flag::Long("help")) {
+    if parser.enabled_flag("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(stderr);
         stdout.flush().try(stderr);
         exit(0);
@@ -56,7 +56,7 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
         entries.sort();
 
         for entry in entries.iter() {
-            if parser.enabled_flag(Flag::Short('l')) {
+            if parser.enabled_flag('l') || parser.enabled_flag("long-format") {
                 let mut entry_path = path.to_owned();
                 if !entry_path.ends_with('/') {
                     entry_path.push('/');
@@ -68,7 +68,7 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
                                          metadata.mode(),
                                          metadata.uid(),
                                          metadata.gid()));
-                if parser.enabled_flag(Flag::Long("human-readable")) {
+                if parser.enabled_flag('h') || parser.enabled_flag("human-readable") {
                     string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
                 } else {
                     string.push_str(&format!("{:>8} ", metadata.size()));
@@ -78,16 +78,16 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
             string.push('\n');
         }
     } else {
-        if parser.enabled_flag(Flag::Short('l')) {
+        if parser.enabled_flag('l') || parser.enabled_flag("long-format") {
             string.push_str(&format!("{:>7o} {:>5} {:>5} ",
                                      metadata.mode(),
                                      metadata.uid(),
                                      metadata.gid()));
-            if parser.enabled_flag(Flag::Long("human-readable")) {
-                 string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
-             } else {
-                 string.push_str(&format!("{:>8} ", metadata.size()));
-             }
+            if parser.enabled_flag('h') || parser.enabled_flag("human-readable") {
+                string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
+            } else {
+                string.push_str(&format!("{:>8} ", metadata.size()));
+            }
         }
         string.push_str(path);
         string.push('\n');
@@ -99,7 +99,7 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    let mut parser = ArgParser::new(3)
+    let mut parser = ArgParser::new(3, 0)
         .add_flag("l", "long-format")
         .add_flag("h", "human-readable")
         .add_flag("", "help");

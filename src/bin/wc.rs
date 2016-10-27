@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::{self, stdout, stderr, Read, Write, Stderr};
 use std::ops::{Add, AddAssign};
 use std::process::exit;
-use coreutils::{ArgParser, Flag};
+use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::WriteExt;
 
@@ -121,13 +121,13 @@ fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>
     let mut max_bytes_digits = 0;
 
     for &mut (count, _) in &mut counts {
-        if parser.enabled_flag(Flag::Long("lines")) {
+        if parser.enabled_flag('l') || parser.enabled_flag("lines") {
             max_lines_digits = max(max_lines_digits, u64_num_digits(count.lines));
         }
-        if parser.enabled_flag(Flag::Long("words")) {
+        if parser.enabled_flag('w') || parser.enabled_flag("words") {
             max_words_digits = max(max_words_digits, u64_num_digits(count.words));
         }
-        if parser.enabled_flag(Flag::Long("bytes")) {
+        if parser.enabled_flag('c') || parser.enabled_flag("bytes") {
             max_bytes_digits = max(max_bytes_digits, u64_num_digits(count.bytes));
         }
     }
@@ -135,19 +135,19 @@ fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>
     for &mut (count, ref mut path) in &mut counts {
         print_count(&parser, count, path, Counter {
             lines:
-                if parser.enabled_flag(Flag::Long("lines")) {
+                if parser.enabled_flag('l') || parser.enabled_flag("lines") {
                     (max_lines_digits - u64_num_digits(count.lines) + 1) as u64
                 } else {
                     0
                 },
             words:
-                if parser.enabled_flag(Flag::Long("words")) {
+                if parser.enabled_flag('w') || parser.enabled_flag("words") {
                     (max_words_digits - u64_num_digits(count.words) + 1) as u64
                 } else {
                     0
                 },
             bytes:
-                if parser.enabled_flag(Flag::Long("bytes")) {
+                if parser.enabled_flag('c') || parser.enabled_flag("bytes") {
                     (max_bytes_digits - u64_num_digits(count.bytes) + 1) as u64
                 } else {
                     0
@@ -160,19 +160,19 @@ fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>
 fn print_count<'a, W: Write>(parser: &ArgParser, count: Counter, path: &'a str, padding: Counter, stdout: &mut W, stderr: &mut Stderr) {
     stdout.write(b"    ").try(stderr);
 
-    if parser.enabled_flag(Flag::Long("lines")) {
+    if parser.enabled_flag('l') || parser.enabled_flag("lines") {
         stdout.write(count.lines.to_string().as_bytes()).try(stderr);
         for _ in 0..padding.lines {
             stdout.write(b" ").try(stderr);
         }
     }
-    if parser.enabled_flag(Flag::Long("words")) {
+    if parser.enabled_flag('w') || parser.enabled_flag("words") {
         stdout.write(count.words.to_string().as_bytes()).try(stderr);
         for _ in 0..padding.words {
             stdout.write(b" ").try(stderr);
         }
     }
-    if parser.enabled_flag(Flag::Long("bytes")) {
+    if parser.enabled_flag('c') || parser.enabled_flag("bytes") {
         stdout.write(count.bytes.to_string().as_bytes()).try(stderr);
         for _ in 0..padding.bytes {
             stdout.write(b" ").try(stderr);
@@ -186,22 +186,22 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(4)
+    let mut parser = ArgParser::new(4, 0)
         .add_flag("l", "lines")
         .add_flag("w", "words")
         .add_flag("c", "bytes")
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.enabled_flag(Flag::Long("help")) {
+    if parser.enabled_flag('h') || parser.enabled_flag("help") {
         stdout.writeln(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
     }
 
-    if !(parser.enabled_flag(Flag::Long("lines")) ||
-         parser.enabled_flag(Flag::Long("words")) ||
-         parser.enabled_flag(Flag::Long("bytes"))) {
+    if !(parser.enabled_flag('l') || parser.enabled_flag("lines") ||
+         parser.enabled_flag('w') || parser.enabled_flag("words") ||
+         parser.enabled_flag('c') || parser.enabled_flag("bytes")) {
         parser.enable_all();
     }
 

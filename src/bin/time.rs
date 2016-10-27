@@ -7,7 +7,7 @@ use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::{exit, Command};
 use std::time::Instant;
-use coreutils::{ArgParser, Flag};
+use coreutils::ArgParser;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{time} */ r#"
@@ -30,11 +30,11 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(1)
+    let mut parser = ArgParser::new(1, 0)
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.enabled_flag(Flag::Long("help")) {
+    if parser.enabled_flag('h') || parser.enabled_flag("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);

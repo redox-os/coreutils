@@ -7,7 +7,7 @@ use std::env;
 use std::fs;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
-use coreutils::{ArgParser, Flag};
+use coreutils::ArgParser;
 use extra::io::fail;
 use extra::option::OptionalExt;
 
@@ -30,7 +30,7 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(1)
+    let mut parser = ArgParser::new(1, 0)
         .add_flag("h", "help");
     parser.initialize(env::args());
 
@@ -38,7 +38,7 @@ fn main() {
         fail("No arguments. Use --help to see the usage.", &mut stderr);
     }
 
-    if parser.enabled_flag(Flag::Long("help")) {
+    if parser.enabled_flag('h') || parser.enabled_flag("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
