@@ -7,7 +7,7 @@ use std::env;
 use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader};
 use std::process::exit;
 use std::cmp::Ordering;
-use coreutils::{ArgParser, Flag};
+use coreutils::ArgParser;
 use std::fs::File;
 use extra::option::OptionalExt;
 
@@ -89,12 +89,12 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(3)
+    let mut parser = ArgParser::new(2, 0)
         .add_flag("n", "numeric-sort")
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.enabled_flag(Flag::Long("help")) {
+    if parser.enabled_flag('h') || parser.enabled_flag("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
@@ -113,7 +113,7 @@ fn main() {
 
     match lines {
         Ok(mut l) => {
-            if parser.enabled_flag(Flag::Short('n')) {
+            if parser.enabled_flag('n') || parser.enabled_flag("numeric-sort") {
                 l.sort_by(numeric_compare);
             } else {
                 l.sort();

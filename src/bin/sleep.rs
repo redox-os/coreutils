@@ -8,7 +8,7 @@ use std::io::{self, Write, Stderr};
 use std::process::exit;
 use std::thread;
 use std::time::Duration;
-use coreutils::{ArgParser, Flag};
+use coreutils::ArgParser;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{sleep} */ r#"
@@ -45,11 +45,11 @@ fn main() {
     let stdout     = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut parser = ArgParser::new(1)
+    let mut parser = ArgParser::new(1, 0)
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.enabled_flag(Flag::Long("help")) {
+    if parser.enabled_flag('h') || parser.enabled_flag("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
