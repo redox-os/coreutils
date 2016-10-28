@@ -23,9 +23,6 @@ impl IntoParam for char {
 use std::collections::HashMap;
 
 /// Our homebrewed Arg Parser
-///
-/// Yes, it would be nice to use an Arg Parser library but we don't have that
-/// kind of luxury with our current std crate implementation for Redox
 #[derive(Clone, Debug, Default)]
 pub struct ArgParser {
     flags: HashMap<Param, bool>,
