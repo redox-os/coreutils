@@ -202,7 +202,12 @@ fn main() {
     if !(parser.enabled_flag('l') || parser.enabled_flag("lines") ||
          parser.enabled_flag('w') || parser.enabled_flag("words") ||
          parser.enabled_flag('c') || parser.enabled_flag("bytes")) {
-        parser.enable_all();
+        parser.set_flag('l', true);
+        parser.set_flag('w', true);
+        parser.set_flag('c', true);
+        parser.set_flag("lines", true);
+        parser.set_flag("words", true);
+        parser.set_flag("bytes", true);
     }
 
     if parser.args.is_empty() {

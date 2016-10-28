@@ -106,14 +106,8 @@ impl ArgParser {
         }
     }
 
-    pub fn enable_all(&mut self) {
-        for (_, switch) in &mut self.flags {
-            *switch = true;
-        }
-    }
-
-    pub fn set_flag(&mut self, flag: Param, state: bool) {
-        if let Some(switch) = self.flags.get_mut(&flag) {
+    pub fn set_flag<F: IntoParam>(&mut self, flag: F, state: bool) {
+        if let Some(switch) = self.flags.get_mut(&flag.into_param()) {
             *switch = state;
         }
     }
