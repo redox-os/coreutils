@@ -4,18 +4,18 @@ pub enum Param {
     Long(String),
 }
 
-pub trait GetFlag<T> {
-    fn get_flag(self) -> T;
+pub trait IntoParam {
+    fn into_param(self) -> Param;
 }
 
-impl GetFlag<Param> for &'static str {
-    fn get_flag(self) -> Param {
+impl IntoParam for &'static str {
+    fn into_param(self) -> Param {
         Param::Long(self.to_owned())
     }
 }
 
-impl GetFlag<Param> for char {
-    fn get_flag(self) -> Param {
+impl IntoParam for char {
+    fn into_param(self) -> Param {
         Param::Short(self)
     }
 }
@@ -66,8 +66,8 @@ impl ArgParser {
     }
 
     /// Check if a flag has been used
-    pub fn enabled_flag<F: GetFlag<Param>>(&self, flag: F) -> bool {
-        *self.flags.get(&flag.get_flag()).unwrap_or(&false)
+    pub fn enabled_flag<F: IntoParam>(&self, flag: F) -> bool {
+        *self.flags.get(&flag.into_param()).unwrap_or(&false)
     }
 
     /// Start parsing user inputted args for which flags are used
