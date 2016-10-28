@@ -111,6 +111,19 @@ impl ArgParser {
             *switch = state;
         }
     }
+
+    pub fn set_opt<O: IntoParam>(&mut self, opt: O, state: Option<String>) {
+        if let Some(value) = self.opts.get_mut(&opt.into_param()) {
+            *value = state;
+        }
+    }
+
+    pub fn has_opt<O: IntoParam>(&mut self, opt: O) -> bool {
+        if let Some(&Some(_)) = self.opts.get(&opt.into_param()) {
+            return true;
+        }
+        false
+    }
 }
 
 pub fn to_human_readable_string(size: u64) -> String {
