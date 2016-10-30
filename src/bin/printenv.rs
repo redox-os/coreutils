@@ -1,10 +1,12 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
+use coreutils::ArgParser;
 use extra::io::WriteExt;
 use extra::option::OptionalExt;
 
@@ -28,20 +30,22 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let args = env::args().collect::<Vec<String>>();
-    if args.len() < 2 {
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
+
+    if parser.args.is_empty() {
         stderr.write(b"Please provide a variable name\n").try(&mut stderr);
         stderr.flush().try(&mut stderr);
         exit(1);
     }
+    if parser.flagged('h') || parser.flagged("help") {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    }
 
-    for arg in args.iter().skip(1) {
-        if arg == "-h" || arg == "--help" {
-            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(0);
-        }
-
+    for arg in &parser.args {
         let value = env::var(arg).try(&mut stderr);
         stdout.writeln(value.as_bytes()).try(&mut stderr);
     }

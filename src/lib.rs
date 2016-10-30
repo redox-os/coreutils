@@ -5,7 +5,7 @@ pub enum Param {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Value {
+enum Value {
     Flag(bool),
     Opt(Option<String>),
 }
