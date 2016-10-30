@@ -26,14 +26,14 @@ AUTHOR
 "#; /* @MANEND */
 
 fn main() {
-    let mut parser = ArgParser::new(2, 0).
+    let mut parser = ArgParser::new(2).
         add_flag("a", "append").
         add_flag("h", "help");
     parser.initialize(env::args());
 
     let mut stdout = io::stdout();
 
-    if parser.enabled_flag('h') || parser.enabled_flag("help") {
+    if parser.flagged('h') || parser.flagged("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).unwrap();
         stdout.flush().unwrap();
         process::exit(0);
@@ -41,7 +41,7 @@ fn main() {
 
     let mut fds: Vec<std::fs::File> = Vec::with_capacity(env::args().len());
 
-    if parser.enabled_flag('a') || parser.enabled_flag("append") {
+    if parser.flagged('a') || parser.flagged("append") {
         let args = env::args().skip(2);
         if args.len() > 0 {
             for arg in args {

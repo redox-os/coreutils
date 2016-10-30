@@ -30,11 +30,11 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(1, 0)
+    let mut parser = ArgParser::new(1)
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.enabled_flag('h') || parser.enabled_flag("help") {
+    if parser.flagged('h') || parser.flagged("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
