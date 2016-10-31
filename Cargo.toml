@@ -125,9 +125,10 @@ path = "src/bin/sort.rs"
 name = "tail"
 path = "src/bin/tail.rs"
 
-[[bin]]
-name = "test"
-path = "src/bin/test.rs"
+#TODO: Fix on redox
+#[[bin]]
+#name = "test"
+#path = "src/bin/test.rs"
 
 [[bin]]
 name = "time"

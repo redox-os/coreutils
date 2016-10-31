@@ -59,7 +59,8 @@ fn lines_from_stdin() -> Result<Vec<String>, Error> {
     let stdin = stdin();
     let mut lines = Vec::new();
 
-    for line in stdin.lock().lines() {
+    let f = BufReader::new(stdin.lock());
+    for line in f.lines() {
         match line {
             Ok(l) => lines.push(l),
             Err(e) => return Err(e),

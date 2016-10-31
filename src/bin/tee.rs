@@ -71,7 +71,7 @@ fn main() {
     'programmloop: loop {
         let result_read = stdin.read(buffer);
         match result_read {
-            Ok(size) => {  
+            Ok(size) => {
                 if size == 0 {
                     // we've read a EOF here
                     break;
@@ -87,7 +87,7 @@ fn main() {
                     };
 
                 // iterate over open files
-                'writeloop: for mut f in &fds {
+                'writeloop: for mut f in &mut fds {
                     let result_write = f.write(&mut buffer[0..size]);
                     match result_write {
                         Ok(_) => (),
@@ -105,7 +105,7 @@ fn main() {
             },
         };
     }
-    
+
     stdout.flush().unwrap();
     process::exit(0);
 }
