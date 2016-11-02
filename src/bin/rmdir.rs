@@ -1,10 +1,12 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{stdout, stderr, Write};
+use coreutils::ArgParser;
 use extra::io::fail;
 use extra::option::OptionalExt;
 
@@ -27,22 +29,21 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    let mut parser = ArgParser::new(1)
+        .add_flag("h", "help");
+    parser.initialize(env::args());
 
-    if env::args().count() == 2 {
-        if let Some(arg) = env::args().nth(1) {
-            if arg == "--help" || arg == "-h" {
-                stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-                stdout.flush().try(&mut stderr);
-                return;
-            }
-        }
+    if parser.flagged('h') || parser.flagged("help") {
+        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        return;
     }
 
-    if env::args().count() < 2 {
+    if parser.args.is_empty() {
         fail("No arguments. Use --help to see the usage.", &mut stderr);
     }
 
-    for ref path in env::args().skip(1) {
+    for path in &parser.args {
         fs::remove_dir(path).try(&mut stderr);
     }
 }
