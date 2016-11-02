@@ -8,8 +8,7 @@ use std::fs;
 use std::path::Path;
 use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
 use std::process::exit;
-
-use coreutils::to_human_readable_string;
+use coreutils::{ArgParser, to_human_readable_string};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{du} */ r#"
@@ -24,16 +23,17 @@ DESCRIPTION
 
 OPTIONS
     -h
+    --human-readable
         human readable output
     --help
         display this help and exit
 "#; /* @MANEND */
 
-fn list_entry(path: &str, name: &str, human_readable: bool, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+fn list_entry(path: &str, name: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr) {
     let metadata = fs::metadata(path).try(stderr);
     let size = metadata.len();
 
-    if human_readable {
+    if parser.flagged('h') || parser.flagged("human-readable") {
         stdout.write(to_human_readable_string(size).as_bytes()).try(stderr);
     } else {
         stdout.write(((size + 1023) / 1024).to_string().as_bytes()).try(stderr);
@@ -44,7 +44,7 @@ fn list_entry(path: &str, name: &str, human_readable: bool, stdout: &mut StdoutL
     stdout.write(b"\n").try(stderr);
 }
 
-fn list_dir(path: &str, human_readable: bool, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr) {
     if fs::metadata(path).try(stderr).is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
 
@@ -70,37 +70,33 @@ fn list_dir(path: &str, human_readable: bool, stdout: &mut StdoutLock, stderr: &
             }
             entry_path.push_str(&entry);
 
-            list_entry(&entry_path, &entry, human_readable, stdout, stderr);
+            list_entry(&entry_path, &entry, parser, stdout, stderr);
         }
     } else {
-        list_entry(path, path, human_readable, stdout, stderr);
+        list_entry(path, path, parser, stdout, stderr);
     }
 }
+
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    let mut parser = ArgParser::new(2)
+        .add_flag("h", "human-readable")
+        .add_flag("", "help");
+    parser.initialize(env::args());
 
-    let mut human_readable = false;
-    let mut args = Vec::new();
-    for arg in env::args().skip(1){
-        if arg.as_str() == "--help" {
-            stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-            stdout.flush().try(&mut stderr);
-            exit(0);
-        } else if arg.as_str() == "-h" {
-            human_readable = true;
-        } else {
-            args.push(arg);
-        }
+    if parser.flagged("help") {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
     }
 
-    if let Some(x) = args.get(0) {
-        list_dir(x, human_readable, &mut stdout, &mut stderr);
-        for y in args.iter().skip(1) {
-            list_dir(&y, human_readable, &mut stdout, &mut stderr);
-        }
+    if parser.args.is_empty() {
+        list_dir(".", &parser, &mut stdout, &mut stderr);
     } else {
-        list_dir(".", human_readable, &mut stdout, &mut stderr);
+        for dir in parser.args.iter() {
+            list_dir(&dir, &parser, &mut stdout, &mut stderr);
+        }
     }
 }
