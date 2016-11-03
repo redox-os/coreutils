@@ -121,6 +121,13 @@ impl ArgParser {
             *value = state;
         }
     }
+
+    pub fn get_opt<O: IntoParam>(&self, opt: O) -> Option<String> {
+        if let Some(&Value::Opt(ref value)) = self.params.get(&opt.into_param()) {
+            return value.clone();
+        }
+        None
+    }
 }
 
 pub fn to_human_readable_string(size: u64) -> String {
