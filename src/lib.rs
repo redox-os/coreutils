@@ -1,7 +1,30 @@
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Param {
     Short(char),
     Long(String),
+}
+
+use std::borrow::Borrow;
+
+impl Borrow<str> for Param {
+    fn borrow(&self) -> &str {
+        if let Param::Long(ref string) = *self {
+            &*string
+        } else {
+            ""
+        }
+    }
+}
+
+use std::hash::{Hash,Hasher};
+
+impl Hash for Param {
+    fn hash<H: Hasher>(&self, state: &mut H){
+        match *self {
+            Param::Short(ref c) => c.hash(state),
+            Param::Long(ref s) => s.hash(state)
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -99,16 +122,15 @@ impl ArgParser {
         while let Some(mut arg) = args.next() {
             if arg.starts_with("--") {
                 // Remove both dashes
-                arg.remove(0);
-                arg.remove(0);
+                let arg = &arg[2..];
                 if let Some(i) = arg.find('=') {
                     let (lhs, rhs) = arg.split_at(i);
-                    if let Some(&mut Value::Opt(Some(ref mut value))) = self.params.get_mut(&Param::Long(lhs.to_owned())) {
+                    if let Some(&mut Value::Opt(Some(ref mut value))) = self.params.get_mut(lhs) {
                         *value = rhs.to_owned();
                     }
                 }
                 else {
-                    if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(&Param::Long(arg)) {
+                    if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(arg) {
                         *switch = true;
                     }
                 }
