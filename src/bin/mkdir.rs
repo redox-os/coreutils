@@ -38,7 +38,7 @@ fn main() {
         fail("No arguments. Use --help to see the usage.", &mut stderr);
     }
 
-    if parser.flagged('h') || parser.flagged("help") {
+    if parser.flagged(&'h') || parser.flagged("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
