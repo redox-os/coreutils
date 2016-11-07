@@ -44,22 +44,6 @@ enum Value {
     Opt(Option<String>),
 }
 
-pub trait IntoParam {
-    fn into_param(self) -> Param;
-}
-
-impl IntoParam for &'static str {
-    fn into_param(self) -> Param {
-        Param::Long(self.to_owned())
-    }
-}
-
-impl IntoParam for char {
-    fn into_param(self) -> Param {
-        Param::Short(self)
-    }
-}
-
 use std::collections::HashMap;
 
 /// Our homebrewed Arg Parser
@@ -162,8 +146,8 @@ impl ArgParser {
     }
 
     /// Check if a Flag or Opt has been found after initialization.
-    pub fn flagged<P: IntoParam>(&self, name: P) -> bool {
-        match self.params.get(&name.into_param()) {
+    pub fn flagged<P: Hash + Eq + ?Sized> (&self, name: &P) -> bool  where Param: Borrow<P>{
+        match self.params.get(name) {
             Some(&Value::Flag(switch)) => switch,
             Some(&Value::Opt(Some(_))) => true,
             _ => false,
@@ -172,24 +156,24 @@ impl ArgParser {
 
     /// Modify the state of a flag. Use `true` if the flag is to be enabled. Use `false` to
     /// disable its use.
-    pub fn set_flag<F: IntoParam>(&mut self, flag: F, state: bool) {
-        if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(&flag.into_param()) {
+    pub fn set_flag<F: Hash + Eq + ?Sized> (&mut self, flag: &F, state: bool) where Param: Borrow<F> {
+        if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(flag) {
             *switch = state;
         }
     }
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
     /// has been assigned a value from `String`. Use `None` to disable the opt's use.
-    pub fn set_opt<O: IntoParam>(&mut self, opt: O, state: Option<String>) {
-        if let Some(&mut Value::Opt(ref mut value)) = self.params.get_mut(&opt.into_param()) {
+    pub fn set_opt<O: Hash + Eq + ?Sized> (&mut self, opt: &O, state: Option<String>) where Param: Borrow<O> {
+        if let Some(&mut Value::Opt(ref mut value)) = self.params.get_mut(opt) {
             *value = state;
         }
     }
 
     /// Get the state of an Opt. If it has been enabled, it will return a `Some(String)` value
     /// otherwise it will return None.
-    pub fn get_opt<O: IntoParam>(&self, opt: O) -> Option<String> {
-        if let Some(&Value::Opt(ref value)) = self.params.get(&opt.into_param()) {
+    pub fn get_opt<O: Hash + Eq + ?Sized> (&self, opt: &O) -> Option<String> where Param: Borrow<O> {
+        if let Some(&Value::Opt(ref value)) = self.params.get(opt) {
             return value.clone();
         }
         None
