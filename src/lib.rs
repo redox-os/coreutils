@@ -9,9 +9,20 @@ use std::borrow::Borrow;
 impl Borrow<str> for Param {
     fn borrow(&self) -> &str {
         if let Param::Long(ref string) = *self {
-            &*string
+            string
         } else {
             ""
+        }
+    }
+}
+
+impl Borrow<char> for Param {
+    fn borrow(&self) -> &char {
+        if let Param::Short(ref ch) = *self {
+            ch
+        } else {
+            const CH: &'static char = &'\0';
+            CH
         }
     }
 }
@@ -119,7 +130,7 @@ impl ArgParser {
     /// to `ArgParser.args`.
     pub fn initialize<A: Iterator<Item=String>>(&mut self, args: A) {
         let mut args = args.skip(1);
-        while let Some(mut arg) = args.next() {
+        while let Some(arg) = args.next() {
             if arg.starts_with("--") {
                 // Remove both dashes
                 let arg = &arg[2..];
@@ -137,7 +148,7 @@ impl ArgParser {
             }
             else if arg.starts_with("-") {
                 for ch in arg[1..].chars() {
-                    match self.params.get_mut(&Param::Short(ch)) {
+                    match self.params.get_mut(&ch) {
                         Some(&mut Value::Flag(ref mut switch)) => *switch = true,
                         Some(&mut Value::Opt(ref mut value)) => *value = args.next(),
                         None => (),
