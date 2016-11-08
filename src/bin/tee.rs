@@ -6,7 +6,7 @@ use coreutils::ArgParser;
 use std::{process, env};
 use std::io::{self, Read, Write};
 
-const MAN_PAGE: &'static str = /* @MANSTART{true} */ r#"
+const MAN_PAGE: &'static str = /* @MANSTART{tee} */ r#"
 NAME
     tee - read from standard input and write to standard output and files
 
