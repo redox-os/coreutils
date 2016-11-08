@@ -30,7 +30,7 @@ impl Borrow<char> for Param {
 use std::hash::{Hash,Hasher};
 
 impl Hash for Param {
-    fn hash<H: Hasher>(&self, state: &mut H){
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match *self {
             Param::Short(ref c) => c.hash(state),
             Param::Long(ref s) => s.hash(state)
@@ -146,7 +146,9 @@ impl ArgParser {
     }
 
     /// Check if a Flag or Opt has been found after initialization.
-    pub fn flagged<P: Hash + Eq + ?Sized> (&self, name: &P) -> bool  where Param: Borrow<P>{
+    pub fn flagged<P: Hash + Eq + ?Sized> (&self, name: &P) -> bool
+        where Param: Borrow<P>
+    {
         match self.params.get(name) {
             Some(&Value::Flag(switch)) => switch,
             Some(&Value::Opt(Some(_))) => true,
@@ -156,7 +158,9 @@ impl ArgParser {
 
     /// Modify the state of a flag. Use `true` if the flag is to be enabled. Use `false` to
     /// disable its use.
-    pub fn set_flag<F: Hash + Eq + ?Sized> (&mut self, flag: &F, state: bool) where Param: Borrow<F> {
+    pub fn set_flag<F: Hash + Eq + ?Sized> (&mut self, flag: &F, state: bool)
+        where Param: Borrow<F>
+    {
         if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(flag) {
             *switch = state;
         }
@@ -164,7 +168,9 @@ impl ArgParser {
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
     /// has been assigned a value from `String`. Use `None` to disable the opt's use.
-    pub fn set_opt<O: Hash + Eq + ?Sized> (&mut self, opt: &O, state: Option<String>) where Param: Borrow<O> {
+    pub fn set_opt<O: Hash + Eq + ?Sized> (&mut self, opt: &O, state: Option<String>)
+        where Param: Borrow<O>
+    {
         if let Some(&mut Value::Opt(ref mut value)) = self.params.get_mut(opt) {
             *value = state;
         }
@@ -172,7 +178,9 @@ impl ArgParser {
 
     /// Get the state of an Opt. If it has been enabled, it will return a `Some(String)` value
     /// otherwise it will return None.
-    pub fn get_opt<O: Hash + Eq + ?Sized> (&self, opt: &O) -> Option<String> where Param: Borrow<O> {
+    pub fn get_opt<O: Hash + Eq + ?Sized> (&self, opt: &O) -> Option<String>
+        where Param: Borrow<O>
+    {
         if let Some(&Value::Opt(ref value)) = self.params.get(opt) {
             return value.clone();
         }
