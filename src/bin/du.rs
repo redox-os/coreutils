@@ -33,7 +33,7 @@ fn list_entry(path: &str, name: &str, parser: &ArgParser, stdout: &mut StdoutLoc
     let metadata = fs::metadata(path).try(stderr);
     let size = metadata.len();
 
-    if parser.flagged(&'h') || parser.flagged("human-readable") {
+    if parser.flagged('h') || parser.flagged("human-readable") {
         stdout.write(to_human_readable_string(size).as_bytes()).try(stderr);
     } else {
         stdout.write(((size + 1023) / 1024).to_string().as_bytes()).try(stderr);

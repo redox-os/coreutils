@@ -56,7 +56,7 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
         entries.sort();
 
         for entry in entries.iter() {
-            if parser.flagged(&'l') || parser.flagged("long-format") {
+            if parser.flagged('l') || parser.flagged("long-format") {
                 let mut entry_path = path.to_owned();
                 if !entry_path.ends_with('/') {
                     entry_path.push('/');
@@ -68,7 +68,7 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
                                          metadata.mode(),
                                          metadata.uid(),
                                          metadata.gid()));
-                if parser.flagged(&'h') || parser.flagged("human-readable") {
+                if parser.flagged('h') || parser.flagged("human-readable") {
                     string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
                 } else {
                     string.push_str(&format!("{:>8} ", metadata.size()));
@@ -78,12 +78,12 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
             string.push('\n');
         }
     } else {
-        if parser.flagged(&'l') || parser.flagged("long-format") {
+        if parser.flagged('l') || parser.flagged("long-format") {
             string.push_str(&format!("{:>7o} {:>5} {:>5} ",
                                      metadata.mode(),
                                      metadata.uid(),
                                      metadata.gid()));
-            if parser.flagged(&'h') || parser.flagged("human-readable") {
+            if parser.flagged('h') || parser.flagged("human-readable") {
                 string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
             } else {
                 string.push_str(&format!("{:>8} ", metadata.size()));
