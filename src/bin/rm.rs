@@ -60,11 +60,6 @@ fn main() {
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.args.is_empty() {
-        stdout.write(b"missing operand\nTry 'rm --help' for more information.\n").try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
     if parser.flagged(&'h') || parser.flagged("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
@@ -74,13 +69,16 @@ fn main() {
         parser.set_flag(&'d', true);
         parser.set_flag("directory", true);
     }
-    //if parser.flagged_invalid() {
-    //    stderr.write(b"invalid argument '").try(&mut stderr);
-    //    stderr.write(argument.as_bytes()).try(&mut stderr);
-    //    stderr.write(&[character as u8]).try(&mut stderr);
-    //    stderr.write(b"'\n").try(&mut stderr);
-    //    stderr.flush().try(&mut stderr);
-    //}
+    if let Err(err) = parser.flagged_invalid() {
+        stderr.write(err.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+    }
+    if parser.args.is_empty() {
+        stdout.write(b"missing operand\nTry 'rm --help' for more information.\n").try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    }
+
     let mut exit_status = 0i32;
     for arg in &parser.args {
         if fs::metadata(&arg).is_err() {
