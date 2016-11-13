@@ -83,15 +83,12 @@ fn main() {
         stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
         process::exit(1);
     }
-    // TODO: Implement mismatched() for ArgParser
-    //if parser.mismatched() {
-    //    stderr.write_all("invalid option -- ‘".as_bytes()).try(&mut stderr);
-    //    stderr.write_all(argument.as_bytes()).try(&mut stderr);
-    //    stderr.write_all("’\n".as_bytes()).try(&mut stderr);
-    //    stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-    //    stderr.flush().try(&mut stderr);
-    //    process::exit(1);
-    //}
+    if let Err(err) = parser.flagged_invalid() {
+        stderr.write_all(err.as_bytes()).try(&mut stderr);
+        stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        process::exit(1);
+    }
 
     if parser.flagged(&'a') || parser.flagged("multiple") {
         for path in &parser.args {
