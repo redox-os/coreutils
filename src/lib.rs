@@ -256,3 +256,44 @@ pub fn to_human_readable_string(size: u64) -> String {
             sizef / 1024f64.powf(digit_groups as f64),
             UNITS[digit_groups as usize])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ArgParser;
+
+    #[test]
+    fn stop_parsing() {
+        let args = vec![String::from("binname"), String::from("-a"), String::from("--"), String::from("-v")];
+        let mut parser = ArgParser::new(2);
+        parser = parser.add_flag("a", "")
+                       .add_flag("v", "");
+        parser.initialize(args.into_iter());
+        assert!(parser.flagged(&'a'));
+        assert!(!parser.flagged(&'v'));
+        assert!(parser.args[0] == "-v");
+    }
+
+    #[test]
+    fn short_opts() {
+        let args = vec![String::from("binname"), String::from("-asdf"), String::from("-f"), String::from("foo")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_flag("a", "")
+                       .add_flag("d", "")
+                       .add_opt("s", "")
+                       .add_opt("f", "");
+        parser.initialize(args.into_iter());
+        assert!(parser.flagged(&'a'));
+        assert!(!parser.flagged(&'d'));
+        assert!(parser.get_opt(&'s') == Some(String::from("df")));
+        assert!(parser.get_opt(&'f') == Some(String::from("foo")));
+    }
+
+    #[test]
+    fn long_opts() {
+        let args = vec![String::from("binname"), String::from("--foo=bar")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_opt("", "foo");
+        parser.initialize(args.into_iter());
+        assert!(parser.get_opt("foo") == Some(String::from("bar")));
+    }
+}
