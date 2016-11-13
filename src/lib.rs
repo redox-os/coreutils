@@ -120,6 +120,11 @@ impl ArgParser {
             if arg.starts_with("--") {
                 // Remove both dashes
                 let arg = &arg[2..];
+                if arg.len() == 0 {
+                    //Arg `--` means we are done parsing args, collect the rest
+                    self.args.extend(args);
+                    break;
+                }
                 if let Some(i) = arg.find('=') {
                     let (lhs, rhs) = arg.split_at(i);
                     match self.params.get_mut(lhs) {
