@@ -123,7 +123,8 @@ impl ArgParser {
                 if let Some(i) = arg.find('=') {
                     let (lhs, rhs) = arg.split_at(i);
                     match self.params.get_mut(lhs) {
-                        Some(&mut Value::Opt(Some(ref mut value))) => *value = rhs.to_owned(),
+                        // slice off the `=` char
+                        Some(&mut Value::Opt(ref mut value)) => *value = Some(rhs[1..].to_owned()),
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
                 }
@@ -135,10 +136,19 @@ impl ArgParser {
                 }
             }
             else if arg.starts_with("-") {
-                for ch in arg[1..].chars() {
+                let mut chars = arg[1..].chars();
+                while let Some(ch) = chars.next() {
                     match self.params.get_mut(&ch) {
                         Some(&mut Value::Flag(ref mut switch)) => *switch = true,
-                        Some(&mut Value::Opt(ref mut value)) => *value = args.next(),
+                        Some(&mut Value::Opt(ref mut value)) => {
+                            let rest: String = chars.collect();
+                            if rest.len() > 0 {
+                                *value = Some(rest);
+                            } else {
+                                *value = args.next()
+                            }
+                            break;
+                        },
                         None => self.invalid.push(Param::Short(ch)),
                     }
                 }
