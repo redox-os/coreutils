@@ -120,7 +120,7 @@ impl ArgParser {
             if arg.starts_with("--") {
                 // Remove both dashes
                 let arg = &arg[2..];
-                if arg.len() == 0 {
+                if arg.is_empty() {
                     //Arg `--` means we are done parsing args, collect the rest
                     self.args.extend(args);
                     break;
@@ -147,7 +147,7 @@ impl ArgParser {
                         Some(&mut Value::Flag(ref mut switch)) => *switch = true,
                         Some(&mut Value::Opt(ref mut value)) => {
                             let rest: String = chars.collect();
-                            if rest.len() > 0 {
+                            if !rest.is_empty() {
                                 *value = Some(rest);
                             } else {
                                 *value = args.next()
@@ -235,7 +235,7 @@ impl ArgParser {
                 }
             }
             if and && iter.peek().is_some() {
-                output += " and"
+                output += " and";
             }
         }
         output.push('\n');
