@@ -120,10 +120,16 @@ impl ArgParser {
             if arg.starts_with("--") {
                 // Remove both dashes
                 let arg = &arg[2..];
+                if arg.len() == 0 {
+                    //Arg `--` means we are done parsing args, collect the rest
+                    self.args.extend(args);
+                    break;
+                }
                 if let Some(i) = arg.find('=') {
                     let (lhs, rhs) = arg.split_at(i);
                     match self.params.get_mut(lhs) {
-                        Some(&mut Value::Opt(Some(ref mut value))) => *value = rhs.to_owned(),
+                        // slice off the `=` char
+                        Some(&mut Value::Opt(ref mut value)) => *value = Some(rhs[1..].to_owned()),
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
                 }
@@ -135,10 +141,19 @@ impl ArgParser {
                 }
             }
             else if arg.starts_with("-") {
-                for ch in arg[1..].chars() {
+                let mut chars = arg[1..].chars();
+                while let Some(ch) = chars.next() {
                     match self.params.get_mut(&ch) {
                         Some(&mut Value::Flag(ref mut switch)) => *switch = true,
-                        Some(&mut Value::Opt(ref mut value)) => *value = args.next(),
+                        Some(&mut Value::Opt(ref mut value)) => {
+                            let rest: String = chars.collect();
+                            if rest.len() > 0 {
+                                *value = Some(rest);
+                            } else {
+                                *value = args.next()
+                            }
+                            break;
+                        },
                         None => self.invalid.push(Param::Short(ch)),
                     }
                 }
@@ -240,4 +255,45 @@ pub fn to_human_readable_string(size: u64) -> String {
     format!("{:.1}{}",
             sizef / 1024f64.powf(digit_groups as f64),
             UNITS[digit_groups as usize])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ArgParser;
+
+    #[test]
+    fn stop_parsing() {
+        let args = vec![String::from("binname"), String::from("-a"), String::from("--"), String::from("-v")];
+        let mut parser = ArgParser::new(2);
+        parser = parser.add_flag("a", "")
+                       .add_flag("v", "");
+        parser.initialize(args.into_iter());
+        assert!(parser.flagged(&'a'));
+        assert!(!parser.flagged(&'v'));
+        assert!(parser.args[0] == "-v");
+    }
+
+    #[test]
+    fn short_opts() {
+        let args = vec![String::from("binname"), String::from("-asdf"), String::from("-f"), String::from("foo")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_flag("a", "")
+                       .add_flag("d", "")
+                       .add_opt("s", "")
+                       .add_opt("f", "");
+        parser.initialize(args.into_iter());
+        assert!(parser.flagged(&'a'));
+        assert!(!parser.flagged(&'d'));
+        assert!(parser.get_opt(&'s') == Some(String::from("df")));
+        assert!(parser.get_opt(&'f') == Some(String::from("foo")));
+    }
+
+    #[test]
+    fn long_opts() {
+        let args = vec![String::from("binname"), String::from("--foo=bar")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_opt("", "foo");
+        parser.initialize(args.into_iter());
+        assert!(parser.get_opt("foo") == Some(String::from("bar")));
+    }
 }
