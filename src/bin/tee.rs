@@ -33,7 +33,7 @@ fn main() {
 
     let mut stdout = io::stdout();
 
-    if parser.flagged('h') || parser.flagged("help") {
+    if parser.flagged(&'h') || parser.flagged("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).unwrap();
         stdout.flush().unwrap();
         process::exit(0);
@@ -41,7 +41,7 @@ fn main() {
 
     let mut fds: Vec<std::fs::File> = Vec::with_capacity(env::args().len());
 
-    if parser.flagged('a') || parser.flagged("append") {
+    if parser.flagged(&'a') || parser.flagged("append") {
         let args = env::args().skip(2);
         if args.len() > 0 {
             for arg in args {

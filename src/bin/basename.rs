@@ -63,19 +63,19 @@ fn main() {
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.flagged('h') || parser.flagged("help") {
+    if parser.flagged(&'h') || parser.flagged("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         process::exit(0);
     }
-    if parser.flagged('s') || parser.flagged("suffix") {
-        if parser.get_opt('s').is_none() && parser.get_opt("suffix").is_none() {
+    if parser.flagged(&'s') || parser.flagged("suffix") {
+        if parser.get_opt(&'s').is_none() && parser.get_opt("suffix").is_none() {
             stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
             stderr.flush().try(&mut stderr);
             process::exit(1);
         }
-        parser.set_flag('a', true);
+        parser.set_flag(&'a', true);
         parser.set_flag("multiple", true);
     }
     if parser.args.is_empty() {
@@ -83,24 +83,21 @@ fn main() {
         stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
         process::exit(1);
     }
-    // TODO: Implement mismatched() for ArgParser
-    //if parser.mismatched() {
-    //    stderr.write_all("invalid option -- ‘".as_bytes()).try(&mut stderr);
-    //    stderr.write_all(argument.as_bytes()).try(&mut stderr);
-    //    stderr.write_all("’\n".as_bytes()).try(&mut stderr);
-    //    stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-    //    stderr.flush().try(&mut stderr);
-    //    process::exit(1);
-    //}
+    if let Err(err) = parser.flagged_invalid() {
+        stderr.write_all(err.as_bytes()).try(&mut stderr);
+        stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        process::exit(1);
+    }
 
-    if parser.flagged('a') || parser.flagged("multiple") {
+    if parser.flagged(&'a') || parser.flagged("multiple") {
         for path in &parser.args {
             basename(&path, &parser, &mut stdout, &mut stderr);
         }
     } else {
         // If there is an additional variable, set this variable as the suffix to remove
         if let Some(potential_suffix) = parser.args.get(1).map(|s| (*s).clone()) {
-            parser.set_opt('s', Some(potential_suffix.clone()));
+            parser.set_opt(&'s', Some(potential_suffix.clone()));
             parser.set_opt("suffix", Some(potential_suffix));
             // If there is an extra variable after that, print an error about an extra operand
             if let Some(extra_operand) = parser.args.get(2) {

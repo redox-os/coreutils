@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+use std::borrow::Borrow;
+use std::hash::{Hash,Hasher};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Param {
     Short(char),
     Long(String),
 }
-
-use std::borrow::Borrow;
 
 impl Borrow<str> for Param {
     fn borrow(&self) -> &str {
@@ -27,24 +29,6 @@ impl Borrow<char> for Param {
     }
 }
 
-pub trait IntoRef<T: ?Sized> {
-    fn into_ref(&self) -> &T;
-}
-
-impl IntoRef<str> for &'static str {
-    fn into_ref(&self) -> &str {
-        self
-    }
-}
-
-impl IntoRef<char> for char {
-    fn into_ref(&self) -> &char {
-        self
-    }
-}
-
-use std::hash::{Hash,Hasher};
-
 impl Hash for Param {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match *self {
@@ -55,17 +39,22 @@ impl Hash for Param {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-enum Value {
-    Flag(bool),
-    Opt(Option<String>),
+enum OptArg {
+    With(String, bool),
+    Empty,
 }
 
-use std::collections::HashMap;
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+enum Value {
+    Flag(bool),
+    Opt(OptArg),
+}
 
 /// Our homebrewed Arg Parser
 #[derive(Clone, Debug, Default)]
 pub struct ArgParser {
     params: HashMap<Param, Value>,
+    invalid: Vec<Param>,
     pub args: Vec<String>,
 }
 
@@ -77,6 +66,7 @@ impl ArgParser {
     pub fn new(capacity: usize) -> Self {
         ArgParser {
             params: HashMap::with_capacity(capacity),
+            invalid: Vec::new(),
             args: Vec::new(),
         }
     }
@@ -117,10 +107,20 @@ impl ArgParser {
     ///   `-- The command to list files.
     pub fn add_opt(mut self, short: &str, long: &str) -> Self {
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Opt(None));
+            self.params.insert(Param::Short(short), Value::Opt(OptArg::Empty));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Opt(None));
+            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptArg::Empty));
+        }
+        self
+    }
+
+    pub fn add_opt_default(mut self, short: &str, long: &str, default: &str) -> Self {
+        if let Some(short) = short.chars().next() {
+            self.params.insert(Param::Short(short), Value::Opt(OptArg::With(default.to_owned(), false)));
+        }
+        if !long.is_empty() {
+            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptArg::With(default.to_owned(), false)));
         }
         self
     }
@@ -134,24 +134,50 @@ impl ArgParser {
             if arg.starts_with("--") {
                 // Remove both dashes
                 let arg = &arg[2..];
+                if arg.is_empty() {
+                    //Arg `--` means we are done parsing args, collect the rest
+                    self.args.extend(args);
+                    break;
+                }
                 if let Some(i) = arg.find('=') {
                     let (lhs, rhs) = arg.split_at(i);
-                    if let Some(&mut Value::Opt(Some(ref mut value))) = self.params.get_mut(lhs) {
-                        *value = rhs.to_owned();
+                    let rhs = &rhs[1..]; // slice off the `=` char
+                    match self.params.get_mut(lhs) {
+                        Some(&mut Value::Opt(ref mut value)) => {
+                            match value {
+                                &mut OptArg::With(ref mut value, ref mut occur) => {
+                                    *value = rhs.to_owned();
+                                    *occur = true;
+                                }
+                                &mut OptArg::Empty => *value = OptArg::With(rhs.to_owned(), true),
+                            }
+                        }
+                        _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
                 }
                 else {
-                    if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(arg) {
-                        *switch = true;
+                    match self.params.get_mut(arg) {
+                        Some(&mut Value::Flag(ref mut switch)) => *switch = true,
+                        Some(&mut Value::Opt(OptArg::With(_, ref mut occur))) => *occur = true,
+                        _ => self.invalid.push(Param::Long(arg.to_owned())),
                     }
                 }
             }
             else if arg.starts_with("-") {
-                for ch in arg[1..].chars() {
+                let mut chars = arg[1..].chars();
+                while let Some(ch) = chars.next() {
                     match self.params.get_mut(&ch) {
                         Some(&mut Value::Flag(ref mut switch)) => *switch = true,
-                        Some(&mut Value::Opt(ref mut value)) => *value = args.next(),
-                        None => (),
+                        Some(&mut Value::Opt(ref mut value)) => {
+                            let rest: String = chars.collect();
+                            if !rest.is_empty() {
+                                *value = OptArg::With(rest, true);
+                            } else {
+                                *value = args.next().map(|a| OptArg::With(a, true)).unwrap_or(OptArg::Empty);
+                            }
+                            break;
+                        },
+                        None => self.invalid.push(Param::Short(ch)),
                     }
                 }
             }
@@ -162,45 +188,87 @@ impl ArgParser {
     }
 
     /// Check if a Flag or Opt has been found after initialization.
-    pub fn flagged<P: Hash + Eq + ?Sized, R: IntoRef<P>>(&self, name: R) -> bool
+    pub fn flagged<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
         where Param: Borrow<P>
     {
-        match self.params.get(name.into_ref()) {
+        match self.params.get(name) {
             Some(&Value::Flag(switch)) => switch,
-            Some(&Value::Opt(Some(_))) => true,
+            Some(&Value::Opt(OptArg::With(_, occur))) => occur,
             _ => false,
         }
     }
 
     /// Modify the state of a flag. Use `true` if the flag is to be enabled. Use `false` to
     /// disable its use.
-    pub fn set_flag<P: Hash + Eq + ?Sized, R: IntoRef<P>>(&mut self, flag: R, state: bool)
-        where Param: Borrow<P>
+    pub fn set_flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F, state: bool)
+        where Param: Borrow<F>
     {
-        if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(flag.into_ref()) {
+        if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(flag) {
             *switch = state;
         }
     }
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
     /// has been assigned a value from `String`. Use `None` to disable the opt's use.
-    pub fn set_opt<P: Hash + Eq + ?Sized, R: IntoRef<P>>(&mut self, opt: R, state: Option<String>)
-        where Param: Borrow<P>
+    pub fn set_opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O, state: Option<String>)
+        where Param: Borrow<O>
     {
-        if let Some(&mut Value::Opt(ref mut value)) = self.params.get_mut(opt.into_ref()) {
-            *value = state;
+        if let Some(&mut Value::Opt(OptArg::With(ref mut value, ref mut occur))) = self.params.get_mut(opt) {
+            match state {
+                Some(input) => {
+                    *value = input;
+                    *occur = true;
+                }
+                None => *occur = false,
+            }
         }
     }
 
-    /// Get the state of an Opt. If it has been enabled, it will return a `Some(String)` value
-    /// otherwise it will return None.
-    pub fn get_opt<P: Hash + Eq + ?Sized, R: IntoRef<P>>(&self, opt: R) -> Option<String>
-        where Param: Borrow<P>
+    /// Get the value of an Opt. If it has been set or defaulted, it will return a `Some(String)`
+    /// value otherwise it will return None.
+    pub fn get_opt<O: Hash + Eq + ?Sized>(&self, opt: &O) -> Option<String>
+        where Param: Borrow<O>
     {
-        if let Some(&Value::Opt(ref value)) = self.params.get(opt.into_ref()) {
-            return value.clone();
+        if let Some(&Value::Opt(OptArg::With(ref value, _))) = self.params.get(opt) {
+            return Some(value.clone());
         }
         None
+    }
+
+    pub fn flagged_invalid(&self) -> Result<(), String> {
+        if self.invalid.is_empty() {
+            return Ok(());
+        }
+
+        let mut and: bool = false;
+        let mut output =
+            if self.invalid.len() == 1 {
+                "Invalid parameter"
+            } else {
+                and = true;
+                "Invalid parameters"
+            }.to_owned();
+
+        let mut iter = self.invalid.iter().peekable();
+        while let Some(param) = iter.next() {
+            match param {
+                &Param::Short(ch) => {
+                    output += " '-";
+                    output.push(ch);
+                    output.push('\'');
+                }
+                &Param::Long(ref s) => {
+                    output += " '--";
+                    output += s;
+                    output.push('\'');
+                }
+            }
+            if and && iter.peek().is_some() {
+                output += " and";
+            }
+        }
+        output.push('\n');
+        Err(output)
     }
 }
 
@@ -216,4 +284,45 @@ pub fn to_human_readable_string(size: u64) -> String {
     format!("{:.1}{}",
             sizef / 1024f64.powf(digit_groups as f64),
             UNITS[digit_groups as usize])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ArgParser;
+
+    #[test]
+    fn stop_parsing() {
+        let args = vec![String::from("binname"), String::from("-a"), String::from("--"), String::from("-v")];
+        let mut parser = ArgParser::new(2);
+        parser = parser.add_flag("a", "")
+                       .add_flag("v", "");
+        parser.initialize(args.into_iter());
+        assert!(parser.flagged(&'a'));
+        assert!(!parser.flagged(&'v'));
+        assert!(parser.args[0] == "-v");
+    }
+
+    #[test]
+    fn short_opts() {
+        let args = vec![String::from("binname"), String::from("-asdf"), String::from("-f"), String::from("foo")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_flag("a", "")
+                       .add_flag("d", "")
+                       .add_opt("s", "")
+                       .add_opt("f", "");
+        parser.initialize(args.into_iter());
+        assert!(parser.flagged(&'a'));
+        assert!(!parser.flagged(&'d'));
+        assert!(parser.get_opt(&'s') == Some(String::from("df")));
+        assert!(parser.get_opt(&'f') == Some(String::from("foo")));
+    }
+
+    #[test]
+    fn long_opts() {
+        let args = vec![String::from("binname"), String::from("--foo=bar")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_opt("", "foo");
+        parser.initialize(args.into_iter());
+        assert!(parser.get_opt("foo") == Some(String::from("bar")));
+    }
 }

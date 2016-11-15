@@ -34,14 +34,13 @@ fn main() {
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.args.is_empty() {
-        fail("No arguments. Use --help to see the usage.", &mut stderr);
-    }
-
-    if parser.flagged('h') || parser.flagged("help") {
+    if parser.flagged(&'h') || parser.flagged("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
+    }
+    if parser.args.is_empty() {
+        fail("No arguments. Use --help to see the usage.", &mut stderr);
     }
 
     for ref path in &parser.args {
