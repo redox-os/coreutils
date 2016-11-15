@@ -22,6 +22,10 @@ name = "cat"
 path = "src/bin/cat.rs"
 
 [[bin]]
+name = "chmod"
+path = "src/bin/chmod.rs"
+
+[[bin]]
 name = "clear"
 path = "src/bin/clear.rs"
 
