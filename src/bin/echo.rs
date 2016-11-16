@@ -122,6 +122,8 @@ fn main() {
                     _ => { stdout.write(&[byte]).try(&mut stderr); }
                 }
             }
+        } else {
+            stdout.write(arg).try(&mut stderr);
         }
         if !(parser.flagged(&'s') || parser.flagged("no-spaces")) {
             stdout.write(&[b' ']).try(&mut stderr);
