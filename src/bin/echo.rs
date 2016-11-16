@@ -31,23 +31,14 @@ OPTIONS
         When the -e argument is used, the following sequences will be interpreted:
 
         \\  backslash
-
         \a  alert (BEL)
-
         \b  backspace (BS)
-
         \c  produce no further output
-
         \e  escape (ESC)
-
         \f  form feed (FF)
-
         \n  new line
-
         \r  carriage return
-
         \t  horizontal tab (HT)
-
         \v  vertical tab (VT)
 
 "#; /* @MANEND */
@@ -70,7 +61,13 @@ fn main() {
     }
 
     // Print to standard output
+    let mut first = true;
     for arg in parser.args.iter().map(|x| x.as_bytes()) {
+        if first {
+            first = false;
+        } else if !(parser.flagged(&'s') || parser.flagged("no-spaces")) {
+            stdout.write(&[b' ']).try(&mut stderr);
+        }
         if parser.flagged(&'e') || parser.flagged("escape") {
             let mut check = false;
             for &byte in arg {
@@ -124,9 +121,6 @@ fn main() {
             }
         } else {
             stdout.write(arg).try(&mut stderr);
-        }
-        if !(parser.flagged(&'s') || parser.flagged("no-spaces")) {
-            stdout.write(&[b' ']).try(&mut stderr);
         }
     }
 
