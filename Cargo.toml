@@ -70,6 +70,10 @@ name = "head"
 path = "src/bin/head.rs"
 
 [[bin]]
+name = "kill"
+path = "src/bin/kill.rs"
+
+[[bin]]
 name = "ls"
 path = "src/bin/ls.rs"
 
