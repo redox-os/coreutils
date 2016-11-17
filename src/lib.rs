@@ -38,16 +38,28 @@ impl Hash for Param {
     }
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+struct Rhs<T> {
+    value: T,
+    occurrences: usize,
+}
+
+impl<T> Rhs<T> {
+    fn new<U: Into<T>>(value: U) -> Self {
+        Rhs { value: value.into(), occurrences: 0 }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-enum OptArg {
-    With(String, bool),
+enum OptRhs {
+    With(Rhs<String>, bool),
     Empty,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 enum Value {
-    Flag(bool),
-    Opt(OptArg),
+    Flag(Rhs<bool>),
+    Opt(OptRhs),
 }
 
 /// Our homebrewed Arg Parser
@@ -85,10 +97,10 @@ impl ArgParser {
     ///   `-- The command to list files.
     pub fn add_flag(mut self, short: &str, long: &str) -> Self {
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Flag(false));
+            self.params.insert(Param::Short(short), Value::Flag(Rhs::default()));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Flag(false));
+            self.params.insert(Param::Long(long.to_owned()), Value::Flag(Rhs::default()));
         }
         self
     }
@@ -107,20 +119,20 @@ impl ArgParser {
     ///   `-- The command to list files.
     pub fn add_opt(mut self, short: &str, long: &str) -> Self {
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Opt(OptArg::Empty));
+            self.params.insert(Param::Short(short), Value::Opt(OptRhs::Empty));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptArg::Empty));
+            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptRhs::Empty));
         }
         self
     }
 
     pub fn add_opt_default(mut self, short: &str, long: &str, default: &str) -> Self {
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Opt(OptArg::With(default.to_owned(), false)));
+            self.params.insert(Param::Short(short), Value::Opt(OptRhs::With(Rhs::new(default), false)));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptArg::With(default.to_owned(), false)));
+            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptRhs::With(Rhs::new(default), false)));
         }
         self
     }
@@ -145,11 +157,17 @@ impl ArgParser {
                     match self.params.get_mut(lhs) {
                         Some(&mut Value::Opt(ref mut value)) => {
                             match value {
-                                &mut OptArg::With(ref mut value, ref mut occur) => {
-                                    *value = rhs.to_owned();
+                                &mut OptRhs::With(ref mut opt_rhs, ref mut occur) => {
+                                    opt_rhs.value.clear();
+                                    opt_rhs.value.push_str(rhs);
+                                    opt_rhs.occurrences += 1;
                                     *occur = true;
                                 }
-                                &mut OptArg::Empty => *value = OptArg::With(rhs.to_owned(), true),
+                                &mut OptRhs::Empty => {
+                                    let mut rhs = Rhs::new(rhs);
+                                    rhs.occurrences = 1;
+                                    *value = OptRhs::With(rhs, true);
+                                }
                             }
                         }
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
@@ -157,8 +175,14 @@ impl ArgParser {
                 }
                 else {
                     match self.params.get_mut(arg) {
-                        Some(&mut Value::Flag(ref mut switch)) => *switch = true,
-                        Some(&mut Value::Opt(OptArg::With(_, ref mut occur))) => *occur = true,
+                        Some(&mut Value::Flag(ref mut rhs)) => {
+                            rhs.value = true;
+                            rhs.occurrences += 1;
+                        }
+                        Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut occur))) => {
+                            rhs.occurrences += 1;
+                            *occur = true;
+                        }
                         _ => self.invalid.push(Param::Long(arg.to_owned())),
                     }
                 }
@@ -167,17 +191,22 @@ impl ArgParser {
                 let mut chars = arg[1..].chars();
                 while let Some(ch) = chars.next() {
                     match self.params.get_mut(&ch) {
-                        Some(&mut Value::Flag(ref mut switch)) => *switch = true,
-                        Some(&mut Value::Opt(ref mut value)) => {
+                        Some(&mut Value::Flag(ref mut rhs)) => {
+                            rhs.value = true;
+                            rhs.occurrences += 1;
+                        }
+                        Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut occur))) => {
                             let rest: String = chars.collect();
                             if !rest.is_empty() {
-                                *value = OptArg::With(rest, true);
-                            } else {
-                                *value = args.next().map(|a| OptArg::With(a, true)).unwrap_or(OptArg::Empty);
+                                rhs.value = rest;
+                                *occur = true;
+                            } else if let Some(arg) = args.next() {
+                                rhs.value = arg;
+                                *occur = true;
                             }
                             break;
                         },
-                        None => self.invalid.push(Param::Short(ch)),
+                        _ => self.invalid.push(Param::Short(ch)),
                     }
                 }
             }
@@ -192,8 +221,8 @@ impl ArgParser {
         where Param: Borrow<P>
     {
         match self.params.get(name) {
-            Some(&Value::Flag(switch)) => switch,
-            Some(&Value::Opt(OptArg::With(_, occur))) => occur,
+            Some(&Value::Flag(ref rhs)) => rhs.value,
+            Some(&Value::Opt(OptRhs::With(_, occur))) => occur,
             _ => false,
         }
     }
@@ -203,8 +232,8 @@ impl ArgParser {
     pub fn set_flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F, state: bool)
         where Param: Borrow<F>
     {
-        if let Some(&mut Value::Flag(ref mut switch)) = self.params.get_mut(flag) {
-            *switch = state;
+        if let Some(&mut Value::Flag(ref mut rhs)) = self.params.get_mut(flag) {
+            rhs.value = state;
         }
     }
 
@@ -213,10 +242,10 @@ impl ArgParser {
     pub fn set_opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O, state: Option<String>)
         where Param: Borrow<O>
     {
-        if let Some(&mut Value::Opt(OptArg::With(ref mut value, ref mut occur))) = self.params.get_mut(opt) {
+        if let Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut occur))) = self.params.get_mut(opt) {
             match state {
                 Some(input) => {
-                    *value = input;
+                    rhs.value = input;
                     *occur = true;
                 }
                 None => *occur = false,
@@ -229,8 +258,8 @@ impl ArgParser {
     pub fn get_opt<O: Hash + Eq + ?Sized>(&self, opt: &O) -> Option<String>
         where Param: Borrow<O>
     {
-        if let Some(&Value::Opt(OptArg::With(ref value, _))) = self.params.get(opt) {
-            return Some(value.clone());
+        if let Some(&Value::Opt(OptRhs::With(ref rhs, _))) = self.params.get(opt) {
+            return Some(rhs.value.clone());
         }
         None
     }
