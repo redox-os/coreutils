@@ -157,11 +157,11 @@ impl ArgParser {
                     match self.params.get_mut(lhs) {
                         Some(&mut Value::Opt(ref mut value)) => {
                             match value {
-                                &mut OptRhs::With(ref mut opt_rhs, ref mut occur) => {
+                                &mut OptRhs::With(ref mut opt_rhs, ref mut found) => {
                                     opt_rhs.value.clear();
                                     opt_rhs.value.push_str(rhs);
                                     opt_rhs.occurrences += 1;
-                                    *occur = true;
+                                    *found = true;
                                 }
                                 &mut OptRhs::Empty => {
                                     let mut rhs = Rhs::new(rhs);
@@ -179,9 +179,9 @@ impl ArgParser {
                             rhs.value = true;
                             rhs.occurrences += 1;
                         }
-                        Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut occur))) => {
+                        Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut found))) => {
                             rhs.occurrences += 1;
-                            *occur = true;
+                            *found = true;
                         }
                         _ => self.invalid.push(Param::Long(arg.to_owned())),
                     }
@@ -214,13 +214,24 @@ impl ArgParser {
         }
     }
 
+    /// Check the number of time a Flag or Opt has been found after initialization.
+    pub fn count<P: Hash + Eq + ?Sized>(&self, name: &P) -> usize
+        where Param: Borrow<P>
+    {
+        match self.params.get(name) {
+            Some(&Value::Flag(ref rhs)) => rhs.occurrences,
+            Some(&Value::Opt(OptRhs::With(ref rhs, _))) => rhs.occurrences,
+            _ => 0,
+        }
+    }
+
     /// Check if a Flag or Opt has been found after initialization.
     pub fn flagged<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
         where Param: Borrow<P>
     {
         match self.params.get(name) {
             Some(&Value::Flag(ref rhs)) => rhs.value,
-            Some(&Value::Opt(OptRhs::With(_, occur))) => occur,
+            Some(&Value::Opt(OptRhs::With(_, found))) => found,
             _ => false,
         }
     }
@@ -240,13 +251,13 @@ impl ArgParser {
     pub fn set_opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O, state: Option<String>)
         where Param: Borrow<O>
     {
-        if let Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut occur))) = self.params.get_mut(opt) {
+        if let Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut found))) = self.params.get_mut(opt) {
             match state {
                 Some(input) => {
                     rhs.value = input;
-                    *occur = true;
+                    *found = true;
                 }
-                None => *occur = false,
+                None => *found = false,
             }
         }
     }
