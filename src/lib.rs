@@ -195,18 +195,16 @@ impl ArgParser {
                             rhs.value = true;
                             rhs.occurrences += 1;
                         }
-                        Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut occur))) => {
+                        Some(&mut Value::Opt(ref mut opt_rhs)) => {
                             let rest: String = chars.collect();
                             if !rest.is_empty() {
-                                rhs.value = rest;
-                                *occur = true;
-                            } else if let Some(arg) = args.next() {
-                                rhs.value = arg;
-                                *occur = true;
+                                *opt_rhs = OptRhs::With(Rhs::new(rest), true);
+                            } else {
+                                *opt_rhs = args.next().map(|a| OptRhs::With(Rhs::new(a), true)).unwrap_or(OptRhs::Empty);
                             }
                             break;
-                        },
-                        _ => self.invalid.push(Param::Short(ch)),
+                        }
+                        None => self.invalid.push(Param::Short(ch)),
                     }
                 }
             }
