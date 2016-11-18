@@ -46,6 +46,10 @@ name = "dd"
 path = "src/bin/dd.rs"
 
 [[bin]]
+name = "df"
+path = "src/bin/df.rs"
+
+[[bin]]
 name = "du"
 path = "src/bin/du.rs"
 
