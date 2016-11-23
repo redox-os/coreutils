@@ -255,12 +255,8 @@ impl ArgParser {
         where Param: Borrow<O>
     {
         if let Some(&mut Value::Opt { ref mut rhs, ref mut found }) = self.params.get_mut(opt) {
-            match state {
-                Some(input) => {
-                    rhs.value = input;
-                    *found = true;
-                }
-                None => *found = false,
+            if let Some(input) = state {
+                rhs.value = input;
             }
         }
     }
