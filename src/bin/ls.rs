@@ -34,12 +34,6 @@ OPTIONS
 "#; /* @MANEND */
 
 fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut StdoutLock, stderr: &mut Stderr) {
-    if parser.flagged("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(stderr);
-        stdout.flush().try(stderr);
-        exit(0);
-    }
-
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
@@ -104,6 +98,12 @@ fn main() {
         .add_flag("h", "human-readable")
         .add_flag("", "help");
     parser.initialize(env::args());
+
+    if parser.flagged("help") {
+        stdout.write(MAN_PAGE.as_bytes()).try(stderr);
+        stdout.flush().try(stderr);
+        exit(0);
+    }
 
     let mut string = String::new();
     if parser.args.is_empty() {

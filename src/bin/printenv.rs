@@ -34,15 +34,16 @@ fn main() {
         .add_flag("h", "help");
     parser.initialize(env::args());
 
-    if parser.args.is_empty() {
-        stderr.write(b"Please provide a variable name\n").try(&mut stderr);
-        stderr.flush().try(&mut stderr);
-        exit(1);
-    }
     if parser.flagged(&'h') || parser.flagged("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
+    }
+
+    if parser.args.is_empty() {
+        stderr.write(b"Please provide a variable name\n").try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        exit(1);
     }
 
     for arg in &parser.args {
