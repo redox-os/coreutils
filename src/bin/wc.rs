@@ -121,13 +121,13 @@ fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>
     let mut max_bytes_digits = 0;
 
     for &mut (count, _) in &mut counts {
-        if parser.flagged(&'l') || parser.flagged("lines") {
+        if parser.found(&'l') || parser.found("lines") {
             max_lines_digits = max(max_lines_digits, u64_num_digits(count.lines));
         }
-        if parser.flagged(&'w') || parser.flagged("words") {
+        if parser.found(&'w') || parser.found("words") {
             max_words_digits = max(max_words_digits, u64_num_digits(count.words));
         }
-        if parser.flagged(&'c') || parser.flagged("bytes") {
+        if parser.found(&'c') || parser.found("bytes") {
             max_bytes_digits = max(max_bytes_digits, u64_num_digits(count.bytes));
         }
     }
@@ -135,19 +135,19 @@ fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>
     for &mut (count, ref mut path) in &mut counts {
         print_count(&parser, count, path, Counter {
             lines:
-                if parser.flagged(&'l') || parser.flagged("lines") {
+                if parser.found(&'l') || parser.found("lines") {
                     (max_lines_digits - u64_num_digits(count.lines) + 1) as u64
                 } else {
                     0
                 },
             words:
-                if parser.flagged(&'w') || parser.flagged("words") {
+                if parser.found(&'w') || parser.found("words") {
                     (max_words_digits - u64_num_digits(count.words) + 1) as u64
                 } else {
                     0
                 },
             bytes:
-                if parser.flagged(&'c') || parser.flagged("bytes") {
+                if parser.found(&'c') || parser.found("bytes") {
                     (max_bytes_digits - u64_num_digits(count.bytes) + 1) as u64
                 } else {
                     0
@@ -160,19 +160,19 @@ fn print_counts<W: Write>(parser: &ArgParser, mut counts: Vec<(Counter, String)>
 fn print_count<'a, W: Write>(parser: &ArgParser, count: Counter, path: &'a str, padding: Counter, stdout: &mut W, stderr: &mut Stderr) {
     stdout.write(b"    ").try(stderr);
 
-    if parser.flagged(&'l') || parser.flagged("lines") {
+    if parser.found(&'l') || parser.found("lines") {
         stdout.write(count.lines.to_string().as_bytes()).try(stderr);
         for _ in 0..padding.lines {
             stdout.write(b" ").try(stderr);
         }
     }
-    if parser.flagged(&'w') || parser.flagged("words") {
+    if parser.found(&'w') || parser.found("words") {
         stdout.write(count.words.to_string().as_bytes()).try(stderr);
         for _ in 0..padding.words {
             stdout.write(b" ").try(stderr);
         }
     }
-    if parser.flagged(&'c') || parser.flagged("bytes") {
+    if parser.found(&'c') || parser.found("bytes") {
         stdout.write(count.bytes.to_string().as_bytes()).try(stderr);
         for _ in 0..padding.bytes {
             stdout.write(b" ").try(stderr);
@@ -191,23 +191,23 @@ fn main() {
         .add_flag("w", "words")
         .add_flag("c", "bytes")
         .add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
-    if parser.flagged(&'h') || parser.flagged("help") {
+    if parser.found(&'h') || parser.found("help") {
         stdout.writeln(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
     }
 
-    if !(parser.flagged(&'l') || parser.flagged("lines") ||
-         parser.flagged(&'w') || parser.flagged("words") ||
-         parser.flagged(&'c') || parser.flagged("bytes")) {
-        parser.set_flag(&'l', true);
-        parser.set_flag(&'w', true);
-        parser.set_flag(&'c', true);
-        parser.set_flag("lines", true);
-        parser.set_flag("words", true);
-        parser.set_flag("bytes", true);
+    if !(parser.found(&'l') || parser.found("lines") ||
+         parser.found(&'w') || parser.found("words") ||
+         parser.found(&'c') || parser.found("bytes")) {
+        *parser.flag(&'l') = true;
+        *parser.flag(&'w') = true;
+        *parser.flag(&'c') = true;
+        *parser.flag("lines") = true;
+        *parser.flag("words") = true;
+        *parser.flag("bytes") = true;
     }
 
     if parser.args.is_empty() {

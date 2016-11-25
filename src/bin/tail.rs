@@ -67,7 +67,7 @@ fn tail<R: Read, W: Write>(input: R, output: W, stderr: &mut Stderr, parser: &Ar
             fail("missing argument (number of lines/bytes)", stderr);
         };
 
-    if parser.flagged(&'n') || parser.flagged("lines") {
+    if parser.found(&'n') || parser.found("lines") {
         if skip {
             let lines = io::BufReader::new(input).lines().skip(num);
 
@@ -103,7 +103,7 @@ fn tail<R: Read, W: Write>(input: R, output: W, stderr: &mut Stderr, parser: &Ar
             }
         }
     }
-    else if parser.flagged(&'c') || parser.flagged("bytes") {
+    else if parser.found(&'c') || parser.found("bytes") {
         if skip {
             let bytes = input.bytes().skip(num);
 
@@ -148,18 +148,18 @@ fn main() {
         .add_opt_default("n", "lines", "10")
         .add_opt("c", "bytes")
         .add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
-    if parser.flagged(&'h') || parser.flagged("help") {
+    if parser.found(&'h') || parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         return;
     }
-    if parser.flagged(&'c') || parser.flagged("bytes") {
-        parser.set_opt(&'n', None);
-        parser.set_opt("lines", None);
+    if parser.found(&'c') || parser.found("bytes") {
+        *parser.opt(&'n') = "".to_owned();
+        *parser.opt("lines") = "".to_owned();
     }
-    if let Err(err) = parser.flagged_invalid() {
+    if let Err(err) = parser.found_invalid() {
         stderr.write_all(err.as_bytes()).try(&mut stderr);
         stderr.flush().try(&mut stderr);
         return;

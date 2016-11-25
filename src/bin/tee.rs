@@ -29,11 +29,11 @@ fn main() {
     let mut parser = ArgParser::new(2).
         add_flag("a", "append").
         add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
     let mut stdout = io::stdout();
 
-    if parser.flagged(&'h') || parser.flagged("help") {
+    if parser.found(&'h') || parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).unwrap();
         stdout.flush().unwrap();
         process::exit(0);
@@ -41,7 +41,7 @@ fn main() {
 
     let mut fds: Vec<std::fs::File> = Vec::with_capacity(env::args().len());
 
-    if parser.flagged(&'a') || parser.flagged("append") {
+    if parser.found(&'a') || parser.found("append") {
         let args = env::args().skip(2);
         if args.len() > 0 {
             for arg in args {
