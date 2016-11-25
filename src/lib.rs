@@ -73,6 +73,7 @@ impl Value {
 pub struct ArgParser {
     params: HashMap<Param, Value>,
     invalid: Vec<Param>,
+    garbage: (bool, String),
     pub args: Vec<String>,
 }
 
@@ -85,6 +86,7 @@ impl ArgParser {
         ArgParser {
             params: HashMap::with_capacity(capacity),
             invalid: Vec::new(),
+            garbage: (false, String::with_capacity(0)),
             args: Vec::new(),
         }
     }
@@ -146,7 +148,7 @@ impl ArgParser {
     /// Start parsing user inputted args for which flags and opts are used at
     /// runtime. The rest of the args that are not associated to opts get added
     /// to `ArgParser.args`.
-    pub fn initialize<A: Iterator<Item=String>>(&mut self, args: A) {
+    pub fn parse<A: Iterator<Item=String>>(&mut self, args: A) {
         let mut args = args.skip(1);
         while let Some(arg) = args.next() {
             if arg.starts_with("--") {
@@ -229,7 +231,7 @@ impl ArgParser {
     }
 
     /// Check if a Flag or Opt has been found after initialization.
-    pub fn flagged<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
+    pub fn found<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
         where Param: Borrow<P>
     {
         match self.params.get(name) {
@@ -241,24 +243,24 @@ impl ArgParser {
 
     /// Modify the state of a flag. Use `true` if the flag is to be enabled. Use `false` to
     /// disable its use.
-    pub fn set_flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F, state: bool)
+    pub fn flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F) -> &mut bool
         where Param: Borrow<F>
     {
         if let Some(&mut Value::Flag(ref mut rhs)) = self.params.get_mut(flag) {
-            rhs.value = state;
+            return &mut rhs.value;
         }
+        &mut self.garbage.0
     }
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
     /// has been assigned a value from `String`. Use `None` to disable the opt's use.
-    pub fn set_opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O, state: Option<String>)
+    pub fn opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O) -> &mut String
         where Param: Borrow<O>
     {
-        if let Some(&mut Value::Opt { ref mut rhs, found: _ }) = self.params.get_mut(opt) {
-            if let Some(input) = state {
-                rhs.value = input;
-            }
+        if let Some(&mut Value::Opt { ref mut rhs, .. }) = self.params.get_mut(opt) {
+            return &mut rhs.value;
         }
+        &mut self.garbage.1
     }
 
     /// Get the value of an Opt. If it has been set or defaulted, it will return a `Some(String)`
@@ -272,7 +274,7 @@ impl ArgParser {
         None
     }
 
-    pub fn flagged_invalid(&self) -> Result<(), String> {
+    pub fn found_invalid(&self) -> Result<(), String> {
         if self.invalid.is_empty() {
             return Ok(());
         }
@@ -333,9 +335,9 @@ mod tests {
         let mut parser = ArgParser::new(2);
         parser = parser.add_flag("a", "")
                        .add_flag("v", "");
-        parser.initialize(args.into_iter());
-        assert!(parser.flagged(&'a'));
-        assert!(!parser.flagged(&'v'));
+        parser.parse(args.into_iter());
+        assert!(parser.found(&'a'));
+        assert!(!parser.found(&'v'));
         assert!(parser.args[0] == "-v");
     }
 
@@ -347,9 +349,9 @@ mod tests {
                        .add_flag("d", "")
                        .add_opt("s", "")
                        .add_opt("f", "");
-        parser.initialize(args.into_iter());
-        assert!(parser.flagged(&'a'));
-        assert!(!parser.flagged(&'d'));
+        parser.parse(args.into_iter());
+        assert!(parser.found(&'a'));
+        assert!(!parser.found(&'d'));
         assert!(parser.get_opt(&'s') == Some(String::from("df")));
         assert!(parser.get_opt(&'f') == Some(String::from("foo")));
     }
@@ -359,7 +361,7 @@ mod tests {
         let args = vec![String::from("binname"), String::from("--foo=bar")];
         let mut parser = ArgParser::new(4);
         parser = parser.add_opt("", "foo");
-        parser.initialize(args.into_iter());
+        parser.parse(args.into_iter());
         assert!(parser.get_opt("foo") == Some(String::from("bar")));
     }
 }
