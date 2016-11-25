@@ -254,7 +254,7 @@ impl ArgParser {
     pub fn set_opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O, state: Option<String>)
         where Param: Borrow<O>
     {
-        if let Some(&mut Value::Opt { ref mut rhs, ref mut found }) = self.params.get_mut(opt) {
+        if let Some(&mut Value::Opt { ref mut rhs, found: _ }) = self.params.get_mut(opt) {
             if let Some(input) = state {
                 rhs.value = input;
             }
