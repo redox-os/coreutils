@@ -156,8 +156,8 @@ fn main() {
         return;
     }
     if parser.found(&'c') || parser.found("bytes") {
-        *parser.opt(&'n') = "".to_owned();
-        *parser.opt("lines") = "".to_owned();
+        parser.opt(&'n').clear();
+        parser.opt("lines").clear();
     }
     if let Err(err) = parser.found_invalid() {
         stderr.write_all(err.as_bytes()).try(&mut stderr);
