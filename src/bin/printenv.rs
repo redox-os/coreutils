@@ -32,17 +32,18 @@ fn main() {
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
+
+    if parser.found(&'h') || parser.found("help") {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    }
 
     if parser.args.is_empty() {
         stderr.write(b"Please provide a variable name\n").try(&mut stderr);
         stderr.flush().try(&mut stderr);
         exit(1);
-    }
-    if parser.flagged(&'h') || parser.flagged("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
     }
 
     for arg in &parser.args {

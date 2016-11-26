@@ -1,11 +1,13 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::collections::VecDeque;
 use std::env;
 use std::fs;
-use std::io::{self, BufRead, Read, Write};
+use std::io::{self, BufRead, Read, Stderr, Write};
+use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::{WriteExt, fail};
 
@@ -46,22 +48,28 @@ AUTHOR
     Written by Žad Deljkić.
 "#; /* @MANEND */
 
-#[derive(Copy, Clone)]
-struct Options {
-    /// True if outputting lines, false if outputting bytes
-    lines: bool,
-    /// The number of lines/bytes specified
-    num: usize,
-    /// False if outputting last num lines/bytes, true if outputting all but the first num lines/bytes (i.e. skip the last num lines/bytes)
-    skip: bool,
-}
-
-fn tail<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()> {
+fn tail<R: Read, W: Write>(input: R, output: W, stderr: &mut Stderr, parser: &ArgParser) -> io::Result<()> {
     let mut writer = io::BufWriter::new(output);
+    let (skip, num): (bool, usize) = 
+        if let Some(num) = parser.get_opt(&'n') {
+            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
+        }
+        else if let Some(num) = parser.get_opt("lines") {
+            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
+        }
+        else if let Some(num) = parser.get_opt(&'c') {
+            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
+        }
+        else if let Some(num) = parser.get_opt("bytes") {
+            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
+        }
+        else {
+            fail("missing argument (number of lines/bytes)", stderr);
+        };
 
-    if opts.lines {
-        if opts.skip {
-            let lines = io::BufReader::new(input).lines().skip(opts.num);
+    if parser.found(&'n') || parser.found("lines") {
+        if skip {
+            let lines = io::BufReader::new(input).lines().skip(num);
 
             for line_res in lines {
                 match line_res {
@@ -81,7 +89,7 @@ fn tail<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()>
                     Ok(line) => {
                         deque.push_back(line);
 
-                        if deque.len() > opts.num {
+                        if deque.len() > num {
                             deque.pop_front();
                         }
                     }
@@ -94,34 +102,38 @@ fn tail<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()>
                 try!(writer.write_all(line.as_bytes()));
             }
         }
-    } else if opts.skip {
-        let bytes = input.bytes().skip(opts.num);
+    }
+    else if parser.found(&'c') || parser.found("bytes") {
+        if skip {
+            let bytes = input.bytes().skip(num);
 
-        for byte_res in bytes {
-            match byte_res {
-                Ok(byte) => try!(writer.write_all(&[byte])),
-                Err(err) => return Err(err),
-            };
+            for byte_res in bytes {
+                match byte_res {
+                    Ok(byte) => try!(writer.write_all(&[byte])),
+                    Err(err) => return Err(err),
+                };
+            }
         }
-    } else {
-        let bytes = input.bytes();
-        let mut deque = VecDeque::new();
+        else {
+            let bytes = input.bytes();
+            let mut deque = VecDeque::new();
 
-        for byte_res in bytes {
-            match byte_res {
-                Ok(byte) => {
-                    deque.push_back(byte);
+            for byte_res in bytes {
+                match byte_res {
+                    Ok(byte) => {
+                        deque.push_back(byte);
 
-                    if deque.len() > opts.num {
-                        deque.pop_front();
+                        if deque.len() > num {
+                            deque.pop_front();
+                        }
                     }
-                }
-                Err(err) => return Err(err),
-            };
-        }
+                    Err(err) => return Err(err),
+                };
+            }
 
-        for byte in deque {
-            try!(writer.write_all(&[byte]));
+            for byte in deque {
+                try!(writer.write_all(&[byte]));
+            }
         }
     }
 
@@ -129,60 +141,45 @@ fn tail<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()>
 }
 
 fn main() {
-    // default options
-    let mut opts = Options {
-        lines: true,
-        num: 10,
-        skip: false,
-    };
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut args = env::args().skip(1);
-    let mut paths: Vec<String> = Vec::new();
+    let mut parser = ArgParser::new(3)
+        .add_opt_default("n", "lines", "10")
+        .add_opt("c", "bytes")
+        .add_flag("h", "help");
+    parser.parse(env::args());
 
-    // parse options
-    while let Some(arg) = args.next() {
-        if arg.starts_with('-') {
-            match arg.as_str() {
-                "-h" | "--help" => {
-                    stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-                    return;
-                }
-                "-n" | "--lines" => opts.lines = true,
-                "-c" | "--bytes" => opts.lines = false,
-                _ => fail("invalid option", &mut stderr),
-            }
-
-            if let Some(arg) = args.next() {
-                if arg.starts_with('+') {
-                    opts.skip = true;
-                }
-
-                opts.num = arg.parse::<usize>().try(&mut stderr);
-            } else {
-                fail("missing argument (number of lines/bytes)", &mut stderr);
-            }
-        } else {
-            paths.push(arg);
-        }
+    if parser.found(&'h') || parser.found("help") {
+        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        return;
+    }
+    if parser.found(&'c') || parser.found("bytes") {
+        parser.opt(&'n').clear();
+        parser.opt("lines").clear();
+    }
+    if let Err(err) = parser.found_invalid() {
+        stderr.write_all(err.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        return;
     }
 
     // run the main part
-    if paths.is_empty() {
+    if parser.args.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
-        tail(stdin, stdout, opts).try(&mut stderr);
-    } else if paths.len() == 1 {
-        let file = fs::File::open(&paths[0]).try(&mut stderr);
-        tail(file, stdout, opts).try(&mut stderr);
+        tail(stdin, stdout, &mut stderr, &parser).try(&mut stderr);
+    } else if parser.args.len() == 1 {
+        let file = fs::File::open(&parser.args[0]).try(&mut stderr);
+        tail(file, stdout, &mut stderr, &parser).try(&mut stderr);
     } else {
-        for path in paths {
+        for path in &parser.args {
             let file = fs::File::open(&path).try(&mut stderr);
             stdout.write(b"==> ").try(&mut stderr);
             stdout.write(path.as_bytes()).try(&mut stderr);
             stdout.writeln(b" <==").try(&mut stderr);
-            tail(file, &mut stdout, opts).try(&mut stderr);
+            tail(file, &mut stdout, &mut stderr, &parser).try(&mut stderr);
         }
     }
 }

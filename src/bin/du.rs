@@ -33,7 +33,7 @@ fn list_entry(path: &str, name: &str, parser: &ArgParser, stdout: &mut StdoutLoc
     let metadata = fs::metadata(path).try(stderr);
     let size = metadata.len();
 
-    if parser.flagged(&'h') || parser.flagged("human-readable") {
+    if parser.found(&'h') || parser.found("human-readable") {
         stdout.write(to_human_readable_string(size).as_bytes()).try(stderr);
     } else {
         stdout.write(((size + 1023) / 1024).to_string().as_bytes()).try(stderr);
@@ -84,9 +84,9 @@ fn main() {
     let mut parser = ArgParser::new(2)
         .add_flag("h", "human-readable")
         .add_flag("", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
-    if parser.flagged("help") {
+    if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);

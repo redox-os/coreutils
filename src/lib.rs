@@ -38,7 +38,7 @@ impl Hash for Param {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct Rhs<T> {
     value: T,
     occurrences: usize,
@@ -50,16 +50,22 @@ impl<T> Rhs<T> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-enum OptRhs {
-    With(Rhs<String>, bool),
-    Empty,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum Value {
     Flag(Rhs<bool>),
-    Opt(OptRhs),
+    Opt {
+        rhs: Rhs<String>,
+        found: bool,
+    },
+}
+
+impl Value {
+    fn new_opt() -> Self {
+        Value::Opt { rhs: Rhs::new(""), found: false }
+    }
+    fn new_opt_default(value: &str) -> Self {
+        Value::Opt { rhs: Rhs::new(value), found: false }
+    }
 }
 
 /// Our homebrewed Arg Parser
@@ -67,6 +73,7 @@ enum Value {
 pub struct ArgParser {
     params: HashMap<Param, Value>,
     invalid: Vec<Param>,
+    garbage: (bool, String),
     pub args: Vec<String>,
 }
 
@@ -79,6 +86,7 @@ impl ArgParser {
         ArgParser {
             params: HashMap::with_capacity(capacity),
             invalid: Vec::new(),
+            garbage: (false, String::with_capacity(0)),
             args: Vec::new(),
         }
     }
@@ -119,20 +127,20 @@ impl ArgParser {
     ///   `-- The command to list files.
     pub fn add_opt(mut self, short: &str, long: &str) -> Self {
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Opt(OptRhs::Empty));
+            self.params.insert(Param::Short(short), Value::new_opt());
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptRhs::Empty));
+            self.params.insert(Param::Long(long.to_owned()), Value::new_opt());
         }
         self
     }
 
     pub fn add_opt_default(mut self, short: &str, long: &str, default: &str) -> Self {
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Opt(OptRhs::With(Rhs::new(default), false)));
+            self.params.insert(Param::Short(short), Value::new_opt_default(default));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Opt(OptRhs::With(Rhs::new(default), false)));
+            self.params.insert(Param::Long(long.to_owned()), Value::new_opt_default(default));
         }
         self
     }
@@ -140,7 +148,7 @@ impl ArgParser {
     /// Start parsing user inputted args for which flags and opts are used at
     /// runtime. The rest of the args that are not associated to opts get added
     /// to `ArgParser.args`.
-    pub fn initialize<A: Iterator<Item=String>>(&mut self, args: A) {
+    pub fn parse<A: Iterator<Item=String>>(&mut self, args: A) {
         let mut args = args.skip(1);
         while let Some(arg) = args.next() {
             if arg.starts_with("--") {
@@ -155,20 +163,16 @@ impl ArgParser {
                     let (lhs, rhs) = arg.split_at(i);
                     let rhs = &rhs[1..]; // slice off the `=` char
                     match self.params.get_mut(lhs) {
-                        Some(&mut Value::Opt(ref mut value)) => {
-                            match value {
-                                &mut OptRhs::With(ref mut opt_rhs, ref mut found) => {
-                                    opt_rhs.value.clear();
-                                    opt_rhs.value.push_str(rhs);
-                                    opt_rhs.occurrences += 1;
-                                    *found = true;
-                                }
-                                &mut OptRhs::Empty => {
-                                    let mut rhs = Rhs::new(rhs);
-                                    rhs.occurrences = 1;
-                                    *value = OptRhs::With(rhs, true);
-                                }
+                        Some(&mut Value::Opt { rhs: ref mut opt_rhs, ref mut found }) => {
+                            if opt_rhs.value.is_empty() {
+                                opt_rhs.occurrences = 1;
                             }
+                            else {
+                                opt_rhs.occurrences += 1;
+                            }
+                            opt_rhs.value.clear();
+                            opt_rhs.value.push_str(rhs);
+                            *found = true;
                         }
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
@@ -179,7 +183,7 @@ impl ArgParser {
                             rhs.value = true;
                             rhs.occurrences += 1;
                         }
-                        Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut found))) => {
+                        Some(&mut Value::Opt { ref mut rhs, ref mut found }) => {
                             rhs.occurrences += 1;
                             *found = true;
                         }
@@ -195,12 +199,13 @@ impl ArgParser {
                             rhs.value = true;
                             rhs.occurrences += 1;
                         }
-                        Some(&mut Value::Opt(ref mut opt_rhs)) => {
+                        Some(&mut Value::Opt { ref mut rhs, ref mut found }) => {
                             let rest: String = chars.collect();
                             if !rest.is_empty() {
-                                *opt_rhs = OptRhs::With(Rhs::new(rest), true);
+                                rhs.value = rest;
+                                *found = true;
                             } else {
-                                *opt_rhs = args.next().map(|a| OptRhs::With(Rhs::new(a), true)).unwrap_or(OptRhs::Empty);
+                                rhs.value = args.next().map(|a| {*found = true; a}).unwrap_or("".to_owned());
                             }
                             break;
                         }
@@ -220,46 +225,42 @@ impl ArgParser {
     {
         match self.params.get(name) {
             Some(&Value::Flag(ref rhs)) => rhs.occurrences,
-            Some(&Value::Opt(OptRhs::With(ref rhs, _))) => rhs.occurrences,
+            Some(&Value::Opt { ref rhs, .. }) => rhs.occurrences,
             _ => 0,
         }
     }
 
     /// Check if a Flag or Opt has been found after initialization.
-    pub fn flagged<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
+    pub fn found<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
         where Param: Borrow<P>
     {
         match self.params.get(name) {
             Some(&Value::Flag(ref rhs)) => rhs.value,
-            Some(&Value::Opt(OptRhs::With(_, found))) => found,
+            Some(&Value::Opt { found, .. }) => found,
             _ => false,
         }
     }
 
     /// Modify the state of a flag. Use `true` if the flag is to be enabled. Use `false` to
     /// disable its use.
-    pub fn set_flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F, state: bool)
+    pub fn flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F) -> &mut bool
         where Param: Borrow<F>
     {
         if let Some(&mut Value::Flag(ref mut rhs)) = self.params.get_mut(flag) {
-            rhs.value = state;
+            return &mut rhs.value;
         }
+        &mut self.garbage.0
     }
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
     /// has been assigned a value from `String`. Use `None` to disable the opt's use.
-    pub fn set_opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O, state: Option<String>)
+    pub fn opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O) -> &mut String
         where Param: Borrow<O>
     {
-        if let Some(&mut Value::Opt(OptRhs::With(ref mut rhs, ref mut found))) = self.params.get_mut(opt) {
-            match state {
-                Some(input) => {
-                    rhs.value = input;
-                    *found = true;
-                }
-                None => *found = false,
-            }
+        if let Some(&mut Value::Opt { ref mut rhs, .. }) = self.params.get_mut(opt) {
+            return &mut rhs.value;
         }
+        &mut self.garbage.1
     }
 
     /// Get the value of an Opt. If it has been set or defaulted, it will return a `Some(String)`
@@ -267,13 +268,13 @@ impl ArgParser {
     pub fn get_opt<O: Hash + Eq + ?Sized>(&self, opt: &O) -> Option<String>
         where Param: Borrow<O>
     {
-        if let Some(&Value::Opt(OptRhs::With(ref rhs, _))) = self.params.get(opt) {
+        if let Some(&Value::Opt { ref rhs, .. }) = self.params.get(opt) {
             return Some(rhs.value.clone());
         }
         None
     }
 
-    pub fn flagged_invalid(&self) -> Result<(), String> {
+    pub fn found_invalid(&self) -> Result<(), String> {
         if self.invalid.is_empty() {
             return Ok(());
         }
@@ -334,9 +335,9 @@ mod tests {
         let mut parser = ArgParser::new(2);
         parser = parser.add_flag("a", "")
                        .add_flag("v", "");
-        parser.initialize(args.into_iter());
-        assert!(parser.flagged(&'a'));
-        assert!(!parser.flagged(&'v'));
+        parser.parse(args.into_iter());
+        assert!(parser.found(&'a'));
+        assert!(!parser.found(&'v'));
         assert!(parser.args[0] == "-v");
     }
 
@@ -348,9 +349,9 @@ mod tests {
                        .add_flag("d", "")
                        .add_opt("s", "")
                        .add_opt("f", "");
-        parser.initialize(args.into_iter());
-        assert!(parser.flagged(&'a'));
-        assert!(!parser.flagged(&'d'));
+        parser.parse(args.into_iter());
+        assert!(parser.found(&'a'));
+        assert!(!parser.found(&'d'));
         assert!(parser.get_opt(&'s') == Some(String::from("df")));
         assert!(parser.get_opt(&'f') == Some(String::from("foo")));
     }
@@ -360,7 +361,7 @@ mod tests {
         let args = vec![String::from("binname"), String::from("--foo=bar")];
         let mut parser = ArgParser::new(4);
         parser = parser.add_opt("", "foo");
-        parser.initialize(args.into_iter());
+        parser.parse(args.into_iter());
         assert!(parser.get_opt("foo") == Some(String::from("bar")));
     }
 }

@@ -31,9 +31,9 @@ fn main() {
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
-    if parser.flagged(&'h') || parser.flagged("help") {
+    if parser.found(&'h') || parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);

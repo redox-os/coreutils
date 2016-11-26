@@ -2,38 +2,40 @@
 
 extern crate coreutils;
 extern crate extra;
+#[cfg(target_os = "redox")]
 extern crate syscall;
 
-use std::env;
-use std::io::{stdout, stderr, Error, Write};
-use coreutils::ArgParser;
-use extra::io::fail;
-use extra::option::OptionalExt;
-
-const MAN_PAGE: &'static str = /* @MANSTART{kill} */ r#"
-NAME
-    kill - send a signal
-
-SYNOPSIS
-    kill [ -h | --help ] MODE PID...
-
-DESCRIPTION
-    The kill utility sends a signal to a process. Multiple PIDs can be passed.
-
-OPTIONS
-    --help, -h
-        print this message
-"#; /* @MANEND */
-
+#[cfg(target_os = "redox")]
 fn main() {
+    use std::env;
+    use std::io::{stdout, stderr, Error, Write};
+    use coreutils::ArgParser;
+    use extra::io::fail;
+    use extra::option::OptionalExt;
+
+    const MAN_PAGE: &'static str = /* @MANSTART{kill} */ r#"
+    NAME
+        kill - send a signal
+
+    SYNOPSIS
+        kill [ -h | --help ] MODE PID...
+
+    DESCRIPTION
+        The kill utility sends a signal to a process. Multiple PIDs can be passed.
+
+    OPTIONS
+        --help, -h
+            print this message
+    "#; /* @MANEND */
+
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
-    if parser.flagged(&'h') || parser.flagged("help") {
+    if parser.found(&'h') || parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         return;
@@ -56,4 +58,14 @@ fn main() {
     } else {
         fail("No signal. Use --help to see the usage.", &mut stderr);
     }
+}
+
+#[cfg(not(target_os = "redox"))]
+fn main() {
+    use std::io::{stderr, Write};
+    use std::process::exit;
+
+    let mut stderr = stderr();
+    stderr.write(b"error: unimplemented outside redox").unwrap();
+    exit(1);
 }

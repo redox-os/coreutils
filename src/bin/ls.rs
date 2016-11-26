@@ -6,7 +6,7 @@ extern crate extra;
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
+use std::io::{stdout, stderr, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 
@@ -33,13 +33,7 @@ OPTIONS
         use a long listing format
 "#; /* @MANEND */
 
-fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut StdoutLock, stderr: &mut Stderr) {
-    if parser.flagged("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(stderr);
-        stdout.flush().try(stderr);
-        exit(0);
-    }
-
+fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stderr: &mut Stderr) {
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
@@ -56,7 +50,7 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
         entries.sort();
 
         for entry in entries.iter() {
-            if parser.flagged(&'l') || parser.flagged("long-format") {
+            if parser.found(&'l') || parser.found("long-format") {
                 let mut entry_path = path.to_owned();
                 if !entry_path.ends_with('/') {
                     entry_path.push('/');
@@ -68,7 +62,7 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
                                          metadata.mode(),
                                          metadata.uid(),
                                          metadata.gid()));
-                if parser.flagged(&'h') || parser.flagged("human-readable") {
+                if parser.found(&'h') || parser.found("human-readable") {
                     string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
                 } else {
                     string.push_str(&format!("{:>8} ", metadata.size()));
@@ -78,12 +72,12 @@ fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stdout: &mut St
             string.push('\n');
         }
     } else {
-        if parser.flagged(&'l') || parser.flagged("long-format") {
+        if parser.found(&'l') || parser.found("long-format") {
             string.push_str(&format!("{:>7o} {:>5} {:>5} ",
                                      metadata.mode(),
                                      metadata.uid(),
                                      metadata.gid()));
-            if parser.flagged(&'h') || parser.flagged("human-readable") {
+            if parser.found(&'h') || parser.found("human-readable") {
                 string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
             } else {
                 string.push_str(&format!("{:>8} ", metadata.size()));
@@ -103,14 +97,20 @@ fn main() {
         .add_flag("l", "long-format")
         .add_flag("h", "human-readable")
         .add_flag("", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
+
+    if parser.found("help") {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    }
 
     let mut string = String::new();
     if parser.args.is_empty() {
-        list_dir(".", &parser, &mut string, &mut stdout, &mut stderr);
+        list_dir(".", &parser, &mut string, &mut stderr);
     } else {
         for dir in parser.args.iter() {
-            list_dir(&dir, &parser, &mut string, &mut stdout, &mut stderr);
+            list_dir(&dir, &parser, &mut string, &mut stderr);
         }
     }
     stdout.write(string.as_bytes()).try(&mut stderr);

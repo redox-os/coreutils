@@ -93,9 +93,9 @@ fn main() {
     let mut parser = ArgParser::new(2)
         .add_flag("n", "numeric-sort")
         .add_flag("h", "help");
-    parser.initialize(env::args());
+    parser.parse(env::args());
 
-    if parser.flagged(&'h') || parser.flagged("help") {
+    if parser.found(&'h') || parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
@@ -114,7 +114,7 @@ fn main() {
 
     match lines {
         Ok(mut l) => {
-            if parser.flagged(&'n') || parser.flagged("numeric-sort") {
+            if parser.found(&'n') || parser.found("numeric-sort") {
                 l.sort_by(numeric_compare);
             } else {
                 l.sort();
