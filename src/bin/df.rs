@@ -5,9 +5,7 @@ extern crate extra;
 extern crate syscall;
 
 use std::env;
-use std::fs::File;
 use std::io::{stdout, stderr, Error, Write};
-use std::os::unix::io::AsRawFd;
 use std::process::exit;
 use coreutils::ArgParser;
 use extra::io::fail;
@@ -47,13 +45,14 @@ fn main() {
     if parser.args.is_empty() {
         fail("No arguments. Use --help to see the usage.", &mut stderr);
     }
-    
+
     println!("{:<8}{:<8}{:<8}{:<5}", "Size", "Used", "Free", "Use%");
     for path in &parser.args {
         let mut stat = StatVfs::default();
         {
-            let file = File::open(&path).try(&mut stderr);
-            syscall::fstatvfs(file.as_raw_fd(), &mut stat).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+            let fd = syscall::open(&path, syscall::O_STAT).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+            syscall::fstatvfs(fd, &mut stat).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+            let _ = syscall::close(fd);
         }
 
         let size = stat.f_blocks * stat.f_bsize as u64 / 1024;
