@@ -1,10 +1,12 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
+use coreutils::ArgParser;
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
 
@@ -37,19 +39,11 @@ AUTHOR
     Written by Žad Deljkić.
 "#; /* @MANEND */
 
-#[derive(Copy, Clone)]
-struct Options {
-    /// true if outputing lines, false if outputing bytes
-    lines: bool,
-    /// number of lines/bytes specified
-    num: usize,
-}
-
-fn head<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()> {
+fn head<R: Read, W: Write>(input: R, output: W, num: usize, parser: &ArgParser) -> io::Result<()> {
     let mut writer = io::BufWriter::new(output);
 
-    if opts.lines {
-        let lines = io::BufReader::new(input).lines().take(opts.num);
+    if parser.found(&'n') || parser.found("lines") {
+        let lines = io::BufReader::new(input).lines().take(num);
 
         for line_res in lines {
             match line_res {
@@ -60,8 +54,9 @@ fn head<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()>
                 Err(err) => return Err(err),
             };
         }
-    } else {
-        let bytes = input.bytes().take(opts.num);
+    }
+    else if parser.found(&'c') || parser.found("bytes") {
+        let bytes = input.bytes().take(num);
 
         for byte_res in bytes {
             match byte_res {
@@ -75,55 +70,57 @@ fn head<R: Read, W: Write>(input: R, output: W, opts: Options) -> io::Result<()>
 }
 
 fn main() {
-    // default options
-    let mut opts = Options {
-        lines: true,
-        num: 10,
-    };
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut args = env::args().skip(1);
-    let mut paths: Vec<String> = Vec::new();
+    let mut parser = ArgParser::new(3)
+        .add_opt_default("n", "lines", "10")
+        .add_opt("c", "bytes")
+        .add_flag("h", "help");
+    parser.parse(env::args());
 
-    // parse options
-    while let Some(arg) = args.next() {
-        if arg.starts_with('-') {
-            match arg.as_str() {
-                "-h" | "--help" => {
-                    stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-                    return;
-                }
-                "-n" | "--lines" => opts.lines = true,
-                "-c" | "--bytes" => opts.lines = false,
-                _ => fail("invalid option", &mut stderr),
-            }
-
-            if let Some(arg) = args.next() {
-                opts.num = arg.parse::<usize>().try(&mut stderr);
-            } else {
-                fail("missing argument (number of lines/bytes)", &mut stderr);
-            }
-        } else {
-            paths.push(arg);
-        }
+    if parser.found(&'h') || parser.found("help") {
+        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        return;
+    }
+    if parser.found(&'c') || parser.found("bytes") {
+        parser.opt(&'n').clear();
+        parser.opt("lines").clear();
+    }
+    if let Err(err) = parser.found_invalid() {
+        stderr.write_all(err.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        return;
     }
 
+    let num: usize = 
+        if let Some(num) = parser.get_opt("lines") {
+            num.parse().try(&mut stderr)
+        }
+        else if let Some(num) = parser.get_opt("bytes") {
+            num.parse().try(&mut stderr)
+        }
+        else {
+            fail("missing argument (number of lines/bytes)", &mut stderr);
+        };
+
+
     // run the main part
-    if paths.is_empty() {
+    if parser.args.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
-        head(stdin, stdout, opts).try(&mut stderr);
-    } else if paths.len() == 1 {
-        let file = fs::File::open(&paths[0]).try(&mut stderr);
-        head(file, stdout, opts).try(&mut stderr);
+        head(stdin, stdout, num, &parser).try(&mut stderr);
+    } else if parser.args.len() == 1 {
+        let file = fs::File::open(&parser.args[0]).try(&mut stderr);
+        head(file, stdout, num, &parser).try(&mut stderr);
     } else {
-        for path in paths {
+        for path in &parser.args {
             let file = fs::File::open(&path).try(&mut stderr);
             stdout.write(b"==> ").try(&mut stderr);
             stdout.write(path.as_bytes()).try(&mut stderr);
             stdout.writeln(b" <==").try(&mut stderr);
-            head(file, &mut stdout, opts).try(&mut stderr);
+            head(file, &mut stdout, num, &parser).try(&mut stderr);
         }
     }
 }
