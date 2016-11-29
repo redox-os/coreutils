@@ -1,6 +1,8 @@
-use std::collections::HashMap;
 use std::borrow::Borrow;
+use std::cell::{RefCell, RefMut};
+use std::collections::HashMap;
 use std::hash::{Hash,Hasher};
+use std::rc::Rc;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Param {
@@ -45,8 +47,8 @@ struct Rhs<T> {
 }
 
 impl<T> Rhs<T> {
-    fn new<U: Into<T>>(value: U) -> Self {
-        Rhs { value: value.into(), occurrences: 0 }
+    fn new(value: T) -> Self {
+        Rhs { value: value, occurrences: 0 }
     }
 }
 
@@ -54,16 +56,13 @@ impl<T> Rhs<T> {
 enum Value {
     Flag(Rhs<bool>),
     Opt {
-        rhs: Rhs<String>,
+        rhs: Rhs<Rc<RefCell<String>>>,
         found: bool,
     },
 }
 
 impl Value {
-    fn new_opt() -> Self {
-        Value::Opt { rhs: Rhs::new(""), found: false }
-    }
-    fn new_opt_default(value: &str) -> Self {
+    fn new_opt(value: Rc<RefCell<String>>) -> Self {
         Value::Opt { rhs: Rhs::new(value), found: false }
     }
 }
@@ -73,7 +72,7 @@ impl Value {
 pub struct ArgParser {
     params: HashMap<Param, Value>,
     invalid: Vec<Param>,
-    garbage: (bool, String),
+    garbage: (bool, RefCell<String>),
     pub args: Vec<String>,
 }
 
@@ -86,7 +85,7 @@ impl ArgParser {
         ArgParser {
             params: HashMap::with_capacity(capacity),
             invalid: Vec::new(),
-            garbage: (false, String::with_capacity(0)),
+            garbage: (false, RefCell::new(String::with_capacity(0))),
             args: Vec::new(),
         }
     }
@@ -126,21 +125,23 @@ impl ArgParser {
     ///   |  `-- A short opt to set tab size to the value `4`.
     ///   `-- The command to list files.
     pub fn add_opt(mut self, short: &str, long: &str) -> Self {
+        let value = Rc::new(RefCell::new("".to_owned()));
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::new_opt());
+            self.params.insert(Param::Short(short), Value::new_opt(value.clone()));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::new_opt());
+            self.params.insert(Param::Long(long.to_owned()), Value::new_opt(value));
         }
         self
     }
 
     pub fn add_opt_default(mut self, short: &str, long: &str, default: &str) -> Self {
+        let value = Rc::new(RefCell::new(default.to_owned()));
         if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::new_opt_default(default));
+            self.params.insert(Param::Short(short), Value::new_opt(value.clone()));
         }
         if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::new_opt_default(default));
+            self.params.insert(Param::Long(long.to_owned()), Value::new_opt(value));
         }
         self
     }
@@ -164,14 +165,14 @@ impl ArgParser {
                     let rhs = &rhs[1..]; // slice off the `=` char
                     match self.params.get_mut(lhs) {
                         Some(&mut Value::Opt { rhs: ref mut opt_rhs, ref mut found }) => {
-                            if opt_rhs.value.is_empty() {
+                            if (*opt_rhs.value).borrow().is_empty() {
                                 opt_rhs.occurrences = 1;
                             }
                             else {
                                 opt_rhs.occurrences += 1;
                             }
-                            opt_rhs.value.clear();
-                            opt_rhs.value.push_str(rhs);
+                            (*opt_rhs.value).borrow_mut().clear();
+                            (*opt_rhs.value).borrow_mut().push_str(rhs);
                             *found = true;
                         }
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
@@ -202,10 +203,10 @@ impl ArgParser {
                         Some(&mut Value::Opt { ref mut rhs, ref mut found }) => {
                             let rest: String = chars.collect();
                             if !rest.is_empty() {
-                                rhs.value = rest;
+                                *(*rhs.value).borrow_mut() = rest;
                                 *found = true;
                             } else {
-                                rhs.value = args.next().map(|a| {*found = true; a}).unwrap_or("".to_owned());
+                                *(*rhs.value).borrow_mut() = args.next().map(|a| {*found = true; a}).unwrap_or("".to_owned());
                             }
                             break;
                         }
@@ -254,13 +255,13 @@ impl ArgParser {
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
     /// has been assigned a value from `String`. Use `None` to disable the opt's use.
-    pub fn opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O) -> &mut String
+    pub fn opt<O: Hash + Eq + ?Sized>(&mut self, opt: &O) -> RefMut<String>
         where Param: Borrow<O>
     {
         if let Some(&mut Value::Opt { ref mut rhs, .. }) = self.params.get_mut(opt) {
-            return &mut rhs.value;
+            return (*rhs.value).borrow_mut();
         }
-        &mut self.garbage.1
+        self.garbage.1.borrow_mut()
     }
 
     /// Get the value of an Opt. If it has been set or defaulted, it will return a `Some(String)`
@@ -269,7 +270,7 @@ impl ArgParser {
         where Param: Borrow<O>
     {
         if let Some(&Value::Opt { ref rhs, .. }) = self.params.get(opt) {
-            return Some(rhs.value.clone());
+            return Some((*rhs.value).borrow().clone());
         }
         None
     }
