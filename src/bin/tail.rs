@@ -6,7 +6,7 @@ extern crate extra;
 use std::collections::VecDeque;
 use std::env;
 use std::fs;
-use std::io::{self, BufRead, Read, Stderr, Write};
+use std::io::{self, BufRead, Read, Write};
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::{WriteExt, fail};
@@ -48,24 +48,8 @@ AUTHOR
     Written by Žad Deljkić.
 "#; /* @MANEND */
 
-fn tail<R: Read, W: Write>(input: R, output: W, stderr: &mut Stderr, parser: &ArgParser) -> io::Result<()> {
+fn tail<R: Read, W: Write>(input: R, output: W, skip: bool, num: usize, parser: &ArgParser) -> io::Result<()> {
     let mut writer = io::BufWriter::new(output);
-    let (skip, num): (bool, usize) = 
-        if let Some(num) = parser.get_opt(&'n') {
-            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
-        }
-        else if let Some(num) = parser.get_opt("lines") {
-            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
-        }
-        else if let Some(num) = parser.get_opt(&'c') {
-            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
-        }
-        else if let Some(num) = parser.get_opt("bytes") {
-            (num.starts_with("+"), num.trim_left_matches('+').parse().try(stderr))
-        }
-        else {
-            fail("missing argument (number of lines/bytes)", stderr);
-        };
 
     if parser.found(&'n') || parser.found("lines") {
         if skip {
@@ -156,7 +140,6 @@ fn main() {
         return;
     }
     if parser.found(&'c') || parser.found("bytes") {
-        parser.opt(&'n').clear();
         parser.opt("lines").clear();
     }
     if let Err(err) = parser.found_invalid() {
@@ -164,22 +147,32 @@ fn main() {
         stderr.flush().try(&mut stderr);
         return;
     }
+    let (skip, num): (bool, usize) = 
+        if let Some(num) = parser.get_opt("lines") {
+            (num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
+        }
+        else if let Some(num) = parser.get_opt("bytes") {
+            (num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
+        }
+        else {
+            fail("missing argument (number of lines/bytes)", &mut stderr);
+        };
 
     // run the main part
     if parser.args.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
-        tail(stdin, stdout, &mut stderr, &parser).try(&mut stderr);
+        tail(stdin, stdout, skip, num, &parser).try(&mut stderr);
     } else if parser.args.len() == 1 {
         let file = fs::File::open(&parser.args[0]).try(&mut stderr);
-        tail(file, stdout, &mut stderr, &parser).try(&mut stderr);
+        tail(file, stdout, skip, num, &parser).try(&mut stderr);
     } else {
         for path in &parser.args {
             let file = fs::File::open(&path).try(&mut stderr);
             stdout.write(b"==> ").try(&mut stderr);
             stdout.write(path.as_bytes()).try(&mut stderr);
             stdout.writeln(b" <==").try(&mut stderr);
-            tail(file, &mut stdout, &mut stderr, &parser).try(&mut stderr);
+            tail(file, &mut stdout, skip, num, &parser).try(&mut stderr);
         }
     }
 }
