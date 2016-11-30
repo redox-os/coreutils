@@ -5,6 +5,8 @@ use std::hash::{Hash,Hasher};
 use std::rc::Rc;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// The parameter styles for short, e.g. `-s`,
+/// and for long, e.g. `--long`
 pub enum Param {
     Short(char),
     Long(String),
@@ -41,8 +43,11 @@ impl Hash for Param {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// The Right Hand Side type
 struct Rhs<T> {
+    /// The RHS value
     value: T,
+    /// Counts the number of times a flag/opt has been in use on the command
     occurrences: usize,
 }
 
@@ -53,8 +58,10 @@ impl<T> Rhs<T> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// The Value for each parameter
 enum Value {
     Flag(Rhs<bool>),
+    /// The RHS String value is shared between both short and long parameters
     Opt {
         rhs: Rhs<Rc<RefCell<String>>>,
         found: bool,
@@ -220,7 +227,7 @@ impl ArgParser {
         }
     }
 
-    /// Check the number of time a Flag or Opt has been found after initialization.
+    /// Get the number of times a flag or opt has been found after parsing.
     pub fn count<P: Hash + Eq + ?Sized>(&self, name: &P) -> usize
         where Param: Borrow<P>
     {
@@ -231,7 +238,7 @@ impl ArgParser {
         }
     }
 
-    /// Check if a Flag or Opt has been found after initialization.
+    /// Check if a flag or opt has been found after initialization.
     pub fn found<P: Hash + Eq + ?Sized>(&self, name: &P) -> bool
         where Param: Borrow<P>
     {
