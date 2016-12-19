@@ -8,19 +8,24 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 
 - `basename`
 - `cat`
+- `chmod`
 - `clear`
 - `cp`
+- `cut`
 - `date`
 - `dd`
+- `df`
 - `du`
 - `echo`
 - `env`
 - `false`
 - `free`
 - `head`
+- `kill`
 - `ls`
 - `mkdir`
 - `mv`
+- `printenv`
 - `ps`
 - `pwd`
 - `realpath`
