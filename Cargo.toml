@@ -49,6 +49,9 @@ path = "src/bin/dd.rs"
 name = "df"
 path = "src/bin/df.rs"
 
+[dependencies]
+redox_syscall = { path = "../../syscall" }
+
 [[bin]]
 name = "du"
 path = "src/bin/du.rs"
