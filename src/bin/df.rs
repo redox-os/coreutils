@@ -6,7 +6,8 @@ extern crate extra;
 extern crate syscall;
 
 #[cfg(target_os = "redox")]
-fn df(path: &str) -> ::std::io::Result<()> {
+fn df(path: &str, parser: &coreutils::ArgParser) -> ::std::io::Result<()> {
+    use coreutils::to_human_readable_string;
     use std::io::Error;
     use syscall::data::StatVfs;
 
@@ -17,11 +18,26 @@ fn df(path: &str) -> ::std::io::Result<()> {
         let _ = syscall::close(fd);
     }
 
-    let size = stat.f_blocks * stat.f_bsize as u64 / 1024;
-    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64 / 1024;
-    let free = stat.f_bavail * stat.f_bsize as u64 / 1024;
+    let size = stat.f_blocks * stat.f_bsize as u64;
+    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
+    let free = stat.f_bavail * stat.f_bsize as u64;
     let percent = (100.0 * used as f64 / size as f64) as u64;
-    println!("{:<8}{:<8}{:<8}{:<8}{:<5}", path, size, used, free, format!("{}%", percent));
+
+    if parser.found(&'h') || parser.found("human-readable") {
+        println!("{:<8}{:<8}{:<8}{:<8}{:<5}",
+                 path,
+                 to_human_readable_string(size),
+                 to_human_readable_string(used),
+                 to_human_readable_string(free),
+                 format!("{}%", percent));
+    } else {
+        println!("{:<8}{:<8}{:<8}{:<8}{:<5}",
+                 path,
+                 (size + 1023)/1024,
+                 (used + 1023)/1024,
+                 (free + 1023)/1024,
+                 format!("{}%", percent));
+    }
 
     Ok(())
 }
@@ -47,6 +63,8 @@ fn main() {
 
     OPTIONS
         -h
+        --human-readable
+            human readable output
         --help
             display this help and exit
     "#; /* @MANEND */
@@ -55,10 +73,11 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag("h", "help");
+        .add_flag("h", "human-readable")
+        .add_flag("", "help");
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
@@ -68,11 +87,11 @@ fn main() {
     if parser.args.is_empty() {
         let file = BufReader::new(File::open("sys:scheme").try(&mut stderr));
         for line in file.lines() {
-            let _ = df(&format!("{}:", line.try(&mut stderr)));
+            let _ = df(&format!("{}:", line.try(&mut stderr)), &parser);
         }
     } else {
         for path in &parser.args {
-            df(&path).try(&mut stderr);
+            df(&path, &parser).try(&mut stderr);
         }
     }
 }
