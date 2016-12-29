@@ -24,14 +24,14 @@ fn df(path: &str, parser: &coreutils::ArgParser) -> ::std::io::Result<()> {
     let percent = (100.0 * used as f64 / size as f64) as u64;
 
     if parser.found(&'h') || parser.found("human-readable") {
-        println!("{:<8}{:<8}{:<8}{:<8}{:<5}",
+        println!("{:<10}{:>10}{:>10}{:>10}{:>5}",
                  path,
                  to_human_readable_string(size),
                  to_human_readable_string(used),
                  to_human_readable_string(free),
                  format!("{}%", percent));
     } else {
-        println!("{:<8}{:<8}{:<8}{:<8}{:<5}",
+        println!("{:<10}{:>10}{:>10}{:>10}{:>5}",
                  path,
                  (size + 1023)/1024,
                  (used + 1023)/1024,
@@ -83,7 +83,7 @@ fn main() {
         exit(0);
     }
 
-    println!("{:<8}{:<8}{:<8}{:<8}{:<5}", "Path", "Size", "Used", "Free", "Use%");
+    println!("{:<10}{:>10}{:>10}{:>10}{:>5}", "Path", "Size", "Used", "Free", "Use%");
     if parser.args.is_empty() {
         let file = BufReader::new(File::open("sys:scheme").try(&mut stderr));
         for line in file.lines() {

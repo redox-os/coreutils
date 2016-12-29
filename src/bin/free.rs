@@ -2,44 +2,93 @@
 
 extern crate coreutils;
 extern crate extra;
+#[cfg(target_os = "redox")]
+extern crate syscall;
 
-use std::env;
-use std::fs::File;
-use std::io::{stderr, stdout, copy, Write};
-use std::process::exit;
-use coreutils::ArgParser;
-use extra::option::OptionalExt;
+#[cfg(target_os = "redox")]
+fn free(parser: &coreutils::ArgParser) -> ::std::io::Result<()> {
+    use coreutils::to_human_readable_string;
+    use std::io::Error;
+    use syscall::data::StatVfs;
 
-const MAN_PAGE: &'static str = /* @MANSTART{free} */ r#"
-NAME
-    free - display amount of free and used memory in the system
+    let mut stat = StatVfs::default();
+    {
+        let fd = syscall::open("memory:", syscall::O_STAT).map_err(|err| Error::from_raw_os_error(err.errno))?;
+        syscall::fstatvfs(fd, &mut stat).map_err(|err| Error::from_raw_os_error(err.errno))?;
+        let _ = syscall::close(fd);
+    }
 
-SYNOPSIS
-    free [ -h | --help]
+    let size = stat.f_blocks * stat.f_bsize as u64;
+    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
+    let free = stat.f_bavail * stat.f_bsize as u64;
 
-DESCRIPTION
-    Displays the total amount of free and used physical memory in the system
+    if parser.found(&'h') || parser.found("human-readable") {
+        println!("{:<8}{:>10}{:>10}{:>10}",
+                 "Mem:",
+                 to_human_readable_string(size),
+                 to_human_readable_string(used),
+                 to_human_readable_string(free));
+    } else {
+        println!("{:<8}{:>10}{:>10}{:>10}",
+                 "Mem:",
+                 (size + 1023)/1024,
+                 (used + 1023)/1024,
+                 (free + 1023)/1024);
+    }
 
-OPTIONS
-    -h
-    --help
-        display this help and exit
-"#; /* @MANEND */
+    Ok(())
+}
 
+#[cfg(target_os = "redox")]
 fn main() {
+    use std::env;
+    use std::io::{stdout, stderr, Write};
+    use std::process::exit;
+    use coreutils::ArgParser;
+    use extra::option::OptionalExt;
+
+    const MAN_PAGE: &'static str = /* @MANSTART{free} */ r#"
+    NAME
+        free - view memory usage
+
+    SYNOPSIS
+        free [ -h | --help ]
+
+    DESCRIPTION
+        free displays the current memory usage of the system
+
+    OPTIONS
+        -h
+        --human-readable
+            human readable output
+        --help
+            display this help and exit
+    "#; /* @MANEND */
+
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag("h", "help");
+        .add_flag("h", "human-readable")
+        .add_flag("", "help");
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
     }
 
-    let mut file = File::open("sys:/memory").try(&mut stderr);
-    copy(&mut file, &mut stdout).try(&mut stderr);
+    println!("{:<8}{:>10}{:>10}{:>10}", "", "total", "used", "free");
+    free(&parser).try(&mut stderr);
+}
+
+#[cfg(not(target_os = "redox"))]
+fn main() {
+    use std::io::{stderr, Write};
+    use std::process::exit;
+
+    let mut stderr = stderr();
+    stderr.write(b"error: unimplemented outside redox").unwrap();
+    exit(1);
 }
