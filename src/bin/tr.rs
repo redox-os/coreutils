@@ -1,15 +1,18 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::io::{self, Stdin, Stdout, Stderr, Write};
 use std::cell::Cell;
 
+use coreutils::ArgParser;
+
 use extra::io::fail;
 
 static OK: i32                      = 0;
-static INVALID_OPTION: i32          = 1;
+static INVALID_FLAG: i32          = 1;
 static REPLACE_CANNOT_BE_EMPTY: i32 = 2;
 
 static USAGE: &'static str = r#"usage: tr -c string1  string2
@@ -121,36 +124,36 @@ impl Translation {
     }
 
     fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
-        let mut args = env::args().skip(1);
-        while let Some(arg) = args.next() {
-            if arg.starts_with('-') {
-                match arg.as_str() {
-                    "-c" => {
-                        self.complement = true;
-                    }
-                    "-d" => {
-                        self.delete = true;
-                    }
-                    "-s" => {
-                        self.squeeze = true;
-                    }
-                    "-t" => {
-                        self.truncate = true;
-                    }
-                    "-h" | "--help" => {
-                        let _ = stdout.write(MAN_PAGE.as_bytes());
-                    }
-                    _ => {
-                        let _ = stderr.write("invalid option".as_bytes());
-                        self.status.set(INVALID_OPTION);
-                    }
+        let mut parser = ArgParser::new(2)
+            .add_flag("c", "complement")
+            .add_flag("d", "delete")
+            .add_flag("s", "squeeze")
+            .add_flag("t", "truncate")
+            .add_flag("h", "help");
+        parser.parse(env::args());
+        if let Err(err) = parser.found_invalid() {
+            let _ = stderr.write(err.as_bytes());
+            self.status.set(INVALID_FLAG);
+        } else {
+            self.complement = parser.found("complement");
+            self.delete = parser.found("delete");
+            self.squeeze = parser.found("squeeze");
+            self.truncate = parser.found("truncate");
+
+            if parser.found("help") {
+                let _ = stdout.write(MAN_PAGE.as_bytes());
+            }
+            let mut iter = parser.args.iter();
+            let mut next = iter.next();
+            if next.is_some() {
+                self.search = next.unwrap().clone();
+                next = iter.next();
+                if next.is_some() {
+                    self.replace = next.unwrap().clone();
                 }
             } else {
-                if self.search.is_empty() {
-                    self.search = arg;
-                } else {
-                    self.replace = arg;
-                }
+                let _ = stderr.write("set of characters to replace is obligatory".as_bytes());
+                let _ = stdout.write(MAN_PAGE.as_bytes());
             }
         }
         return self;
