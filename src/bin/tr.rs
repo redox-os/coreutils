@@ -8,6 +8,10 @@ use std::cell::Cell;
 
 use extra::io::fail;
 
+static OK: i32                      = 0;
+static INVALID_OPTION: i32          = 1;
+static REPLACE_CANNOT_BE_EMPTY: i32 = 2;
+
 static USAGE: &'static str = r#"usage: tr -c string1  string2
     tr -d string1
     tr -s string1 string2
@@ -71,6 +75,7 @@ struct Translation {
 }
 
 impl Translation {
+
     fn print_opts(&self) {
         println!("flags\ncompliment {}\ndelete: {}\nsqueeze {}", self.complement, self.delete, self.squeeze);
         println!("search: {}", self.search);
@@ -89,6 +94,7 @@ impl Translation {
         }
         return new_string;
     }
+
     fn append_or_truncate(&mut self) -> &mut Translation {
         // first decide
         let search_length = self.search.chars().count();
@@ -134,7 +140,10 @@ impl Translation {
                     "-h" | "--help" => {
                         let _ = stdout.write(MAN_PAGE.as_bytes());
                     }
-                    _ => fail("invalid option", &mut stderr),
+                    _ => {
+                        let _ = stderr.write("invalid option".as_bytes());
+                        self.status.set(INVALID_OPTION);
+                    }
                 }
             } else {
                 if self.search.is_empty() {
@@ -146,16 +155,18 @@ impl Translation {
         }
         return self;
     }
+
     fn check_opts(&mut self) -> &mut Translation {
         if !self.delete && !self.squeeze && self.replace.len() == 0 {
             // big issue
             println!("replace string can not be empty when neither -s nor -d is specified.");
             println!("{}", MAN_PAGE);
-            self.status.set(1);
+            self.status.set(REPLACE_CANNOT_BE_EMPTY);
         }
 
         return self;
     }
+
     fn translate(&self, _stdin: Stdin, mut _stdout: &mut Stdout, mut _stderr: &mut Stderr) {
         // do the work
     }
@@ -165,7 +176,7 @@ fn main() {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut stderr = io::stderr();
-    let mut tr = Translation { complement: false, delete: false, squeeze: false, truncate: false, search: String::new(), replace: String::new(), status: Cell::new(0)};
+    let mut tr = Translation { complement: false, delete: false, squeeze: false, truncate: false, search: String::new(), replace: String::new(), status: Cell::new(OK)};
     tr.get_opts(&mut stdout,&mut stderr);
     tr.check_opts();
 // actually put them somewhere for retrieval by the other parts of the program instead of print
@@ -191,23 +202,24 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::Translation;
+    use super::OK;
     use std::cell::Cell;
 
     #[test]
     fn append_replace_when_it_is_short() {
-        let mut tr = Translation {search: "abcde".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(0)};
+        let mut tr = Translation {search: "abcde".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
         tr.append_or_truncate();
         assert_eq!("xyzzz", tr.replace);
     }
     #[test]
     fn append_replace_when_it_is_long() {
-        let mut tr = Translation {search: "a".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(0)};
+        let mut tr = Translation {search: "a".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
         tr.append_or_truncate();
         assert_eq!("x", tr.replace);
     }
     #[test]
     fn append_replace_when_it_is_exact_in_length() {
-        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(0)};
+        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
         tr.append_or_truncate();
         assert_eq!("xyz", tr.replace);
     }
