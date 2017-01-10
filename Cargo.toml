@@ -154,6 +154,10 @@ name = "touch"
 path = "src/bin/touch.rs"
 
 [[bin]]
+name = "tr"
+path = "src/bin/tr.rs"
+
+[[bin]]
 name = "true"
 path = "src/bin/true.rs"
 
