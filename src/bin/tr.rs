@@ -77,25 +77,28 @@ impl Translation {
         println!("replace: {}", self.replace);
     }
 
+    fn truncate(&mut self, input: String, length: usize) -> String {
+        // use an iterator just in case we have diacretes or other complex chars
+        let mut new_string = "".to_string();
+        {
+            let mut char_walker = input.chars();
+            for _ in 0 .. length {
+                let last_char = char_walker.next().unwrap();
+                new_string.push(last_char);
+            }
+        }
+        return new_string;
+    }
     fn append_or_truncate(&mut self) -> &mut Translation {
         // first decide
         let search_length = self.search.chars().count();
         let replace_length = self.replace.chars().count();
 
         if replace_length < search_length {
-            // adjust search or replace?
+            //build adjust search or replace?
             if self.truncate {
-                // truncate search to replace's length
-                // use an iterator just in case we have diacretes or other complex chars
-                let mut new_search = "".to_string();
-                {
-                    let mut char_walker = self.search.chars();
-                    for _ in 0 .. replace_length {
-                        let last_char = char_walker.next().unwrap();
-                        new_search.push(last_char);
-                    }
-                }
-                self.search = new_search;
+                let old_value = self.search.clone();
+                self.search = self.truncate(old_value, replace_length);
             } else {
                 // fill replace with it's last char to match search in length
                 let lastchar_as_string = self.replace.chars().last().unwrap();
@@ -103,6 +106,10 @@ impl Translation {
                     self.replace.push(lastchar_as_string); // do something
                 }
             }
+        } else if replace_length > search_length {
+            // truncate replaces length to search'
+            let old_value = self.replace.clone();
+            self.replace = self.truncate(old_value, search_length);
         }
         return self;
     }
@@ -154,7 +161,6 @@ impl Translation {
     }
 }
 
-#[cfg(not(test))]
 fn main() {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -185,23 +191,24 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::Translation;
+    use std::cell::Cell;
 
     #[test]
     fn append_replace_when_it_is_short() {
-        let mut tr = Translation {search: "abcde".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false};
-        tr.append_replace();
+        let mut tr = Translation {search: "abcde".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(0)};
+        tr.append_or_truncate();
         assert_eq!("xyzzz", tr.replace);
     }
     #[test]
     fn append_replace_when_it_is_long() {
-        let mut tr = Translation {search: "a".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false};
-        tr.append_replace();
+        let mut tr = Translation {search: "a".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(0)};
+        tr.append_or_truncate();
         assert_eq!("x", tr.replace);
     }
     #[test]
     fn append_replace_when_it_is_exact_in_length() {
-        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false};
-        tr.append_replace();
+        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(0)};
+        tr.append_or_truncate();
         assert_eq!("xyz", tr.replace);
     }
 }
