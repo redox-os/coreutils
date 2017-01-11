@@ -3,17 +3,18 @@
 extern crate coreutils;
 extern crate extra;
 
-use std::env;
-use std::io::{self, Stdin, Stdout, Stderr, Write};
 use std::cell::Cell;
+use std::collections::HashMap;
+use std::env;
+use std::io::{self, Stdout, Stderr,  BufRead, Read, Write};
 
 use coreutils::ArgParser;
-
-use extra::io::fail;
+use extra::io::{fail, WriteExt};
 
 static OK: i32                      = 0;
-static INVALID_FLAG: i32          = 1;
+static INVALID_FLAG: i32            = 1;
 static REPLACE_CANNOT_BE_EMPTY: i32 = 2;
+static WRITE_ERROR: i32             = 3;
 
 static USAGE: &'static str = r#"usage: tr -c string1  string2
     tr -d string1
@@ -24,7 +25,7 @@ const MAN_PAGE: &'static str = /* @MANSTART{tr} */ r#"NAME
     tr - translate characters
 
 SYNOPSIS
-    tr [ -cds ] [ string1 [ string2 ] ]
+    tr [ -cdst ] [ string1 [ string2 ] ]
 
 DESCRIPTION
     Tr copies the standard input to the standard output with
@@ -34,15 +35,19 @@ DESCRIPTION
     ded to the length of string1 by duplicating its last charac-
     ter.  Any combination of the options -cds may be used:
 
+    --complement
     -c   complement the set of characters in string1 with
          respect to the universe of characters whose ASCII codes
          are 01 through 0377
 
+    --delete
     -d   delete all input characters in string1
 
+    --squeeze
     -s   squeeze all strings of repeated output characters that
          are in string2 to single characters
 
+    --truncate
     -t   first truncate string1 to length of string2
 
     In either string the notation a-b means a range of charac-
@@ -123,6 +128,11 @@ impl Translation {
         return self;
     }
 
+    fn make_map(&mut self) -> HashMap<char, char> {
+        // prereq is that search and replace are now the same length
+        return self.search.chars().zip(self.replace.chars()).collect();
+    }
+
     fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
         let mut parser = ArgParser::new(2)
             .add_flag("c", "complement")
@@ -170,8 +180,30 @@ impl Translation {
         return self;
     }
 
-    fn translate(&self, _stdin: Stdin, mut _stdout: &mut Stdout, mut _stderr: &mut Stderr) {
+    fn translate<R: Read, W: Write>(& mut self, input: R, output: W,) {
         // do the work
+        let map = self.make_map();
+        let reader = io::BufReader::new(input);
+        let mut writer = io::BufWriter::new(output);
+
+        for line in reader.lines() {
+            let line = line.unwrap();
+            let chars = line.chars();
+            for kar in chars {
+                let mut output = kar;
+                if map.get(&kar).is_some() {
+                    output = *map.get(&kar).unwrap();
+                }
+                if writer.write_char(output).is_err() {
+                    self.status.set(WRITE_ERROR);
+                    return;
+                }
+            }
+            if writer.write_char('\n').is_err() {
+                self.status.set(WRITE_ERROR);
+                return;
+            }
+        }
     }
 }
 
@@ -184,13 +216,13 @@ fn main() {
     tr.check_opts();
 // actually put them somewhere for retrieval by the other parts of the program instead of print
     tr.append_or_truncate();
-    tr.print_opts();
     if tr.status.get() > 0 {
+        tr.print_opts();
         fail(USAGE, &mut stderr);
     }
 
     // if complement is turned on recreate 'search' to contain the complement of search
-    tr.translate(stdin, &mut stdout, &mut stderr);
+    tr.translate(stdin, &mut stdout);
     // open std input
     // open std ouput
 // read a char
@@ -225,5 +257,31 @@ mod tests {
         let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
         tr.append_or_truncate();
         assert_eq!("xyz", tr.replace);
+    }
+    #[test]
+    fn make_and_check_map() {
+        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        // precondition is that append_or_truncate is called so search and replace have the same length
+        let map = tr.make_map();
+        assert_eq!(3, map.len());
+        assert_eq!(3, map.keys().count());
+        assert_eq!(3, map.values().count());
+        assert_eq!(Some(&'x'), map.get(&'a'));
+        assert_eq!(Some(&'y'), map.get(&'b'));
+        assert_eq!(Some(&'z'), map.get(&'c'));
+        assert_eq!(None, map.get(&'d'));
+    }
+    #[test]
+    fn make_and_check_maptranslate() {
+        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        // precondition is that append_or_truncate is called so search and replace have the same length
+        let map = tr.make_map();
+        assert_eq!(3, map.len());
+        assert_eq!(3, map.keys().count());
+        assert_eq!(3, map.values().count());
+        assert_eq!(Some(&'x'), map.get(&'a'));
+        assert_eq!(Some(&'y'), map.get(&'b'));
+        assert_eq!(Some(&'z'), map.get(&'c'));
+        assert_eq!(None, map.get(&'d'));
     }
 }
