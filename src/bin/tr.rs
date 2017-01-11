@@ -38,12 +38,14 @@ DESCRIPTION
     ter.  Any combination of the options -cds may be used:
 
     --complement
-    -c   complement the set of characters in string1 with
-         respect to the universe of characters whose ASCII codes
-         are 01 through 0377
+    -c   complement the set of characters in string1 will be
+         transposed. only the first character in string2 will be
+         used in this case.
 
     --delete
     -d   delete all input characters in string1
+
+    *NOTE* squeeze is not implemented yet
 
     --squeeze
     -s   squeeze all strings of repeated output characters that
@@ -51,6 +53,8 @@ DESCRIPTION
 
     --truncate
     -t   first truncate string1 to length of string2
+
+    *NOTE* ranges are not implemented yet
 
     In either string the notation a-b means a range of charac-
     ters from a to b in increasing ASCII order.  The character
@@ -130,11 +134,6 @@ impl Translation {
         return self;
     }
 
-    fn make_map(&mut self) -> HashMap<char, char> {
-        // prereq is that search and replace are now the same length
-        return self.search.chars().zip(self.replace.chars()).collect();
-    }
-
     fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
         let mut parser = ArgParser::new(2)
             .add_flag("c", "complement")
@@ -188,35 +187,39 @@ impl Translation {
         return self;
     }
 
-    fn remove<R: Read, W: Write>(& mut self, input: R, output: W,) {
-        // do the work
-        let reader = io::BufReader::new(input);
-        let mut writer = io::BufWriter::new(output);
+    fn make_map(&mut self) -> HashMap<char, char> {
+        // prereq is that search and replace are now the same length
+        return self.search.chars().zip(self.replace.chars()).collect();
+    }
 
-        for line in reader.lines() {
-            let line = line.unwrap();
-            let chars = line.chars();
-            // read a char
-            for kar in chars {
-                // if not in search => pass through
-                if self.search.find(kar).is_none() {
-                    if writer.write_char(kar).is_err() {
-                        self.status.set(WRITE_ERROR);
-                        return;
-                    }
-                }
+    fn delete_char_if_needed(&mut self, kar: char) -> Option<char> {
+        return if self.search.find(kar).is_some() {
+            None
+        } else {
+            Some(kar)
+        }
+    }
+    fn replace_char_if_needed(&mut self, kar: char, map: &HashMap<char,char>) -> Option<char> {
+        let complement_replacement = self.replace.chars().nth(0).unwrap();
+        return if map.get(&kar).is_some() {
+            if self.complement {
+                Some(kar)
+            } else {
+                Some(*map.get(&kar).unwrap())
             }
-
-            if writer.write_char('\n').is_err() {
-                self.status.set(WRITE_ERROR);
-                return;
+        } else {
+            if self.complement {
+                Some(complement_replacement)
+            } else {
+                Some(kar)
             }
         }
     }
 
     fn translate<R: Read, W: Write>(& mut self, input: R, output: W,) {
         // do the work
-        let map = self.make_map();
+
+        let mut map = if self.delete {HashMap::new()} else {self.make_map()};
         let reader = io::BufReader::new(input);
         let mut writer = io::BufWriter::new(output);
 
@@ -226,12 +229,19 @@ impl Translation {
             // read a char
             for kar in chars {
                 // if not in search => pass through
-                let mut output = kar;
-                if map.get(&kar).is_some() {
-                    output = *map.get(&kar).unwrap();
+                // case 'squeeze' switched on
+                //
+                let output = if self.delete {
+                    self.delete_char_if_needed(kar)
+                } else {
+                    self.replace_char_if_needed(kar, &mut map)
+                };
+                if output.is_some() {
+                    if writer.write_char(output.unwrap()).is_err() {
+                         self.status.set(WRITE_ERROR);
+                    }
                 }
-                if writer.write_char(output).is_err() {
-                    self.status.set(WRITE_ERROR);
+                if self.status.get() > OK {
                     return;
                 }
             }
@@ -242,6 +252,7 @@ impl Translation {
         }
     }
 }
+
 
 fn main() {
     let stdin = io::stdin();
@@ -260,15 +271,7 @@ fn main() {
     }
 
     // if complement is turned on recreate 'search' to contain the complement of search
-    if !tr.delete {
-        tr.translate(stdin, &mut stdout);
-    } else {
-        tr.remove(stdin, &mut stdout);
-    }
-// decide what to do
-// switching over:
-// case 'squeeze' switched on
-// 
+    tr.translate(stdin, &mut stdout);
 }
 
 #[cfg(test)]
