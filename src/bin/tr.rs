@@ -85,7 +85,7 @@ struct Translation {
 impl Translation {
 
     fn print_opts(&self) {
-        println!("flags\ncompliment {}\ndelete: {}\nsqueeze {}", self.complement, self.delete, self.squeeze);
+        println!("flags\ncompliment:\t{}\ndelete:\t{}\nsqueeze:\t{}\ntruncate:\t{}", self.complement, self.delete, self.squeeze, self.truncate);
         println!("search: {}", self.search);
         println!("replace: {}", self.replace);
     }
@@ -145,14 +145,11 @@ impl Translation {
             let _ = stderr.write(err.as_bytes());
             self.status.set(INVALID_FLAG);
         } else {
-            self.complement = parser.found("complement");
-            self.delete = parser.found("delete");
-            self.squeeze = parser.found("squeeze");
-            self.truncate = parser.found("truncate");
+            self.complement = parser.found("c") || parser.found("complement");
+            self.delete = parser.found("d") || parser.found("delete");
+            self.squeeze = parser.found("s") || parser.found("squeeze");
+            self.truncate = parser.found("t") || parser.found("truncate");
 
-            if parser.found("help") {
-                let _ = stdout.write(MAN_PAGE.as_bytes());
-            }
             let mut iter = parser.args.iter();
             let mut next = iter.next();
             if next.is_some() {
@@ -164,6 +161,10 @@ impl Translation {
             } else {
                 let _ = stderr.write("set of characters to replace is obligatory".as_bytes());
                 let _ = stdout.write(MAN_PAGE.as_bytes());
+            }
+            if parser.found("h") || parser.found("help") || self.status.get() > OK {
+                let _ = stdout.write(MAN_PAGE.as_bytes());
+                self.print_opts();
             }
         }
         return self;
@@ -189,7 +190,9 @@ impl Translation {
         for line in reader.lines() {
             let line = line.unwrap();
             let chars = line.chars();
+            // read a char
             for kar in chars {
+                // if not in search => pass through
                 let mut output = kar;
                 if map.get(&kar).is_some() {
                     output = *map.get(&kar).unwrap();
@@ -216,17 +219,12 @@ fn main() {
     tr.check_opts();
 // actually put them somewhere for retrieval by the other parts of the program instead of print
     tr.append_or_truncate();
-    if tr.status.get() > 0 {
-        tr.print_opts();
+    if tr.status.get() > OK {
         fail(USAGE, &mut stderr);
     }
 
     // if complement is turned on recreate 'search' to contain the complement of search
     tr.translate(stdin, &mut stdout);
-    // open std input
-    // open std ouput
-// read a char
-// if not in search => pass through
 // decide what to do
 // switching over:
 // case either 'delete' switched on or find matching char in 'replace'
