@@ -13,8 +13,10 @@ use extra::io::{fail, WriteExt};
 
 static OK: i32                      = 0;
 static INVALID_FLAG: i32            = 1;
-static REPLACE_CANNOT_BE_EMPTY: i32 = 2;
-static WRITE_ERROR: i32             = 3;
+static SEARCH_CANNOT_BE_EMPTY: i32  = 2;
+static REPLACE_CANNOT_BE_EMPTY: i32 = 3;
+static WRITE_ERROR: i32             = 4;
+static DUMMY_RUN: i32               = 5;
 
 static USAGE: &'static str = r#"usage: tr -c string1  string2
     tr -d string1
@@ -108,7 +110,7 @@ impl Translation {
         let search_length = self.search.chars().count();
         let replace_length = self.replace.chars().count();
 
-        if replace_length < search_length {
+        if replace_length > 0 && replace_length < search_length {
             //build adjust search or replace?
             if self.truncate {
                 let old_value = self.search.clone();
@@ -145,10 +147,13 @@ impl Translation {
             let _ = stderr.write(err.as_bytes());
             self.status.set(INVALID_FLAG);
         } else {
-            self.complement = parser.found("c") || parser.found("complement");
-            self.delete = parser.found("d") || parser.found("delete");
-            self.squeeze = parser.found("s") || parser.found("squeeze");
-            self.truncate = parser.found("t") || parser.found("truncate");
+            if parser.found(&'h') || parser.found("help") {
+                self.status.set(DUMMY_RUN);
+            }
+            self.complement = parser.found(&'c') || parser.found("complement");
+            self.delete = parser.found(&'d') || parser.found("delete");
+            self.squeeze = parser.found(&'s') || parser.found("squeeze");
+            self.truncate = parser.found(&'t') || parser.found("truncate");
 
             let mut iter = parser.args.iter();
             let mut next = iter.next();
@@ -158,11 +163,8 @@ impl Translation {
                 if next.is_some() {
                     self.replace = next.unwrap().clone();
                 }
-            } else {
-                let _ = stderr.write("set of characters to replace is obligatory".as_bytes());
-                let _ = stdout.write(MAN_PAGE.as_bytes());
             }
-            if parser.found("h") || parser.found("help") || self.status.get() > OK {
+            if self.status.get() > OK {
                 let _ = stdout.write(MAN_PAGE.as_bytes());
                 self.print_opts();
             }
@@ -174,11 +176,42 @@ impl Translation {
         if !self.delete && !self.squeeze && self.replace.len() == 0 {
             // big issue
             println!("replace string can not be empty when neither -s nor -d is specified.");
-            println!("{}", MAN_PAGE);
             self.status.set(REPLACE_CANNOT_BE_EMPTY);
         }
-
+        if self.search.len() == 0 {
+            println!("set of characters to replace is obligatory");
+            self.status.set(SEARCH_CANNOT_BE_EMPTY);
+        }
+        if self.status.get() > OK {
+            println!("{}", MAN_PAGE);
+        }
         return self;
+    }
+
+    fn remove<R: Read, W: Write>(& mut self, input: R, output: W,) {
+        // do the work
+        let reader = io::BufReader::new(input);
+        let mut writer = io::BufWriter::new(output);
+
+        for line in reader.lines() {
+            let line = line.unwrap();
+            let chars = line.chars();
+            // read a char
+            for kar in chars {
+                // if not in search => pass through
+                if self.search.find(kar).is_none() {
+                    if writer.write_char(kar).is_err() {
+                        self.status.set(WRITE_ERROR);
+                        return;
+                    }
+                }
+            }
+
+            if writer.write_char('\n').is_err() {
+                self.status.set(WRITE_ERROR);
+                return;
+            }
+        }
     }
 
     fn translate<R: Read, W: Write>(& mut self, input: R, output: W,) {
@@ -216,18 +249,24 @@ fn main() {
     let mut stderr = io::stderr();
     let mut tr = Translation { complement: false, delete: false, squeeze: false, truncate: false, search: String::new(), replace: String::new(), status: Cell::new(OK)};
     tr.get_opts(&mut stdout,&mut stderr);
-    tr.check_opts();
-// actually put them somewhere for retrieval by the other parts of the program instead of print
-    tr.append_or_truncate();
+    if tr.status.get() == OK {
+        tr.check_opts();
+    }
+    if tr.status.get() == OK {
+        tr.append_or_truncate();
+    }
     if tr.status.get() > OK {
         fail(USAGE, &mut stderr);
     }
 
     // if complement is turned on recreate 'search' to contain the complement of search
-    tr.translate(stdin, &mut stdout);
+    if !tr.delete {
+        tr.translate(stdin, &mut stdout);
+    } else {
+        tr.remove(stdin, &mut stdout);
+    }
 // decide what to do
 // switching over:
-// case either 'delete' switched on or find matching char in 'replace'
 // case 'squeeze' switched on
 // 
 }
