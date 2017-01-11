@@ -1,5 +1,5 @@
 #![deny(warnings)]
-
+extern crate coreutils;
 extern crate extra;
 
 use std::env;
@@ -8,6 +8,8 @@ use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::slice;
 use std::str::FromStr;
+
+use coreutils::ArgParser;
 
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
@@ -345,54 +347,58 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut args = env::args().skip(1);
-    let mut paths: Vec<String> = Vec::new();
 
-    // parse options
-    while let Some(arg) = args.next() {
-        if arg.starts_with('-') {
-            match arg.as_str() {
-                "-h" | "--help" => {
-                    let _ = stdout.write(MAN_PAGE.as_bytes());
-                    return;
-                }
-                "-b" => {
-                    if mode.is_some() {
-                        fail(USAGE, &mut stderr);
-                    }
-                    mode = Some(Mode::Bytes);
-                    list = args.next().unwrap();
-                }
-                "-c" => {
-                    if mode.is_some() {
-                        fail(USAGE, &mut stderr);
-                    }
-                    mode = Some(Mode::Characters);
-                    list = args.next().unwrap();
-                }
-                "-f" => {
-                    if mode.is_some() {
-                        fail(USAGE, &mut stderr);
-                    }
-                    mode = Some(Mode::Fields);
-                    list = args.next().unwrap();
-                }
-                "-s" => {
-                    skip_if_missing = Some(true);
-                }
-                "-d" => {
-                    let dlm = args.next().unwrap();
-                    if dlm.len() != 1 {
-                        fail("bad delimiter", &mut stderr)
-                    }
-                    delimiter = Some(dlm);
-                }
-                _ => fail("invalid option", &mut stderr),
-            }
-        } else {
-            paths.push(arg);
-        }
+    let mut parser = ArgParser::new(6)
+        .add_flag("h", "help")
+        .add_flag("s", "")
+        .add_opt("b", "")
+        .add_opt("c", "")
+        .add_opt("f", "")
+        .add_opt("d", "");
+    parser.parse(env::args());
+
+    if parser.found(&'h') || parser.found("help") {
+        let _ = stdout.write(MAN_PAGE.as_bytes());
+        return;
     }
+
+    if parser.found(&'s') {
+        skip_if_missing = Some(true);
+    }
+
+    if parser.found(&'b') {
+        if mode.is_some() {
+            fail(USAGE, &mut stderr);
+        }
+        mode = Some(Mode::Bytes);
+        list = parser.get_opt(&'b').unwrap();
+    }
+
+    if parser.found(&'c') {
+        if mode.is_some() {
+            fail(USAGE, &mut stderr);
+        }
+        mode = Some(Mode::Characters);
+        list = parser.get_opt(&'c').unwrap();
+    }
+
+    if parser.found(&'f') {
+        if mode.is_some() {
+            fail(USAGE, &mut stderr);
+        }
+        mode = Some(Mode::Fields);
+        list = parser.get_opt(&'f').unwrap();
+    }
+
+    if parser.found(&'d') {
+        let dlm = parser.get_opt(&'d').unwrap();
+        if dlm.len() != 1 {
+            fail("bad delimiter", &mut stderr)
+        }
+        delimiter = Some(dlm);
+    }
+
+    let paths = parser.args;
 
     let mode = mode.fail(USAGE, &mut stderr);
     let selection = match Selection::from_str(&list) {
