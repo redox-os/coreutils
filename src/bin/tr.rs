@@ -5,6 +5,7 @@ extern crate extra;
 
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::default::Default;
 use std::env;
 use std::io::{self, Stdout, Stderr,  BufRead, Read, Write};
 
@@ -45,8 +46,6 @@ DESCRIPTION
     --delete
     -d   delete all input characters in string1
 
-    *NOTE* squeeze is not implemented yet
-
     --squeeze
     -s   squeeze all strings of repeated output characters that
          are in string2 to single characters
@@ -85,9 +84,25 @@ struct Translation {
     truncate:    bool,
     search:      String,
     replace:     String,
-    status:      Cell<i32>
+    status:      Cell<i32>,
+    last_char:   Option<char>
 }
 
+impl Default for Translation {
+
+    fn default () -> Translation {
+        Translation {
+            complement: false,
+            delete: false,
+            squeeze: false,
+            truncate: false,
+            search: String::new(),
+            replace: String::new(),
+            status: Cell::new(OK),
+            last_char:   None
+        }
+    }
+}
 impl Translation {
 
     fn print_opts(&self) {
@@ -172,9 +187,8 @@ impl Translation {
     }
 
     fn check_opts(&mut self) -> &mut Translation {
-        if !self.delete && !self.squeeze && self.replace.len() == 0 {
-            // big issue
-            println!("replace string can not be empty when neither -s nor -d is specified.");
+        if (!self.delete || self.squeeze) && self.replace.len() == 0 {
+            println!("replace string can not be empty when -d is specified, without -s.");
             self.status.set(REPLACE_CANNOT_BE_EMPTY);
         }
         if self.search.len() == 0 {
@@ -216,6 +230,24 @@ impl Translation {
         }
     }
 
+    fn squeeze_if_needed(&mut self, kar: char) -> Option<char> {
+        if self.squeeze  && self.replace.find(kar).is_some() {
+            if self.last_char.is_none() {
+                self.last_char = Some(kar);
+                self.last_char
+            } else {
+                if self.last_char.unwrap() == kar {
+                    None
+                } else {
+                    self.last_char = Some(kar);
+                    self.last_char
+                }
+            }
+        } else {
+            Some(kar)
+        }
+    }
+
     fn translate<R: Read, W: Write>(& mut self, input: R, output: W,) {
         // do the work
 
@@ -231,11 +263,14 @@ impl Translation {
                 // if not in search => pass through
                 // case 'squeeze' switched on
                 //
-                let output = if self.delete {
+                let mut output = if self.delete {
                     self.delete_char_if_needed(kar)
                 } else {
                     self.replace_char_if_needed(kar, &mut map)
                 };
+                if output.is_some() {
+                    output = self.squeeze_if_needed(output.unwrap());
+                }
                 if output.is_some() {
                     if writer.write_char(output.unwrap()).is_err() {
                          self.status.set(WRITE_ERROR);
@@ -245,6 +280,7 @@ impl Translation {
                     return;
                 }
             }
+            self.last_char = None;
             if writer.write_char('\n').is_err() {
                 self.status.set(WRITE_ERROR);
                 return;
@@ -258,7 +294,7 @@ fn main() {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut stderr = io::stderr();
-    let mut tr = Translation { complement: false, delete: false, squeeze: false, truncate: false, search: String::new(), replace: String::new(), status: Cell::new(OK)};
+    let mut tr: Translation = Default::default();
     tr.get_opts(&mut stdout,&mut stderr);
     if tr.status.get() == OK {
         tr.check_opts();
@@ -277,30 +313,44 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::Translation;
-    use super::OK;
-    use std::cell::Cell;
 
     #[test]
     fn append_replace_when_it_is_short() {
-        let mut tr = Translation {search: "abcde".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        let mut tr = Translation {
+            search: "abcde".to_string(),
+            replace: "xyz".to_string(),
+            ..Default::default()
+        };
         tr.append_or_truncate();
         assert_eq!("xyzzz", tr.replace);
     }
     #[test]
     fn append_replace_when_it_is_long() {
-        let mut tr = Translation {search: "a".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        let mut tr = Translation {
+            search: "a".to_string(),
+            replace: "xyz".to_string(),
+            ..Default::default()
+        };
         tr.append_or_truncate();
         assert_eq!("x", tr.replace);
     }
     #[test]
     fn append_replace_when_it_is_exact_in_length() {
-        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        let mut tr = Translation {
+            search: "abc".to_string(),
+            replace: "xyz".to_string(),
+            ..Default::default()
+        };
         tr.append_or_truncate();
         assert_eq!("xyz", tr.replace);
     }
     #[test]
     fn make_and_check_map() {
-        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        let mut tr = Translation {
+            search: "abc".to_string(),
+            replace: "xyz".to_string(),
+            ..Default::default()
+        };
         // precondition is that append_or_truncate is called so search and replace have the same length
         let map = tr.make_map();
         assert_eq!(3, map.len());
@@ -313,7 +363,11 @@ mod tests {
     }
     #[test]
     fn make_and_check_maptranslate() {
-        let mut tr = Translation {search: "abc".to_string() , replace: "xyz".to_string(), complement: false, delete: false, squeeze: false, truncate: false, status: Cell::new(OK)};
+        let mut tr = Translation {
+            search: "abc".to_string(),
+            replace: "xyz".to_string(),
+            ..Default::default()
+        };
         // precondition is that append_or_truncate is called so search and replace have the same length
         let map = tr.make_map();
         assert_eq!(3, map.len());
