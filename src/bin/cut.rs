@@ -392,7 +392,7 @@ fn main() {
 
     if parser.found(&'d') {
         let dlm = parser.get_opt(&'d').unwrap();
-        if dlm.len() != 1 {
+        if dlm.chars().count() != 1 {
             fail("bad delimiter", &mut stderr)
         }
         delimiter = Some(dlm);
