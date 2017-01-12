@@ -117,6 +117,11 @@ impl Program {
             cat.show_tabs = true;
         }
 
+        if parser.found(&'n') || parser.found("number") {
+            cat.number = true;
+            cat.number_nonblank = false;
+        }
+
         if parser.found(&'b') || parser.found("number-nonblank") {
             cat.number_nonblank = true;
             cat.number = false;
@@ -124,11 +129,6 @@ impl Program {
 
         if parser.found(&'E') || parser.found("show-ends") || parser.found(&'e') {
             cat.show_ends = true;
-        }
-
-        if parser.found(&'n') || parser.found("number") {
-            cat.number = true;
-            cat.number_nonblank = false;
         }
 
         if parser.found(&'s') || parser.found("squeeze-blank") {
