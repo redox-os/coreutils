@@ -92,7 +92,7 @@ impl Program {
             add_flag("T", "show-tabs").
             add_flag("v", "show-nonprinting").
             add_flag("h", "help");
-        parser.initialize(env::args());
+        parser.parse(env::args());
 
         let mut cat = Program {
             exit_status:      Cell::new(0i32),
@@ -105,41 +105,41 @@ impl Program {
             paths:            Vec::with_capacity(parser.args.len()),
         };
 
-        if parser.flagged('h') || parser.flagged("help") {
+        if parser.found(&'h') || parser.found("help") {
             stdout.write(MAN_PAGE.as_bytes()).try(stderr);
             stdout.flush().try(stderr);
             exit(0);
         }
 
-        if parser.flagged('A') || parser.flagged("show-all") {
+        if parser.found(&'A') || parser.found("show-all") {
             cat.show_nonprinting = true;
             cat.show_ends = true;
             cat.show_tabs = true;
         }
 
-        if parser.flagged('b') || parser.flagged("number-nonblank") {
+        if parser.found(&'b') || parser.found("number-nonblank") {
             cat.number_nonblank = true;
             cat.number = false;
         }
 
-        if parser.flagged('E') || parser.flagged("show-ends") || parser.flagged('e') {
+        if parser.found(&'E') || parser.found("show-ends") || parser.found(&'e') {
             cat.show_ends = true;
         }
 
-        if parser.flagged('n') || parser.flagged("number") {
+        if parser.found(&'n') || parser.found("number") {
             cat.number = true;
             cat.number_nonblank = false;
         }
 
-        if parser.flagged('s') || parser.flagged("squeeze-blank") {
+        if parser.found(&'s') || parser.found("squeeze-blank") {
             cat.squeeze_blank = true;
         }
 
-        if parser.flagged('T') || parser.flagged("show-tabs") || parser.flagged('t') {
+        if parser.found(&'T') || parser.found("show-tabs") || parser.found(&'t') {
             cat.show_tabs = true;
         }
 
-        if parser.flagged('v') || parser.flagged("show-nonprinting") || parser.flagged('e') || parser.flagged('t') {
+        if parser.found(&'v') || parser.found("show-nonprinting") || parser.found(&'e') || parser.found(&'t') {
             cat.show_nonprinting = true;
         }
 
