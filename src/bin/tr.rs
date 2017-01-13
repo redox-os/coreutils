@@ -1,5 +1,11 @@
 #![deny(warnings)]
 
+/*
+ * Part of the code in this file was taken from https://github.com/uutils/coreutils/blob/master/src/tr/expand.rs
+ *
+ * (c) Michael Gehring <mg@ebfe.org>
+ * (c) kwantam <kwantam@gmail.com>
+ */
 extern crate coreutils;
 extern crate extra;
 
@@ -11,6 +17,11 @@ use std::io::{self, Stdout, Stderr,  BufRead, Read, Write};
 
 use coreutils::ArgParser;
 use extra::io::{fail, WriteExt};
+
+use std::char::from_u32;
+use std::cmp::min;
+use std::iter::Peekable;
+use std::ops::Range;
 
 static OK: i32                      = 0;
 static INVALID_FLAG: i32            = 1;
@@ -53,7 +64,7 @@ DESCRIPTION
     --truncate
     -t   first truncate string1 to length of string2
 
-    *NOTE* ranges are not implemented yet
+    *NOTE* octal escapes are not implemented yet
 
     In either string the notation a-b means a range of charac-
     ters from a to b in increasing ASCII order.  The character
@@ -70,12 +81,115 @@ DESCRIPTION
         tr -cs A-Za-z '\012' <file1 >file2
 
 SEE ALSO
-    ed(1), ascii(7)
+    cat(1), echo(1), ed(1), ascii(7)
 
 BUGS
     loads.
 "#; /* @MANEND */
 
+
+
+#[inline]
+fn unescape_char(c: char) -> char {
+    match c {
+        'a' => 0x07u8 as char,
+        'b' => 0x08u8 as char,
+        'f' => 0x0cu8 as char,
+        'v' => 0x0bu8 as char,
+        'n' => '\n',
+        'r' => '\r',
+        't' => '\t',
+        _ => c,
+    }
+}
+
+struct Unescape<'a> {
+    string: &'a str,
+}
+
+impl<'a> Iterator for Unescape<'a> {
+    type Item = char;
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let slen = self.string.len();
+        (min(slen, 1), None)
+    }
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.string.len() == 0 {
+            return None;
+        }
+
+        // is the next character an escape?
+        let (ret, idx) = match self.string.chars().next().unwrap() {
+            '\\' if self.string.len() > 1 => {
+                // yes---it's \ and it's not the last char in a string
+                // we know that \ is 1 byte long so we can index into the string safely
+                let c = self.string[1..].chars().next().unwrap();
+                // do some matching on '0' (or 'x') here
+                (Some(unescape_char(c)), 1 + c.len_utf8())
+            },
+            c => (Some(c), c.len_utf8()),   // not an escape char
+        };
+
+        self.string = &self.string[idx..];              // advance the pointer to the next char
+        ret
+    }
+}
+
+pub struct ExpandSet<'a> {
+    range: Range<u32>,
+    unesc: Peekable<Unescape<'a>>,
+}
+
+impl<'a> Iterator for ExpandSet<'a> {
+    type Item = char;
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.unesc.size_hint()
+    }
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        // while the Range has elements, try to return chars from it
+        // but make sure that they actually turn out to be Chars!
+        while let Some(n) = self.range.next() {
+            if let Some(c) = from_u32(n) {
+                return Some(c);
+            }
+        }
+
+        if let Some(first) = self.unesc.next() {
+            // peek ahead
+            if self.unesc.peek() == Some(&'-') && match self.unesc.size_hint() {
+                (x, _) if x > 1 => true,    // there's a range here; record it in our internal Range struct
+                _ => false,
+            } {
+                self.unesc.next();                      // this is the '-'
+                let last = self.unesc.next().unwrap();  // this is the end of the range
+
+                self.range = first as u32 + 1 .. last as u32 + 1;
+            }
+
+            return Some(first);     // in any case, return the next char
+        }
+
+        None
+    }
+}
+
+impl<'a> ExpandSet<'a> {
+    #[inline]
+    pub fn new(s: &'a str) -> ExpandSet<'a> {
+        ExpandSet {
+            range: 0 .. 0,
+            unesc: Unescape { string: s }.peekable(),
+        }
+    }
+}
 
 struct Translation {
     complement:  bool,
@@ -103,50 +217,13 @@ impl Default for Translation {
         }
     }
 }
+
 impl Translation {
 
     fn print_opts(&self) {
         println!("flags\ncompliment:\t{}\ndelete:\t{}\nsqueeze:\t{}\ntruncate:\t{}", self.complement, self.delete, self.squeeze, self.truncate);
         println!("search: {}", self.search);
         println!("replace: {}", self.replace);
-    }
-
-    fn truncate(&mut self, input: String, length: usize) -> String {
-        // use an iterator just in case we have diacretes or other complex chars
-        let mut new_string = "".to_string();
-        {
-            let mut char_walker = input.chars();
-            for _ in 0 .. length {
-                let last_char = char_walker.next().unwrap();
-                new_string.push(last_char);
-            }
-        }
-        return new_string;
-    }
-
-    fn append_or_truncate(&mut self) -> &mut Translation {
-        // first decide
-        let search_length = self.search.chars().count();
-        let replace_length = self.replace.chars().count();
-
-        if replace_length > 0 && replace_length < search_length {
-            //build adjust search or replace?
-            if self.truncate {
-                let old_value = self.search.clone();
-                self.search = self.truncate(old_value, replace_length);
-            } else {
-                // fill replace with it's last char to match search in length
-                let lastchar_as_string = self.replace.chars().last().unwrap();
-                for _ in replace_length .. search_length {
-                    self.replace.push(lastchar_as_string); // do something
-                }
-            }
-        } else if replace_length > search_length {
-            // truncate replaces length to search'
-            let old_value = self.replace.clone();
-            self.replace = self.truncate(old_value, search_length);
-        }
-        return self;
     }
 
     fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
@@ -201,6 +278,62 @@ impl Translation {
         return self;
     }
 
+    fn expand_ranges_and_resolve_escapes(&mut self) {
+        // for both search and replace
+        self.search = ExpandSet::new(self.search.as_ref()).collect();
+        if ! self.replace.is_empty() {
+            self.replace = ExpandSet::new(self.replace.as_ref()).collect();
+        }
+        //   iterate over chars
+        //     if present_char == '\' check what follows
+        //       if follows in '\', '-', 'a', 'b', 'f', 'n', 'r', 't, 'v'
+        //         insert code
+        //       else if follows in [0-9] or 'x'
+        //         consume octal or x and hexadecimal or decimal digits until no more found or ...
+        //   re-iterate over_chars and remember last char
+        //     if present_char == '-' check previous and next
+        //       iterate from previous to next
+    }
+
+    fn truncate(&mut self, input: String, length: usize) -> String {
+        // use an iterator just in case we have diacretes or other complex chars
+        let mut new_string = "".to_string();
+        {
+            let mut char_walker = input.chars();
+            for _ in 0 .. length {
+                let last_char = char_walker.next().unwrap();
+                new_string.push(last_char);
+            }
+        }
+        return new_string;
+    }
+
+    fn append_or_truncate(&mut self) -> &mut Translation {
+        // first decide
+        let search_length = self.search.chars().count();
+        let replace_length = self.replace.chars().count();
+
+        if replace_length > 0 && replace_length < search_length {
+            //build adjust search or replace?
+            if self.truncate {
+                let old_value = self.search.clone();
+                self.search = self.truncate(old_value, replace_length);
+            } else {
+                // fill replace with it's last char to match search in length
+                let lastchar_as_string = self.replace.chars().last().unwrap();
+                for _ in replace_length .. search_length {
+                    self.replace.push(lastchar_as_string); // do something
+                }
+            }
+        } else if replace_length > search_length {
+            // truncate replaces length to search'
+            let old_value = self.replace.clone();
+            self.replace = self.truncate(old_value, search_length);
+        }
+        return self;
+    }
+
+
     fn make_map(&mut self) -> HashMap<char, char> {
         // prereq is that search and replace are now the same length
         return self.search.chars().zip(self.replace.chars()).collect();
@@ -213,6 +346,7 @@ impl Translation {
             Some(kar)
         }
     }
+
     fn replace_char_if_needed(&mut self, kar: char, map: &HashMap<char,char>) -> Option<char> {
         let complement_replacement = self.replace.chars().nth(0).unwrap();
         return if map.get(&kar).is_some() {
@@ -298,6 +432,9 @@ fn main() {
     tr.get_opts(&mut stdout,&mut stderr);
     if tr.status.get() == OK {
         tr.check_opts();
+    }
+    if tr.status.get() == OK {
+        tr.expand_ranges_and_resolve_escapes();
     }
     if tr.status.get() == OK {
         tr.append_or_truncate();
