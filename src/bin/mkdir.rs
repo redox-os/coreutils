@@ -24,14 +24,17 @@ DESCRIPTION
 OPTIONS
     --help, -h
         print this message
+    -p, --parents
+        no error if existing, make parent directories as needed
 "#; /* @MANEND */
 
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(1)
-        .add_flag("h", "help");
+    let mut parser = ArgParser::new(2)
+        .add_flag("h", "help")
+        .add_flag("p", "parents");
     parser.parse(env::args());
 
     if parser.found(&'h') || parser.found("help") {
@@ -43,7 +46,16 @@ fn main() {
         fail("No arguments. Use --help to see the usage.", &mut stderr);
     }
 
+    let mut parents = false;
+    if parser.found(&'p') || parser.found("parents") {
+        parents = true;
+    }
+
     for ref path in &parser.args {
-        fs::create_dir(path).try(&mut stderr);
+        if parents {
+            fs::create_dir_all(path).try(&mut stderr);
+        } else {
+            fs::create_dir(path).try(&mut stderr);
+        }
     }
 }
