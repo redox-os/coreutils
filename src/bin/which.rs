@@ -46,7 +46,8 @@ fn main() {
     let path = env::var("PATH").unwrap();
 
     let read_dir = Path::new(&path).read_dir().try(&mut stderr);
-    let binaries: Vec<String> = read_dir.filter_map(|x| x.ok())
+    let binaries: Vec<String> = read_dir
+        .filter_map(|x| x.ok())
         .map(|dir| {
             let mut file_name = dir.file_name().to_string_lossy().into_owned();
             if dir.file_type().try(&mut stderr).is_dir() {
