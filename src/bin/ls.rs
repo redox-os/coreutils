@@ -34,6 +34,8 @@ OPTIONS
         display this help and exit
     -l
         use a long listing format
+    -r, --reverse
+        reverse order while sorting
     -R, --recursive
         list subdirectories recursively
 "#; /* @MANEND */
@@ -98,7 +100,11 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
             file_name
         }).collect();
 
-        entries.sort();
+        if parser.found(&'r') || parser.found("reverse") {
+            entries.sort_by(|a, b| b.cmp(a));
+        } else {
+            entries.sort_by(|a, b| a.cmp(b));
+        }
 
         for entry in entries.iter() {
             let mut entry_path = path.to_owned();
@@ -125,6 +131,7 @@ fn main() {
     let mut parser = ArgParser::new(4)
         .add_flag("l", "long-format")
         .add_flag("h", "human-readable")
+        .add_flag("r", "reverse")
         .add_flag("R", "recursive")
         .add_flag("", "help");
     parser.parse(env::args());
