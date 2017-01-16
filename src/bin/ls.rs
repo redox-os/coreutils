@@ -27,8 +27,9 @@ DESCRIPTION
     List information about the FILE(s), or the current directory
 
 OPTIONS
-    -h
-    --human-readable
+    -a, --all
+        do not ignore entries starting with .
+    -h, --human-readable
         with -l, print human readable sizes
     --help
         display this help and exit
@@ -91,14 +92,28 @@ fn print_item(item_path: &str, metadata: &Metadata, parser: &ArgParser, stdout: 
 }
 
 fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    let mut show_hidden = false;
+    if parser.found(&'a') || parser.found("all") {
+        show_hidden = true;
+    }
+
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
 
-        let mut entries: Vec<String> = read_dir.filter_map(|x| x.ok()).map(|dir| {
-            let file_name = dir.file_name().to_string_lossy().into_owned();
-            file_name
-        }).collect();
+        let mut entries: Vec<String> = read_dir
+                .filter_map(|x| x.ok())
+                .map(|x| {
+                    let file_name = x.file_name().to_string_lossy().into_owned();
+                    file_name
+                })
+                .filter(|x| {
+                    match show_hidden {
+                        true => true,
+                        false => !x.starts_with(".")
+                    }
+                })
+                .collect();
 
         if parser.found(&'r') || parser.found("reverse") {
             entries.sort_by(|a, b| b.cmp(a));
@@ -128,7 +143,8 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    let mut parser = ArgParser::new(4)
+    let mut parser = ArgParser::new(6)
+        .add_flag("a", "all")
         .add_flag("l", "long-format")
         .add_flag("h", "human-readable")
         .add_flag("r", "reverse")
