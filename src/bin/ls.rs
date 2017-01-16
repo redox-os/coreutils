@@ -5,13 +5,16 @@ extern crate extra;
 
 use std::env;
 use std::fs;
+use std::fs::{Metadata, FileType};
 use std::path::Path;
-use std::io::{stdout, stderr, Stderr, Write};
+use std::io::{stdout, StdoutLock, stderr, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
+
 use std::process::exit;
 
 use coreutils::{ArgParser, to_human_readable_string};
 use extra::option::OptionalExt;
+
 
 const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
 NAME
@@ -31,60 +34,86 @@ OPTIONS
         display this help and exit
     -l
         use a long listing format
+    -R, --recursive
+        list subdirectories recursively
 "#; /* @MANEND */
 
-fn list_dir(path: &str, parser: &ArgParser, string: &mut String, stderr: &mut Stderr) {
+fn mode_to_human_readable(file_type: &FileType, mode: u32) -> String {
+
+    let mut result = String::from("");
+    //TODO is a symlink? => push 'l' 
+    if file_type.is_dir() {
+        result.push('d');
+    }else{
+        result.push('-');
+    }
+
+    let mode_str = format!("{:>6o}", mode);
+    let mode_chars = mode_str[3..].chars();
+    for i in mode_chars {
+        match i {
+            '7' => result.push_str("rwx"),
+            '6' => result.push_str("rw-"),
+            '5' => result.push_str("r-x"),
+            '4' => result.push_str("r--"),
+            '3' => result.push_str("-wx"),
+            '2' => result.push_str("-w-"),
+            '1' => result.push_str("--x"),
+            _   => result.push_str("---")
+        }
+    }
+
+    return result;
+}
+
+fn print_item(item_path: &str, metadata: &Metadata, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr){
+    if parser.found(&'l') || parser.found("long-format") {
+    stdout.write(&format!("{} {:>5} {:>5} ",
+            mode_to_human_readable(&(metadata.file_type()), metadata.mode()),
+            metadata.uid(),
+            metadata.gid()).as_bytes()).try(stderr);
+        if parser.found(&'h') || parser.found("human-readable") {
+            stdout.write(&format!("{:>6} ", 
+                    to_human_readable_string(metadata.size())).as_bytes()).try(stderr);
+        } else {
+            stdout.write(&format!("{:>8} ", metadata.size()).as_bytes()).try(stderr);
+        }
+    }
+    if item_path.starts_with("./") {
+        stdout.write(&item_path[2..].as_bytes()).try(stderr);
+    }else{
+        stdout.write(item_path.as_bytes()).try(stderr);
+    }
+    stdout.write("\n".as_bytes()).try(stderr);
+    stdout.flush().try(stderr);
+}
+
+fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr) {
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
 
         let mut entries: Vec<String> = read_dir.filter_map(|x| x.ok()).map(|dir| {
-                let mut file_name = dir.file_name().to_string_lossy().into_owned();
-                if dir.file_type().try(stderr).is_dir() {
-                    file_name.push('/');
-                }
-                file_name
-            })
-            .collect();
+            let file_name = dir.file_name().to_string_lossy().into_owned();
+            file_name
+        }).collect();
 
         entries.sort();
 
         for entry in entries.iter() {
-            if parser.found(&'l') || parser.found("long-format") {
-                let mut entry_path = path.to_owned();
-                if !entry_path.ends_with('/') {
-                    entry_path.push('/');
-                }
-                entry_path.push_str(&entry);
-
-                let metadata = fs::metadata(entry_path).try(stderr);
-                string.push_str(&format!("{:>7o} {:>5} {:>5} ",
-                                         metadata.mode(),
-                                         metadata.uid(),
-                                         metadata.gid()));
-                if parser.found(&'h') || parser.found("human-readable") {
-                    string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
-                } else {
-                    string.push_str(&format!("{:>8} ", metadata.size()));
-                }
+            let mut entry_path = path.to_owned();
+            if !entry_path.ends_with('/') {
+                entry_path.push('/');
             }
-            string.push_str(entry);
-            string.push('\n');
+            entry_path.push_str(&entry);
+            let metadata = fs::metadata(&entry_path).try(stderr);
+            print_item(&entry_path, &metadata, &parser, stdout, stderr);
+            if (parser.found(&'R') || parser.found("recursive")) && metadata.is_dir() {
+                list_dir(&entry_path, parser, stdout, stderr);            
+            }
         }
     } else {
-        if parser.found(&'l') || parser.found("long-format") {
-            string.push_str(&format!("{:>7o} {:>5} {:>5} ",
-                                     metadata.mode(),
-                                     metadata.uid(),
-                                     metadata.gid()));
-            if parser.found(&'h') || parser.found("human-readable") {
-                string.push_str(&format!("{:>6} ", to_human_readable_string(metadata.size())));
-            } else {
-                string.push_str(&format!("{:>8} ", metadata.size()));
-            }
-        }
-        string.push_str(path);
-        string.push('\n');
+        print_item(&path, &metadata, &parser, stdout, stderr);
     }
 }
 
@@ -93,9 +122,10 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    let mut parser = ArgParser::new(3)
+    let mut parser = ArgParser::new(4)
         .add_flag("l", "long-format")
         .add_flag("h", "human-readable")
+        .add_flag("R", "recursive")
         .add_flag("", "help");
     parser.parse(env::args());
 
@@ -105,15 +135,14 @@ fn main() {
         exit(0);
     }
 
-    let mut string = String::new();
+
     if parser.args.is_empty() {
-        list_dir(".", &parser, &mut string, &mut stderr);
+        list_dir(".", &parser, &mut stdout, &mut stderr);
     } else {
         for dir in parser.args.iter() {
-            list_dir(&dir, &parser, &mut string, &mut stderr);
+            list_dir(&dir, &parser, &mut stdout, &mut stderr);
         }
     }
-    stdout.write(string.as_bytes()).try(&mut stderr);
 }
 
 #[test]
