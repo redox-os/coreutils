@@ -56,10 +56,14 @@ fn main() {
     }
 
     if !parser.args.is_empty() {
-        thread::sleep(Duration::from_millis(argument_to_ms(&parser.args[0], &mut stderr)));
-        for argument in &parser.args[1..] {
-            thread::sleep(Duration::from_millis(argument_to_ms(&argument, &mut stderr)));
+        let sleep_times_in_ms = parser.args.iter()
+            .map(|argument| argument_to_ms(&argument, &mut stderr))
+            .collect::<Vec<_>>();
+
+        for sleep_time in sleep_times_in_ms {
+            thread::sleep(Duration::from_millis(sleep_time));
         }
+
     } else {
         stderr.write(MISSING_OPERAND.as_bytes()).try(&mut stderr);
         stderr.write(HELP_INFO.as_bytes()).try(&mut stderr);
