@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate coreutils;
 extern crate extra;
 
 use std::cell::Cell; // Provide mutable fields in immutable structs
@@ -9,6 +10,7 @@ use std::fs;
 use std::io::{self, BufReader, Read, Stderr, StdoutLock, Write};
 use std::process::exit;
 use extra::option::OptionalExt;
+use coreutils::ArgParser;
 
 const MAN_PAGE: &'static str = /* @MANSTART{cat} */ r#"NAME
     cat - concatenate files and print on the standard output
@@ -79,6 +81,19 @@ struct Program {
 impl Program {
     /// Initialize the program's arguments and flags.
     fn initialize(stdout: &mut StdoutLock, stderr: &mut Stderr) -> Program {
+        let mut parser = ArgParser::new(10).
+            add_flag("A", "show-all"). //vET
+            add_flag("b", "number-nonblank").
+            add_flag("e", ""). //vE
+            add_flag("E", "show-ends").
+            add_flag("n", "number").
+            add_flag("s", "squeeze-blank").
+            add_flag("t", ""). //vT
+            add_flag("T", "show-tabs").
+            add_flag("v", "show-nonprinting").
+            add_flag("h", "help");
+        parser.parse(env::args());
+
         let mut cat = Program {
             exit_status:      Cell::new(0i32),
             number:           false,
@@ -87,92 +102,49 @@ impl Program {
             show_tabs:        false,
             show_nonprinting: false,
             squeeze_blank:    false,
-            paths:            Vec::new()
+            paths:            Vec::with_capacity(parser.args.len()),
         };
-        for argument in env::args().skip(1) {
-            if argument.starts_with('-') && &argument != "-" {
-                if argument.starts_with("--") {
-                    match argument.as_str() {
-                        "--help" => {
-                            stdout.write(MAN_PAGE.as_bytes()).try(stderr);
-                            stdout.flush().try(stderr);
-                            exit(0);
-                        }
-                        "--show-all" => {
-                            cat.show_nonprinting = true;
-                            cat.show_ends = true;
-                            cat.show_tabs = true;
-                        },
-                        "--number-nonblank" => {
-                            cat.number_nonblank = true;
-                            cat.number = false;
-                        },
-                        "--show-ends" => cat.show_ends = true,
-                        "--number" => {
-                            cat.number = true;
-                            cat.number_nonblank = false;
-                        },
-                        "--squeeze-blank" => cat.squeeze_blank = true,
-                        "--show-tabs" => cat.show_tabs = true,
-                        "--show-nonprinting" => {
-                            cat.show_nonprinting = true;
-                        },
-                        _ => {
-                            stderr.write(b"invalid option -- '").try(stderr);
-                            stderr.write(argument.as_bytes()).try(stderr);
-                            stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
-                            stderr.flush().try(stderr);
-                            exit(1);
-                        }
-                    }
-                } else {
-                    for character in argument.bytes().skip(1) {
-                        match character {
-                            b'h' => {
-                                stdout.write(MAN_PAGE.as_bytes()).try(stderr);
-                                stdout.flush().try(stderr);
-                                exit(0);
-                            }
-                            b'A' => {
-                                cat.show_nonprinting = true;
-                                cat.show_ends = true;
-                                cat.show_tabs = true;
-                            },
-                            b'b'=> {
-                                cat.number_nonblank = true;
-                                cat.number = false;
-                            },
-                            b'e' => {
-                                cat.show_nonprinting = true;
-                                cat.show_ends = true;
-                            },
-                            b'E'=> cat.show_ends = true,
-                            b'n' => {
-                                cat.number = true;
-                                cat.number_nonblank = false;
-                            },
-                            b's' => cat.squeeze_blank = true,
-                            b't' => {
-                                cat.show_nonprinting = true;
-                                cat.show_tabs = true;
-                            },
-                            b'T' => cat.show_tabs = true,
-                            b'v' => {
-                                cat.show_nonprinting = true;
-                            },
-                            _ => {
-                                stderr.write(b"invalid option -- '").try(stderr);
-                                stderr.write(&[character]).try(stderr);
-                                stderr.write(b"'\nTry 'cat --help' for more information.\n").try(stderr);
-                                stderr.flush().try(stderr);
-                                exit(1);
-                            }
-                        }
-                    }
-                }
-            } else {
-                cat.paths.push(argument);
-            }
+
+        if parser.found(&'h') || parser.found("help") {
+            stdout.write(MAN_PAGE.as_bytes()).try(stderr);
+            stdout.flush().try(stderr);
+            exit(0);
+        }
+
+        if parser.found(&'A') || parser.found("show-all") {
+            cat.show_nonprinting = true;
+            cat.show_ends = true;
+            cat.show_tabs = true;
+        }
+
+        if parser.found(&'n') || parser.found("number") {
+            cat.number = true;
+            cat.number_nonblank = false;
+        }
+
+        if parser.found(&'b') || parser.found("number-nonblank") {
+            cat.number_nonblank = true;
+            cat.number = false;
+        }
+
+        if parser.found(&'E') || parser.found("show-ends") || parser.found(&'e') {
+            cat.show_ends = true;
+        }
+
+        if parser.found(&'s') || parser.found("squeeze-blank") {
+            cat.squeeze_blank = true;
+        }
+
+        if parser.found(&'T') || parser.found("show-tabs") || parser.found(&'t') {
+            cat.show_tabs = true;
+        }
+
+        if parser.found(&'v') || parser.found("show-nonprinting") || parser.found(&'e') || parser.found(&'t') {
+            cat.show_nonprinting = true;
+        }
+
+        if !parser.args.is_empty() {
+            cat.paths = parser.args;
         }
         cat
     }
