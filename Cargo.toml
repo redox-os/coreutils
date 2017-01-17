@@ -164,6 +164,10 @@ name = "wc"
 path = "src/bin/wc.rs"
 
 [[bin]]
+name = "which"
+path = "src/bin/which.rs"
+
+[[bin]]
 name = "yes"
 path = "src/bin/yes.rs"
 
