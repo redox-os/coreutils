@@ -88,6 +88,8 @@ fn main() {
             stderr.flush().try(&mut stderr);
             exit(1);
         }
+    }
+    for arg in &parser.args {
         if Path::new(arg).is_dir() {
             if parser.found(&'i') || parser.found("interactive") {
                 stdout.write(b"remove directory '").try(&mut stderr);
