@@ -117,7 +117,7 @@ impl ArgParser {
                     self.params.insert(Param::Short(short), Value::Flag(Rhs::new(value.clone())));
                 }
             }
-            else {
+            else if !flag.is_empty() {
                 self.params.insert(Param::Long((*flag).to_owned()), Value::Flag(Rhs::new(value.clone())));
             }
         }
