@@ -34,7 +34,7 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag("h", "help");
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
     if parser.found(&'h') || parser.found("help") {

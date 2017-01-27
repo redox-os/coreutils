@@ -82,16 +82,16 @@ impl Program {
     /// Initialize the program's arguments and flags.
     fn initialize(stdout: &mut StdoutLock, stderr: &mut Stderr) -> Program {
         let mut parser = ArgParser::new(10).
-            add_flag("A", "show-all"). //vET
-            add_flag("b", "number-nonblank").
-            add_flag("e", ""). //vE
-            add_flag("E", "show-ends").
-            add_flag("n", "number").
-            add_flag("s", "squeeze-blank").
-            add_flag("t", ""). //vT
-            add_flag("T", "show-tabs").
-            add_flag("v", "show-nonprinting").
-            add_flag("h", "help");
+            add_flag(&["A", "show-all"]). //vET
+            add_flag(&["b", "number-nonblank"]).
+            add_flag(&["e"]). //vE
+            add_flag(&["E", "show-ends"]).
+            add_flag(&["n", "number"]).
+            add_flag(&["s", "squeeze-blank"]).
+            add_flag(&["t"]). //vT
+            add_flag(&["T", "show-tabs"]).
+            add_flag(&["v", "show-nonprinting"]).
+            add_flag(&["h", "help"]);
         parser.parse(env::args());
 
         let mut cat = Program {

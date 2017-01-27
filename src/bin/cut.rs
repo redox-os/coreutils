@@ -337,7 +337,6 @@ enum Mode {
 
 
 fn main() {
-
     // Arguments.
     let mut mode = None;
     let mut delimiter = None;
@@ -349,8 +348,8 @@ fn main() {
     let mut stderr = io::stderr();
 
     let mut parser = ArgParser::new(6)
-        .add_flag("h", "help")
-        .add_flag("s", "")
+        .add_flag(&["h", "help"])
+        .add_flag(&["s"])
         .add_opt("b", "")
         .add_opt("c", "")
         .add_opt("f", "")

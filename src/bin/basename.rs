@@ -58,9 +58,9 @@ fn main() {
     let mut stderr      = io::stderr();
     let mut parser = ArgParser::new(4)
         .add_opt("s", "suffix")
-        .add_flag("a", "multiple")
-        .add_flag("z", "zero")
-        .add_flag("h", "help");
+        .add_flag(&["a", "multiple"])
+        .add_flag(&["z", "zero"])
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
     if parser.found(&'h') || parser.found("help") {
