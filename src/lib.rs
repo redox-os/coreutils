@@ -60,7 +60,7 @@ impl<T> Rhs<T> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// The Value for each parameter
 enum Value {
-    Flag(Rhs<bool>),
+    Flag(Rhs<Rc<RefCell<bool>>>),
     /// The RHS String value is shared between both short and long parameters
     Opt {
         rhs: Rhs<Rc<RefCell<String>>>,
@@ -79,7 +79,7 @@ impl Value {
 pub struct ArgParser {
     params: HashMap<Param, Value>,
     invalid: Vec<Param>,
-    garbage: (bool, RefCell<String>),
+    garbage: (RefCell<bool>, RefCell<String>),
     pub args: Vec<String>,
 }
 
@@ -92,7 +92,7 @@ impl ArgParser {
         ArgParser {
             params: HashMap::with_capacity(capacity),
             invalid: Vec::new(),
-            garbage: (false, RefCell::new(String::with_capacity(0))),
+            garbage: (RefCell::new(false), RefCell::new(String::with_capacity(0))),
             args: Vec::new(),
         }
     }
@@ -109,12 +109,17 @@ impl ArgParser {
     ///   |  |  `-- A long flag to enable human readable numbers.
     ///   |  `-- A short flag to enable the long format.
     ///   `-- The command to list files.
-    pub fn add_flag(mut self, short: &str, long: &str) -> Self {
-        if let Some(short) = short.chars().next() {
-            self.params.insert(Param::Short(short), Value::Flag(Rhs::default()));
-        }
-        if !long.is_empty() {
-            self.params.insert(Param::Long(long.to_owned()), Value::Flag(Rhs::default()));
+    pub fn add_flag(mut self, flags: &[&str]) -> Self {
+        let value = Rc::new(RefCell::new(bool::default()));
+        for flag in flags.iter() {
+            if flag.len() == 1 {
+                if let Some(short) = flag.chars().next() {
+                    self.params.insert(Param::Short(short), Value::Flag(Rhs::new(value.clone())));
+                }
+            }
+            else {
+                self.params.insert(Param::Long((*flag).to_owned()), Value::Flag(Rhs::new(value.clone())));
+            }
         }
         self
     }
@@ -188,7 +193,7 @@ impl ArgParser {
                 else {
                     match self.params.get_mut(arg) {
                         Some(&mut Value::Flag(ref mut rhs)) => {
-                            rhs.value = true;
+                            *(*rhs.value).borrow_mut() = true;
                             rhs.occurrences += 1;
                         }
                         Some(&mut Value::Opt { ref mut rhs, ref mut found }) => {
@@ -204,7 +209,7 @@ impl ArgParser {
                 while let Some(ch) = chars.next() {
                     match self.params.get_mut(&ch) {
                         Some(&mut Value::Flag(ref mut rhs)) => {
-                            rhs.value = true;
+                            *(*rhs.value).borrow_mut() = true;
                             rhs.occurrences += 1;
                         }
                         Some(&mut Value::Opt { ref mut rhs, ref mut found }) => {
@@ -243,7 +248,7 @@ impl ArgParser {
         where Param: Borrow<P>
     {
         match self.params.get(name) {
-            Some(&Value::Flag(ref rhs)) => rhs.value,
+            Some(&Value::Flag(ref rhs)) => *(*rhs.value).borrow_mut(),
             Some(&Value::Opt { found, .. }) => found,
             _ => false,
         }
@@ -251,13 +256,13 @@ impl ArgParser {
 
     /// Modify the state of a flag. Use `true` if the flag is to be enabled. Use `false` to
     /// disable its use.
-    pub fn flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F) -> &mut bool
+    pub fn flag<F: Hash + Eq + ?Sized>(&mut self, flag: &F) -> RefMut<bool>
         where Param: Borrow<F>
     {
         if let Some(&mut Value::Flag(ref mut rhs)) = self.params.get_mut(flag) {
-            return &mut rhs.value;
+            return (*rhs.value).borrow_mut();
         }
-        &mut self.garbage.0
+        self.garbage.0.borrow_mut()
     }
 
     /// Modify the state value of an opt. Use `Some(String)` to set if the opt is to be enabled and
