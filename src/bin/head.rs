@@ -76,10 +76,10 @@ fn main() {
     let mut parser = ArgParser::new(3)
         .add_opt_default("n", "lines", "10")
         .add_opt("c", "bytes")
-        .add_flag("h", "help");
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         return;

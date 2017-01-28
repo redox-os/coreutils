@@ -91,11 +91,11 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(2)
-        .add_flag("n", "numeric-sort")
-        .add_flag("h", "help");
+        .add_flag(&["n", "numeric-sort"])
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
@@ -114,7 +114,7 @@ fn main() {
 
     match lines {
         Ok(mut l) => {
-            if parser.found(&'n') || parser.found("numeric-sort") {
+            if parser.found("numeric-sort") {
                 l.sort_by(numeric_compare);
             } else {
                 l.sort();

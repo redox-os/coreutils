@@ -29,10 +29,10 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag("h", "help");
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         return;

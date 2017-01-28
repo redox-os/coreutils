@@ -52,21 +52,19 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag("i", "interactive")
-        .add_flag("r", "recursive")
-        .add_flag("R", "")
-        .add_flag("d", "dir")
-        .add_flag("v", "verbose")
-        .add_flag("h", "help");
+        .add_flag(&["i", "interactive"])
+        .add_flag(&["r", "R", "recursive"])
+        .add_flag(&["d", "dir"])
+        .add_flag(&["v", "verbose"])
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
     }
-    if parser.found(&'r') || parser.found(&'R') || parser.found("recursive") {
-        *parser.flag(&'d') = true;
+    if parser.found("recursive") {
         *parser.flag("directory") = true;
     }
     if let Err(err) = parser.found_invalid() {
@@ -91,7 +89,7 @@ fn main() {
     }
     for arg in &parser.args {
         if Path::new(arg).is_dir() {
-            if parser.found(&'i') || parser.found("interactive") {
+            if parser.found("interactive") {
                 stdout.write(b"remove directory '").try(&mut stderr);
                 stdout.write(arg.as_bytes()).try(&mut stderr);
                 stdout.write(b"'? ").try(&mut stderr);
@@ -101,10 +99,10 @@ fn main() {
                 stdin.read_line(input).try(&mut stderr);
                 if input.chars().next().unwrap() != 'y' { continue }
             }
-            if parser.found(&'d') || parser.found("directory") {
+            if parser.found("directory") {
                 // Attempt to remove a directory and all of it's contents if recursive mode is enabled.
                 // If recursion is not enabled, attempt to remove the directory if it is empty.
-                if parser.found(&'r') || parser.found(&'R') || parser.found("recursive") {
+                if parser.found("recursive") {
                     // TODO: Use walkdir when it is implemented in Redox instead of fs::remove_dir_all().
                     if let Err(message) = fs::remove_dir_all(Path::new(arg)) {
                         stderr.write(b"cannot remove directory '").try(&mut stderr);
@@ -112,7 +110,7 @@ fn main() {
                         stderr.write(b"': ").try(&mut stderr);
                         print_error(message, &mut stderr);
                         exit_status = 1;
-                    } else if parser.found(&'v') || parser.found("verbose") {
+                    } else if parser.found("verbose") {
                         stdout.write(b"removed directory '").try(&mut stderr);
                         stdout.write(arg.as_bytes()).try(&mut stderr);
                         stdout.write(b"'\n").try(&mut stderr);
@@ -125,7 +123,7 @@ fn main() {
                         stderr.write(b"': ").try(&mut stderr);
                         print_error(message, &mut stderr);
                         exit_status = 1;
-                    } else if parser.found(&'v') || parser.found("verbose") {
+                    } else if parser.found("verbose") {
                         stdout.write(b"removed directory '").try(&mut stderr);
                         stdout.write(arg.as_bytes()).try(&mut stderr);
                         stdout.write(b"'\n").try(&mut stderr);
@@ -142,7 +140,7 @@ fn main() {
         }
         else {
             // Attempt to remove the file given as an input argument.
-            if parser.found(&'i') || parser.found("interactive") {
+            if parser.found("interactive") {
                 stdout.write(b"remove file '").try(&mut stderr);
                 stdout.write(arg.as_bytes()).try(&mut stderr);
                 stdout.write(b"'? ").try(&mut stderr);
@@ -158,7 +156,7 @@ fn main() {
                 stderr.write(b"': ").try(&mut stderr);
                 print_error(message, &mut stderr);
                 exit_status = 1;
-            } else if parser.found(&'v') || parser.found("verbose") {
+            } else if parser.found("verbose") {
                 stdout.write(b"removed '").try(&mut stderr);
                 stdout.write(arg.as_bytes()).try(&mut stderr);
                 stdout.write(b"'\n").try(&mut stderr);

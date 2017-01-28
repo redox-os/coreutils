@@ -22,7 +22,7 @@ fn free(parser: &coreutils::ArgParser) -> ::std::io::Result<()> {
     let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
     let free = stat.f_bavail * stat.f_bsize as u64;
 
-    if parser.found(&'h') || parser.found("human-readable") {
+    if parser.found("human-readable") {
         println!("{:<8}{:>10}{:>10}{:>10}",
                  "Mem:",
                  to_human_readable_string(size),
@@ -69,8 +69,8 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag("h", "human-readable")
-        .add_flag("", "help");
+        .add_flag(&["h", "human-readable"])
+        .add_flag(&["help"]);
     parser.parse(env::args());
 
     if parser.found("help") {
