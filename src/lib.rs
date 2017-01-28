@@ -346,8 +346,8 @@ mod tests {
     fn stop_parsing() {
         let args = vec![String::from("binname"), String::from("-a"), String::from("--"), String::from("-v")];
         let mut parser = ArgParser::new(2);
-        parser = parser.add_flag("a", "")
-                       .add_flag("v", "");
+        parser = parser.add_flag(&["a"])
+                       .add_flag(&["v"]);
         parser.parse(args.into_iter());
         assert!(parser.found(&'a'));
         assert!(!parser.found(&'v'));
@@ -358,8 +358,8 @@ mod tests {
     fn short_opts() {
         let args = vec![String::from("binname"), String::from("-asdf"), String::from("-f"), String::from("foo")];
         let mut parser = ArgParser::new(4);
-        parser = parser.add_flag("a", "")
-                       .add_flag("d", "")
+        parser = parser.add_flag(&["a"])
+                       .add_flag(&["d"])
                        .add_opt("s", "")
                        .add_opt("f", "");
         parser.parse(args.into_iter());
