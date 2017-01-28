@@ -356,7 +356,7 @@ fn main() {
         .add_opt("d", "");
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         let _ = stdout.write(MAN_PAGE.as_bytes());
         return;
     }

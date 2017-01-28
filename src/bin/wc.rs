@@ -202,9 +202,6 @@ fn main() {
     if !(parser.found("lines") ||
          parser.found("words") ||
          parser.found("bytes")) {
-        *parser.flag(&'l') = true;
-        *parser.flag(&'w') = true;
-        *parser.flag(&'c') = true;
         *parser.flag("lines") = true;
         *parser.flag("words") = true;
         *parser.flag("bytes") = true;
