@@ -70,12 +70,12 @@ fn mode_to_human_readable(file_type: &FileType, mode: u32) -> String {
 }
 
 fn print_item(item_path: &str, metadata: &Metadata, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr){
-    if parser.found(&'l') || parser.found("long-format") {
+    if parser.found("long-format") {
     stdout.write(&format!("{} {:>5} {:>5} ",
             mode_to_human_readable(&(metadata.file_type()), metadata.mode()),
             metadata.uid(),
             metadata.gid()).as_bytes()).try(stderr);
-        if parser.found(&'h') || parser.found("human-readable") {
+        if parser.found("human-readable") {
             stdout.write(&format!("{:>6} ", 
                     to_human_readable_string(metadata.size())).as_bytes()).try(stderr);
         } else {
@@ -93,7 +93,7 @@ fn print_item(item_path: &str, metadata: &Metadata, parser: &ArgParser, stdout: 
 
 fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr) {
     let mut show_hidden = false;
-    if parser.found(&'a') || parser.found("all") {
+    if parser.found("all") {
         show_hidden = true;
     }
 
@@ -115,7 +115,7 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
                 })
                 .collect();
 
-        if parser.found(&'r') || parser.found("reverse") {
+        if parser.found("reverse") {
             entries.sort_by(|a, b| b.cmp(a));
         } else {
             entries.sort_by(|a, b| a.cmp(b));
@@ -129,8 +129,8 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
             entry_path.push_str(&entry);
             let metadata = fs::metadata(&entry_path).try(stderr);
             print_item(&entry_path, &metadata, &parser, stdout, stderr);
-            if (parser.found(&'R') || parser.found("recursive")) && metadata.is_dir() {
-                list_dir(&entry_path, parser, stdout, stderr);            
+            if parser.found("recursive") && metadata.is_dir() {
+                list_dir(&entry_path, parser, stdout, stderr);
             }
         }
     } else {
@@ -144,12 +144,12 @@ fn main() {
     let mut stderr = stderr();
 
     let mut parser = ArgParser::new(6)
-        .add_flag("a", "all")
-        .add_flag("l", "long-format")
-        .add_flag("h", "human-readable")
-        .add_flag("r", "reverse")
-        .add_flag("R", "recursive")
-        .add_flag("", "help");
+        .add_flag(&["a", "all"])
+        .add_flag(&["l", "long-format"])
+        .add_flag(&["h", "human-readable"])
+        .add_flag(&["r", "reverse"])
+        .add_flag(&["R", "recursive"])
+        .add_flag(&["", "help"]);
     parser.parse(env::args());
 
     if parser.found("help") {
