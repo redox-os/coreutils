@@ -228,23 +228,23 @@ impl Translation {
 
     fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
         let mut parser = ArgParser::new(2)
-            .add_flag("c", "complement")
-            .add_flag("d", "delete")
-            .add_flag("s", "squeeze")
-            .add_flag("t", "truncate")
-            .add_flag("h", "help");
+            .add_flag(&["c", "complement"])
+            .add_flag(&["d", "delete"])
+            .add_flag(&["s", "squeeze"])
+            .add_flag(&["t", "truncate"])
+            .add_flag(&["h", "help"]);
         parser.parse(env::args());
         if let Err(err) = parser.found_invalid() {
             let _ = stderr.write(err.as_bytes());
             self.status.set(INVALID_FLAG);
         } else {
-            if parser.found(&'h') || parser.found("help") {
+            if parser.found("help") {
                 self.status.set(DUMMY_RUN);
             }
-            self.complement = parser.found(&'c') || parser.found("complement");
-            self.delete = parser.found(&'d') || parser.found("delete");
-            self.squeeze = parser.found(&'s') || parser.found("squeeze");
-            self.truncate = parser.found(&'t') || parser.found("truncate");
+            self.complement = parser.found("complement");
+            self.delete = parser.found("delete");
+            self.squeeze = parser.found("squeeze");
+            self.truncate = parser.found("truncate");
 
             let mut iter = parser.args.iter();
             let mut next = iter.next();
