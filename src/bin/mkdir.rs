@@ -33,11 +33,11 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(2)
-        .add_flag("h", "help")
-        .add_flag("p", "parents");
+        .add_flag(&["h", "help"])
+        .add_flag(&["p", "parents"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
@@ -47,7 +47,7 @@ fn main() {
     }
 
     let mut parents = false;
-    if parser.found(&'p') || parser.found("parents") {
+    if parser.found("parents") {
         parents = true;
     }
 

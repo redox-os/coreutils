@@ -58,24 +58,23 @@ fn main() {
     let mut stderr      = io::stderr();
     let mut parser = ArgParser::new(4)
         .add_opt("s", "suffix")
-        .add_flag("a", "multiple")
-        .add_flag("z", "zero")
-        .add_flag("h", "help");
+        .add_flag(&["a", "multiple"])
+        .add_flag(&["z", "zero"])
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         process::exit(0);
     }
-    if parser.found(&'s') || parser.found("suffix") {
+    if parser.found("suffix") {
         if parser.get_opt(&'s').is_none() && parser.get_opt("suffix").is_none() {
             stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
             stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
             stderr.flush().try(&mut stderr);
             process::exit(1);
         }
-        *parser.flag(&'a') = true;
         *parser.flag("multiple") = true;
     }
     if parser.args.is_empty() {
@@ -90,7 +89,7 @@ fn main() {
         process::exit(1);
     }
 
-    if parser.found(&'a') || parser.found("multiple") {
+    if parser.found("multiple") {
         for path in &parser.args {
             basename(&path, &parser, &mut stdout, &mut stderr);
         }
@@ -133,7 +132,7 @@ fn basename(path: &str, parser: &ArgParser, stdout: &mut io::StdoutLock, stderr:
         }
     }
 
-    if parser.found("z") || parser.found("zero") {
+    if parser.found("zero") {
         stdout.write_all(b"\n").try(stderr);
     }
 }

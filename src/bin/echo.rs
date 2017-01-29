@@ -48,13 +48,13 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(4)
-        .add_flag("e", "escape")
-        .add_flag("n", "no-newline")
-        .add_flag("s", "no-spaces")
-        .add_flag("h", "help");
+        .add_flag(&["e", "escape"])
+        .add_flag(&["n", "no-newline"])
+        .add_flag(&["s", "no-spaces"])
+        .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
-    if parser.found(&'h') || parser.found("help") {
+    if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
@@ -65,10 +65,10 @@ fn main() {
     for arg in parser.args.iter().map(|x| x.as_bytes()) {
         if first {
             first = false;
-        } else if !(parser.found(&'s') || parser.found("no-spaces")) {
+        } else if ! parser.found("no-spaces") {
             stdout.write(&[b' ']).try(&mut stderr);
         }
-        if parser.found(&'e') || parser.found("escape") {
+        if parser.found("escape") {
             let mut check = false;
             for &byte in arg {
                 match byte {
@@ -124,7 +124,7 @@ fn main() {
         }
     }
 
-    if !(parser.found(&'n') || parser.found("no-newline")) {
+    if ! parser.found("no-newline") {
         stdout.write(&[b'\n']).try(&mut stderr);
     }
 }

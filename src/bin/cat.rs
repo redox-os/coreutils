@@ -82,16 +82,16 @@ impl Program {
     /// Initialize the program's arguments and flags.
     fn initialize(stdout: &mut StdoutLock, stderr: &mut Stderr) -> Program {
         let mut parser = ArgParser::new(10).
-            add_flag("A", "show-all"). //vET
-            add_flag("b", "number-nonblank").
-            add_flag("e", ""). //vE
-            add_flag("E", "show-ends").
-            add_flag("n", "number").
-            add_flag("s", "squeeze-blank").
-            add_flag("t", ""). //vT
-            add_flag("T", "show-tabs").
-            add_flag("v", "show-nonprinting").
-            add_flag("h", "help");
+            add_flag(&["A", "show-all"]). //vET
+            add_flag(&["b", "number-nonblank"]).
+            add_flag(&["e"]). //vE
+            add_flag(&["E", "show-ends"]).
+            add_flag(&["n", "number"]).
+            add_flag(&["s", "squeeze-blank"]).
+            add_flag(&["t"]). //vT
+            add_flag(&["T", "show-tabs"]).
+            add_flag(&["v", "show-nonprinting"]).
+            add_flag(&["h", "help"]);
         parser.parse(env::args());
 
         let mut cat = Program {
@@ -105,41 +105,41 @@ impl Program {
             paths:            Vec::with_capacity(parser.args.len()),
         };
 
-        if parser.found(&'h') || parser.found("help") {
+        if parser.found("help") {
             stdout.write(MAN_PAGE.as_bytes()).try(stderr);
             stdout.flush().try(stderr);
             exit(0);
         }
 
-        if parser.found(&'A') || parser.found("show-all") {
+        if parser.found("show-all") {
             cat.show_nonprinting = true;
             cat.show_ends = true;
             cat.show_tabs = true;
         }
 
-        if parser.found(&'n') || parser.found("number") {
+        if parser.found("number") {
             cat.number = true;
             cat.number_nonblank = false;
         }
 
-        if parser.found(&'b') || parser.found("number-nonblank") {
+        if parser.found("number-nonblank") {
             cat.number_nonblank = true;
             cat.number = false;
         }
 
-        if parser.found(&'E') || parser.found("show-ends") || parser.found(&'e') {
+        if parser.found("show-ends") || parser.found(&'e') {
             cat.show_ends = true;
         }
 
-        if parser.found(&'s') || parser.found("squeeze-blank") {
+        if parser.found("squeeze-blank") {
             cat.squeeze_blank = true;
         }
 
-        if parser.found(&'T') || parser.found("show-tabs") || parser.found(&'t') {
+        if parser.found("show-tabs") || parser.found(&'t') {
             cat.show_tabs = true;
         }
 
-        if parser.found(&'v') || parser.found("show-nonprinting") || parser.found(&'e') || parser.found(&'t') {
+        if parser.found("show-nonprinting") || parser.found(&'e') || parser.found(&'t') {
             cat.show_nonprinting = true;
         }
 
