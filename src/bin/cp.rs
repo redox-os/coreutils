@@ -38,6 +38,8 @@ fn main() {
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["r", "recursive"])
+        .add_flag(&["n", "no-action"])
+        .add_flag(&["v", "verbose"])
         .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
@@ -47,35 +49,62 @@ fn main() {
         exit(0);
     }
 
+    let recurse = parser.found("recursive");
+    let verbose = parser.found("verbose");
+    let execute = ! parser.found("no-action");
+
     if parser.args.is_empty() {
         fail("No source argument. Use --help to see the usage.", &mut stderr);
     }
     else if parser.args.len() == 1 {
         fail("No destination argument. Use --help to see the usage.", &mut stderr);
     }
-    else if parser.args.len() == 2 && ! parser.found("recursive") {
+    else if parser.args.len() == 2 && ! recurse {
         let src = path::Path::new(&parser.args[0]);
         let mut dst = path::PathBuf::from(&parser.args[1]);
         if dst.is_dir() {
             dst.push(src.file_name().try(&mut stderr))
         }
-        fs::copy(src, dst).try(&mut stderr);
+        if execute {
+            fs::copy(src, dst).try(&mut stderr);
+        }
+        if verbose {
+            println!("{}", src.display());
+        }
     }
     else {
         // This unwrap won't panic since it's been verified not to be empty
         let dst = parser.args.pop().unwrap();
         let dst = path::PathBuf::from(dst);
-        let recurse = parser.found("recursive");
         if dst.is_dir() {
             for ref arg in parser.args {
+                let src = path::Path::new(arg);
+                if src.is_dir() && ! recurse {
+                    fail("Can not copy directories non-recursive", &mut stderr);
+                }
                 if recurse {
                     for entry in WalkDir::new(arg) {
                         let entry = entry.unwrap();
-                        println!("{}", entry.path().display());
+                        let src = path::Path::new(entry.path());
+                        if execute {
+                            if src.is_dir() {
+                                fs::create_dir(dst.join(src)).try(&mut stderr);
+                            } else if src.is_file() {
+                                fs::copy(src, dst.join(src)).try(&mut stderr);
+                            } // here we might also want to check for symlink, hardlink, socket, block, char, ...?
+                        }
+                        if verbose {
+                            println!("{}", src.display());
+                        }
+                    }
+                } else {
+                    if execute {
+                        fs::copy(src, dst.join(src.file_name().try(&mut stderr))).try(&mut stderr);
+                    }
+                    if verbose {
+                        println!("{}", src.display());
                     }
                 }
-                let src = path::Path::new(arg);
-                fs::copy(src, dst.join(src.file_name().try(&mut stderr))).try(&mut stderr);
             }
         }
         else if dst.is_file() {
