@@ -20,16 +20,26 @@ NAME
     cp - copy files
 
 SYNOPSIS
-    cp SOURCE_FILE(S) DESTINATION_FILE...
+    cp SOURCE_FILE, ... DESTINATION
 
 DESCRIPTION
-    The cp utility copies the contents of the SOURCE_FILE to the DESTINATION_FILE. If multiple
-    source files are specified, then they are copied to DESTINATION_FILE.
+    The cp utility copies the contents of the SOURCE_FILE to the DESTINATION. If multiple
+    source files are specified, then they are copied to DESTINATION.
 
 OPTIONS
     -h
     --help
         print this message
+    -n
+    --no-action
+        usefull only in combination with '--verbose'
+    -v
+    --verbose
+        print what is being copied
+    -r
+    --recusive
+        if any of the SOURCE_FILEs is a directory recurse into it and copy any content.
+        NOTE: it is illegal for any SOURCE_FILE to be a directory if this flag isn't given
 "#; /* @MANEND */
 
 fn main() {
