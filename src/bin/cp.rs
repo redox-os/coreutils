@@ -2,6 +2,7 @@
 
 extern crate coreutils;
 extern crate extra;
+extern crate walkdir;
 
 use std::env;
 use std::fs;
@@ -11,6 +12,8 @@ use std::process::exit;
 use coreutils::ArgParser;
 use extra::io::fail;
 use extra::option::OptionalExt;
+
+use walkdir::WalkDir;
 
 const MAN_PAGE: &'static str = /* @MANSTART{cp} */ r#"
 NAME
@@ -34,6 +37,7 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
+        .add_flag(&["r", "recursive"])
         .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
@@ -49,7 +53,7 @@ fn main() {
     else if parser.args.len() == 1 {
         fail("No destination argument. Use --help to see the usage.", &mut stderr);
     }
-    else if parser.args.len() == 2 {
+    else if parser.args.len() == 2 && ! parser.found("recursive") {
         let src = path::Path::new(&parser.args[0]);
         let mut dst = path::PathBuf::from(&parser.args[1]);
         if dst.is_dir() {
@@ -61,8 +65,15 @@ fn main() {
         // This unwrap won't panic since it's been verified not to be empty
         let dst = parser.args.pop().unwrap();
         let dst = path::PathBuf::from(dst);
+        let recurse = parser.found("recursive");
         if dst.is_dir() {
             for ref arg in parser.args {
+                if recurse {
+                    for entry in WalkDir::new(arg) {
+                        let entry = entry.unwrap();
+                        println!("{}", entry.path().display());
+                    }
+                }
                 let src = path::Path::new(arg);
                 fs::copy(src, dst.join(src.file_name().try(&mut stderr))).try(&mut stderr);
             }
