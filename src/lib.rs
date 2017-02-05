@@ -232,6 +232,43 @@ impl ArgParser {
         }
     }
 
+    /// Parse dd opts
+    pub fn parse_dd<A: Iterator<Item=String>>(&mut self, args: A) {
+        let mut args = args.skip(1);
+        while let Some(arg) = args.next() {
+            if arg.starts_with("if") || arg.starts_with("of") ||
+                arg.starts_with("bs") || arg.starts_with("count") {
+                if arg.is_empty() {
+                    //Arg `--` means we are done parsing args, collect the rest
+                    self.args.extend(args);
+                    break;
+                }
+                if let Some(i) = arg.find('=') {
+                    let (lhs, rhs) = arg.split_at(i);
+                    let rhs = &rhs[1..]; // slice off the `=` char
+                    match self.params.get_mut(lhs) {
+                        Some(&mut Value::Opt { rhs: ref mut opt_rhs, ref mut found }) => {
+                            if (*opt_rhs.value).borrow().is_empty() {
+                                opt_rhs.occurrences = 1;
+                            }
+                            else {
+                                opt_rhs.occurrences += 1;
+                            }
+                            (*opt_rhs.value).borrow_mut().clear();
+                            (*opt_rhs.value).borrow_mut().push_str(rhs);
+                            *found = true;
+                        }
+                        _ => self.invalid.push(Param::Long(lhs.to_owned())),
+                    }
+                }
+                
+            }
+            else {  
+                self.args.push(arg);
+            }
+        }
+    }
+
     /// Get the number of times a flag or opt has been found after parsing.
     pub fn count<P: Hash + Eq + ?Sized>(&self, name: &P) -> usize
         where Param: Borrow<P>
@@ -376,5 +413,20 @@ mod tests {
         parser = parser.add_opt("", "foo");
         parser.parse(args.into_iter());
         assert!(parser.get_opt("foo") == Some(String::from("bar")));
+    }
+
+    #[test]
+    fn dd_opts() {
+        let args = vec![String::from("binname"), String::from("-h"), String::from("if=bar"), String::from("of=foo")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_flag(&["h"])
+                       .add_opt("", "if")
+                       .add_opt("", "of");
+        let args_iter = args.into_iter();
+        parser.parse(args_iter.clone());
+        parser.parse_dd(args_iter);
+        assert!(parser.found(&'h'));
+        assert!(parser.get_opt("if") == Some(String::from("bar")));
+        assert!(parser.get_opt("of") == Some(String::from("foo")));
     }
 }
