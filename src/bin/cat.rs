@@ -164,6 +164,14 @@ impl Program {
             for path in &self.paths {
                 if flags_enabled && path == "-" {
                     self.cat(&mut stdin.lock(), line_count, stdout, stderr);
+                } else if path == "-" {
+                    // Copy the standard input directly to the standard output.
+                    io::copy(&mut stdin.lock(), stdout).try(stderr);
+                } else if fs::metadata(&path).map(|m| m.is_dir()).unwrap_or(false) {
+                    stderr.write(path.as_bytes()).try(stderr);
+                    stderr.write(b": Is a directory\n").try(stderr);
+                    stderr.flush().try(stderr);
+                    self.exit_status.set(1i32);
                 } else if flags_enabled {
                     fs::File::open(&path)
                         // Open the file and copy the file's contents to standard output based input arguments.
@@ -177,9 +185,6 @@ impl Program {
                             stderr.flush().try(stderr);
                             self.exit_status.set(1i32);
                         });
-                } else if path == "-" {
-                    // Copy the standard input directly to the standard output.
-                    io::copy(&mut stdin.lock(), stdout).try(stderr);
                 } else {
                     // Open a file and copy the contents directly to standard output.
                     fs::File::open(&path).map(|ref mut file| { io::copy(file, stdout).try(stderr); })
