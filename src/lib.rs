@@ -226,18 +226,7 @@ impl ArgParser {
                     }
                 }
             }
-            else {
-                self.args.push(arg);
-            }
-        }
-    }
-
-    /// Parse dd opts
-    pub fn parse_dd<A: Iterator<Item=String>>(&mut self, args: A) {
-        let mut args = args.skip(1);
-        while let Some(arg) = args.next() {
-            if arg.starts_with("if") || arg.starts_with("of") ||
-                arg.starts_with("bs") || arg.starts_with("count") {
+            else if arg.contains("=") {
                 if arg.is_empty() {
                     //Arg `--` means we are done parsing args, collect the rest
                     self.args.extend(args);
@@ -261,9 +250,8 @@ impl ArgParser {
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
                 }
-                
             }
-            else {  
+            else {
                 self.args.push(arg);
             }
         }
@@ -416,15 +404,13 @@ mod tests {
     }
 
     #[test]
-    fn dd_opts() {
+    fn dd_style_opts() {
         let args = vec![String::from("binname"), String::from("-h"), String::from("if=bar"), String::from("of=foo")];
         let mut parser = ArgParser::new(4);
         parser = parser.add_flag(&["h"])
                        .add_opt("", "if")
                        .add_opt("", "of");
-        let args_iter = args.into_iter();
-        parser.parse(args_iter.clone());
-        parser.parse_dd(args_iter);
+        parser.parse(args.into_iter());
         assert!(parser.found(&'h'));
         assert!(parser.get_opt("if") == Some(String::from("bar")));
         assert!(parser.get_opt("of") == Some(String::from("foo")));

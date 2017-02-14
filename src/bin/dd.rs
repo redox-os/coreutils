@@ -49,7 +49,6 @@ fn main() {
         .add_opt("", "if")
         .add_opt("", "of");
     parser.parse(env::args());
-    parser.parse_dd(env::args());
 
     if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
