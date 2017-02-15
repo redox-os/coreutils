@@ -44,8 +44,8 @@ fn main() {
 
     let mut parser = ArgParser::new(5)
         .add_flag(&["h", "help"])
-        .add_opt("", "bs")
-        .add_opt("", "count")
+        .add_opt_default("", "bs", "512")
+        .add_opt_default("", "count", "-1")
         .add_opt("", "if")
         .add_opt("", "of");
     parser.parse(env::args());
@@ -60,26 +60,8 @@ fn main() {
         fail("missing if or of", &mut stderr);
     }
 
-    let bs: usize = 
-        if let Some(num) = parser.get_opt("bs") {
-            match num.parse() {
-              Ok(n) => n,
-              Err(_) => 512,
-            }
-        }
-        else {
-            512
-        };
-    let count = 
-        if let Some(num) = parser.get_opt("count") {
-            match num.parse() {
-              Ok(n) => n,
-              Err(_) => -1,
-            }
-        }
-        else {
-            -1
-        };
+    let bs: usize = parser.get_opt("bs").unwrap().parse::<usize>().unwrap();
+    let count = parser.get_opt("count").unwrap().parse::<i32>().unwrap();
 
     let in_path: String = parser.get_opt("if").unwrap();
     let out_path = parser.get_opt("of").unwrap();
