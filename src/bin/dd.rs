@@ -4,12 +4,42 @@ extern crate coreutils;
 use coreutils::to_human_readable_string;
 use std::env;
 use std::fs::File;
-use std::io::{stderr, Read, Write};
+use std::io::{stdout, stderr, Read, Write};
 use std::time::Instant;
+use std::process::exit;
+
+const MAN_PAGE: &'static str = /* @MANSTART{dd} */ r#"NAME
+    dd - convert and copy a file
+
+SYNOPSIS
+    dd [operands ...]
+    dd OPTIONS
+
+DESCRIPTION
+    Copies input file (stdin by default) to output file (stdout by default).
+
+    Available operands:
+
+     if=file       Read input from file (mandatory).
+     of=file       Write output to file (mandatory).
+     count=n       Copy n input blocks.
+     bs=n          Set input and output block size to n bytes.
+     status=level  Set level of information to print to stderr;
+                   'none' no information except errors,
+                   'noxfer' don't print transfer statistics,
+                   'progress' periodicaly show transfer statistics
+
+OPTIONS
+    -h
+    --help
+        display this help and exit
+"#; /* @MANEND */
 
 fn main() {
     let stderr = stderr();
     let mut stderr = stderr.lock();
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
 
     let mut bs = 512;
     let mut count = None;
@@ -32,6 +62,10 @@ fn main() {
                 "progress" => status = 2,
                 unknown => panic!("dd: status: unrecognized argument '{}'", unknown)
             }
+        } else if arg.starts_with("--help") || arg.starts_with("-h") {
+            stdout.write(MAN_PAGE.as_bytes()).expect("stdout write");
+            stdout.flush().expect("stdout flush");
+            exit(0);
         } else {
             panic!("dd: unrecognized operand '{}'", arg);
         }
