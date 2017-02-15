@@ -44,27 +44,27 @@ fn main() {
 
     let mut parser = ArgParser::new(5)
         .add_flag(&["h", "help"])
-        .add_opt_default("", "bs", "512")
-        .add_opt_default("", "count", "-1")
-        .add_opt("", "if")
-        .add_opt("", "of");
+        .add_setting_default("bs", "512")
+        .add_setting_default("count", "-1")
+        .add_setting("if")
+        .add_setting("of");
     parser.parse(env::args());
 
     if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
-    }
+    } else if !parser.found("if") {
+        fail("missing if argument", &mut stderr);
+    } else if !parser.found("of") {
+        fail("missing of argument", &mut stderr);
+    } 
 
-    if !parser.found("if") || !parser.found("of") {
-        fail("missing if or of", &mut stderr);
-    }
+    let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
+    let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();
 
-    let bs: usize = parser.get_opt("bs").unwrap().parse::<usize>().unwrap();
-    let count = parser.get_opt("count").unwrap().parse::<i32>().unwrap();
-
-    let in_path: String = parser.get_opt("if").unwrap();
-    let out_path = parser.get_opt("of").unwrap();
+    let in_path: String = parser.get_setting("if").unwrap();
+    let out_path = parser.get_setting("of").unwrap();
     let status = 1;
 
     let mut input = File::open(in_path).expect("dd: failed to open if");
