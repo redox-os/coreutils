@@ -66,11 +66,19 @@ enum Value {
         rhs: Rhs<Rc<RefCell<String>>>,
         found: bool,
     },
+    Setting {
+        rhs: Rhs<Rc<RefCell<String>>>,
+        found: bool,
+    },
 }
 
 impl Value {
     fn new_opt(value: Rc<RefCell<String>>) -> Self {
         Value::Opt { rhs: Rhs::new(value), found: false }
+    }
+
+    fn new_setting(value: Rc<RefCell<String>>) -> Self {
+        Value::Setting { rhs: Rhs::new(value), found: false }
     }
 }
 
@@ -158,6 +166,34 @@ impl ArgParser {
         self
     }
 
+    /// Builder method for adding settings
+    ///
+    /// Settings are parameters that hold assigned values. They are used
+    /// in some applications such as dd
+    ///
+    /// For example
+    /// > dd if=/path/file
+    ///   ^  ^    
+    ///   |  |    
+    ///   |  |    
+    ///   |  `-- The setting set to /path/file
+    ///   `-- The command to list files.
+    pub fn add_setting(mut self, setting: &str) -> Self {
+        let value = Rc::new(RefCell::new("".to_owned()));
+        if !setting.is_empty() {
+            self.params.insert(Param::Long(setting.to_owned()), Value::new_setting(value));
+        }
+        self
+    }
+
+    pub fn add_setting_default(mut self, setting: &str, default: &str) -> Self {
+        let value = Rc::new(RefCell::new(default.to_owned()));
+        if !setting.is_empty() {
+            self.params.insert(Param::Long(setting.to_owned()), Value::new_setting(value));
+        }
+        self
+    }
+
     /// Start parsing user inputted args for which flags and opts are used at
     /// runtime. The rest of the args that are not associated to opts get added
     /// to `ArgParser.args`.
@@ -222,7 +258,33 @@ impl ArgParser {
                             }
                             break;
                         }
+                        Some(&mut Value::Setting{..}) => self.invalid.push(Param::Short(ch)),
                         None => self.invalid.push(Param::Short(ch)),
+                    }
+                }
+            }
+            else if arg.contains("=") {
+                if arg.is_empty() {
+                    //Arg `--` means we are done parsing args, collect the rest
+                    self.args.extend(args);
+                    break;
+                }
+                if let Some(i) = arg.find('=') {
+                    let (lhs, rhs) = arg.split_at(i);
+                    let rhs = &rhs[1..]; // slice off the `=` char
+                    match self.params.get_mut(lhs) {
+                        Some(&mut Value::Setting { rhs: ref mut opt_rhs, ref mut found }) => {
+                            if (*opt_rhs.value).borrow().is_empty() {
+                                opt_rhs.occurrences = 1;
+                            }
+                            else {
+                                opt_rhs.occurrences += 1;
+                            }
+                            (*opt_rhs.value).borrow_mut().clear();
+                            (*opt_rhs.value).borrow_mut().push_str(rhs);
+                            *found = true;
+                        }
+                        _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
                 }
             }
@@ -250,6 +312,7 @@ impl ArgParser {
         match self.params.get(name) {
             Some(&Value::Flag(ref rhs)) => *(*rhs.value).borrow_mut(),
             Some(&Value::Opt { found, .. }) => found,
+            Some(&Value::Setting { found, .. }) => found,
             _ => false,
         }
     }
@@ -282,6 +345,17 @@ impl ArgParser {
         where Param: Borrow<O>
     {
         if let Some(&Value::Opt { ref rhs, .. }) = self.params.get(opt) {
+            return Some((*rhs.value).borrow().clone());
+        }
+        None
+    }
+
+    /// Get the value of an Setting. If it has been set or defaulted, it will return a `Some(String)`
+    /// value otherwise it will return None.
+    pub fn get_setting<O: Hash + Eq + ?Sized>(&self, setting: &O) -> Option<String>
+        where Param: Borrow<O>
+    {
+        if let Some(&Value::Setting { ref rhs, .. }) = self.params.get(setting) {
             return Some((*rhs.value).borrow().clone());
         }
         None
@@ -376,5 +450,18 @@ mod tests {
         parser = parser.add_opt("", "foo");
         parser.parse(args.into_iter());
         assert!(parser.get_opt("foo") == Some(String::from("bar")));
+    }
+
+    #[test]
+    fn settings() {
+        let args = vec![String::from("binname"), String::from("-h"), String::from("if=bar")];
+        let mut parser = ArgParser::new(4);
+        parser = parser.add_flag(&["h"])
+                       .add_setting("if")
+                       .add_setting_default("of", "foo");
+        parser.parse(args.into_iter());
+        assert!(parser.found("if"));
+        assert!(parser.get_setting("if") == Some(String::from("bar")));
+        assert!(parser.get_setting("of") == Some(String::from("foo")));
     }
 }

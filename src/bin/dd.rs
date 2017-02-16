@@ -1,41 +1,71 @@
+#![deny(warnings)]
 extern crate coreutils;
+extern crate extra;
 
-
-use coreutils::to_human_readable_string;
 use std::env;
 use std::fs::File;
-use std::io::{stderr, Read, Write};
+use std::io::{stderr, stdout, Read, Write};
 use std::time::Instant;
+use std::process::exit;
+use coreutils::{ArgParser, to_human_readable_string};
+use extra::option::OptionalExt;
+use extra::io::fail;
+
+const MAN_PAGE: &'static str = /* @MANSTART{du} */ r#"
+NAME
+    dd - copy a file
+
+SYNOPSIS
+    dd [ -h | --help ] if=[FILE] of=[FILE]
+
+DESCRIPTION
+    The dd tool copies from a file to another file in 512-byte block sizes
+
+OPTIONS
+    -h
+    --help
+        display this help and exit
+
+    bs=n
+        set input and output block size to n bytes
+    count=n
+        copy only n blocks
+    if=file
+        read from file instead of standard input
+    of=file
+        write output to file instead of standard out
+
+"#; /* @MANEND */
 
 fn main() {
-    let stderr = stderr();
-    let mut stderr = stderr.lock();
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
-    let mut bs = 512;
-    let mut count = None;
-    let mut in_path = String::new();
-    let mut out_path = String::new();
-    let mut status = 1;
-    for arg in env::args().skip(1) {
-        if arg.starts_with("bs=") {
-            bs = arg[3..].parse::<usize>().expect("dd: bs is not a number");
-        } else if arg.starts_with("count=") {
-            count = Some(arg[6..].parse::<usize>().expect("dd: count is not a number"));
-        } else if arg.starts_with("if=") {
-            in_path = arg[3..].to_string();
-        } else if arg.starts_with("of=") {
-            out_path = arg[3..].to_string();
-        } else if arg.starts_with("status=") {
-            match &arg[7..] {
-                "none" => status = 0,
-                "noxfer" => status = 1,
-                "progress" => status = 2,
-                unknown => panic!("dd: status: unrecognized argument '{}'", unknown)
-            }
-        } else {
-            panic!("dd: unrecognized operand '{}'", arg);
-        }
-    }
+    let mut parser = ArgParser::new(5)
+        .add_flag(&["h", "help"])
+        .add_setting_default("bs", "512")
+        .add_setting_default("count", "-1")
+        .add_setting("if")
+        .add_setting("of");
+    parser.parse(env::args());
+
+    if parser.found("help") {
+        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+        exit(0);
+    } else if !parser.found("if") {
+        fail("missing if argument", &mut stderr);
+    } else if !parser.found("of") {
+        fail("missing of argument", &mut stderr);
+    } 
+
+    let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
+    let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();
+
+    let in_path: String = parser.get_setting("if").unwrap();
+    let out_path = parser.get_setting("of").unwrap();
+    let status = 1;
 
     let mut input = File::open(in_path).expect("dd: failed to open if");
     let mut output = File::create(out_path).expect("dd: failed to open of");
@@ -59,7 +89,7 @@ fn main() {
             running = false;
         } else {
             in_recs += 1;
-            if let Some(count) = count {
+            if count != -1 {
                 if in_recs >= count {
                     running = false;
                 }
