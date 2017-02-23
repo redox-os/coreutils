@@ -4,12 +4,11 @@ extern crate extra;
 
 use std::env;
 use std::fs::File;
-use std::io::{stderr, stdout, Read, Write};
+use std::io::{self, stderr, stdin, stdout, Read, Write};
 use std::time::Instant;
 use std::process::exit;
 use coreutils::{ArgParser, to_human_readable_string};
 use extra::option::OptionalExt;
-use extra::io::fail;
 
 const MAN_PAGE: &'static str = /* @MANSTART{du} */ r#"
 NAME
@@ -37,7 +36,44 @@ OPTIONS
 
 "#; /* @MANEND */
 
+enum Input<'a> {
+    File(File),
+    Standard(io::StdinLock<'a>)
+}
+
+impl<'a> io::Read for Input<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match *self {
+            Input::File(ref mut f) => f.read(buf),
+            Input::Standard(ref mut s) => s.read(buf),
+        }
+    }
+}
+
+enum Output<'a> {
+    File(File),
+    Standard(io::StdoutLock<'a>)
+}
+
+impl<'a> io::Write for Output<'a> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match *self {
+            Output::File(ref mut f) => f.write(buf),
+            Output::Standard(ref mut s) => s.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match *self {
+            Output::File(ref mut f) => f.flush(),
+            Output::Standard(ref mut s) => s.flush(),
+        }
+    }
+}
+
 fn main() {
+    let stdin = stdin();
+    let stdin = stdin.lock();
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
@@ -54,22 +90,28 @@ fn main() {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
-    } else if !parser.found("if") {
-        fail("missing if argument", &mut stderr);
-    } else if !parser.found("of") {
-        fail("missing of argument", &mut stderr);
     } 
 
     let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
     let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();
 
-    let in_path: String = parser.get_setting("if").unwrap();
-    let out_path = parser.get_setting("of").unwrap();
+    let mut input = match parser.found("if") {
+        true => {
+            let path = parser.get_setting("if").unwrap();
+            Input::File(File::open(path).expect("dd: failed to open if"))
+        },
+        false => Input::Standard(stdin)
+    };
+
+    let mut output = match parser.found("of") {
+        true => {
+            let path = parser.get_setting("of").unwrap();
+            Output::File(File::create(path).expect("dd: failed to open of"))
+        },
+        false => Output::Standard(stdout)
+    };
+
     let status = 1;
-
-    let mut input = File::open(in_path).expect("dd: failed to open if");
-    let mut output = File::create(out_path).expect("dd: failed to open of");
-
     let mut in_recs = 0;
     let mut in_extra = 0;
     let mut out_recs = 0;
