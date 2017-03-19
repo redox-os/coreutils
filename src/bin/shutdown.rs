@@ -2,13 +2,14 @@
 
 extern crate coreutils;
 extern crate extra;
+extern crate syscall;
 
 use std::env;
-use std::fs;
-use std::io::{stderr, stdout, Write};
+use std::io::{stderr, stdout, Error, Write};
 use std::process::exit;
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
+use syscall::flag::SIGKILL;
 
 const MAN_PAGE: &'static str = /* @MANSTART{shutdown} */ r#"
 NAME
@@ -40,5 +41,5 @@ fn main() {
         exit(0);
     }
 
-    fs::File::create("acpi:off").try(&mut stderr);
+    syscall::kill(1, SIGKILL).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
 }
