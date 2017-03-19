@@ -2,6 +2,7 @@
 
 extern crate coreutils;
 extern crate extra;
+extern crate walkdir;
 
 use std::env;
 use std::fs;
@@ -11,6 +12,7 @@ use std::process::exit;
 use coreutils::ArgParser;
 use extra::io::fail;
 use extra::option::OptionalExt;
+use walkdir::WalkDir;
 
 const MAN_PAGE: &'static str = /* @MANSTART{mv} */ r#"
 NAME
