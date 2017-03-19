@@ -41,11 +41,12 @@ OPTIONS
         list subdirectories recursively
 "#; /* @MANEND */
 
-fn mode_to_human_readable(file_type: &FileType, mode: u32) -> String {
+fn mode_to_human_readable(file_type: &FileType, symlink_file_type: &FileType, mode: u32) -> String {
 
     let mut result = String::from("");
-    //TODO is a symlink? => push 'l' 
-    if file_type.is_dir() {
+    if symlink_file_type.is_symlink(){
+            result.push('l')
+    }else if file_type.is_dir() {
         result.push('d');
     }else{
         result.push('-');
@@ -69,10 +70,10 @@ fn mode_to_human_readable(file_type: &FileType, mode: u32) -> String {
     return result;
 }
 
-fn print_item(item_path: &str, metadata: &Metadata, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr){
+fn print_item(item_path: &str, metadata: &Metadata, symlink_metadata: &Metadata, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr){
     if parser.found("long-format") {
     stdout.write(&format!("{} {:>5} {:>5} ",
-            mode_to_human_readable(&(metadata.file_type()), metadata.mode()),
+            mode_to_human_readable(&(metadata.file_type()), &(symlink_metadata.file_type()), metadata.mode()),
             metadata.uid(),
             metadata.gid()).as_bytes()).try(stderr);
         if parser.found("human-readable") {
@@ -97,6 +98,7 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
         show_hidden = true;
     }
 
+    let symlink_metadata = fs::symlink_metadata(path).try(stderr);
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
@@ -127,14 +129,15 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
                 entry_path.push('/');
             }
             entry_path.push_str(&entry);
+            let symlink_metadata = fs::symlink_metadata(&entry_path).try(stderr);
             let metadata = fs::metadata(&entry_path).try(stderr);
-            print_item(&entry_path, &metadata, &parser, stdout, stderr);
+            print_item(&entry_path, &metadata, &symlink_metadata, &parser, stdout, stderr);
             if parser.found("recursive") && metadata.is_dir() {
                 list_dir(&entry_path, parser, stdout, stderr);
             }
         }
     } else {
-        print_item(&path, &metadata, &parser, stdout, stderr);
+        print_item(&path, &metadata, &symlink_metadata, &parser, stdout, stderr);
     }
 }
 
