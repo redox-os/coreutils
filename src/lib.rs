@@ -1,8 +1,12 @@
+extern crate chrono;
+
 use std::borrow::Borrow;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
-use std::hash::{Hash,Hasher};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::time::{SystemTime, UNIX_EPOCH};
+use chrono::NaiveDateTime;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// The parameter styles for short, e.g. `-s`,
@@ -396,6 +400,11 @@ impl ArgParser {
         output.push('\n');
         Err(output)
     }
+}
+
+pub fn system_time_to_string(system_time: SystemTime) -> String {
+    let timestamp = system_time.duration_since(UNIX_EPOCH).expect("can't get duration since unix epoch");
+    NaiveDateTime::from_timestamp(timestamp.as_secs() as i64, 0).to_string()
 }
 
 pub fn to_human_readable_string(size: u64) -> String {

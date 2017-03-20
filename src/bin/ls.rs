@@ -5,18 +5,18 @@ extern crate extra;
 
 use std::env;
 use std::fs;
-use std::fs::{Metadata, FileType};
+use std::fs::FileType;
 use std::path::Path;
 use std::io::{stdout, StdoutLock, stderr, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
 
 use std::process::exit;
 
-use coreutils::{ArgParser, to_human_readable_string};
+use coreutils::{ArgParser, to_human_readable_string, system_time_to_string};
 use extra::option::OptionalExt;
 
 
-const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
+const MAN_PAGE: &'static str = r#"
 NAME
     ls - list directory contents
 
@@ -39,16 +39,23 @@ OPTIONS
         reverse order while sorting
     -R, --recursive
         list subdirectories recursively
+    --modified-date
+        display date of last modification
+    --accessed-date
+        display date of last access
+    --created-date
+        display date of creation
+
 "#; /* @MANEND */
 
 fn mode_to_human_readable(file_type: &FileType, symlink_file_type: &FileType, mode: u32) -> String {
 
     let mut result = String::from("");
-    if symlink_file_type.is_symlink(){
-            result.push('l')
-    }else if file_type.is_dir() {
+    if symlink_file_type.is_symlink() {
+        result.push('l')
+    } else if file_type.is_dir() {
         result.push('d');
-    }else{
+    } else {
         result.push('-');
     }
 
@@ -63,31 +70,64 @@ fn mode_to_human_readable(file_type: &FileType, symlink_file_type: &FileType, mo
             '3' => result.push_str("-wx"),
             '2' => result.push_str("-w-"),
             '1' => result.push_str("--x"),
-            _   => result.push_str("---")
+            _ => result.push_str("---"),
         }
     }
 
     return result;
 }
 
-fn print_item(item_path: &str, metadata: &Metadata, symlink_metadata: &Metadata, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr){
+fn print_item(item_path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+
+    let mut link_error = "";
+    let symlink_metadata = fs::symlink_metadata(&item_path).try(stderr);
+    let metadata = match fs::metadata(&item_path) {
+        Ok(metadata) => metadata,
+        Err(_) => {
+            link_error = "broken link";
+            fs::symlink_metadata(&item_path).try(stderr)
+        }
+    };
     if parser.found("long-format") {
-    stdout.write(&format!("{} {:>5} {:>5} ",
-            mode_to_human_readable(&(metadata.file_type()), &(symlink_metadata.file_type()), metadata.mode()),
-            metadata.uid(),
-            metadata.gid()).as_bytes()).try(stderr);
+        stdout.write(&format!("{} {:>5} {:>5} ",
+                              mode_to_human_readable(&(metadata.file_type()), &(symlink_metadata.file_type()), metadata.mode()),
+                              metadata.uid(),
+                              metadata.gid())
+                              .as_bytes())
+            .try(stderr);
         if parser.found("human-readable") {
-            stdout.write(&format!("{:>6} ", 
-                    to_human_readable_string(metadata.size())).as_bytes()).try(stderr);
+            stdout.write(&format!("{:>6} ", to_human_readable_string(metadata.size())).as_bytes()).try(stderr);
         } else {
             stdout.write(&format!("{:>8} ", metadata.size()).as_bytes()).try(stderr);
         }
     }
+    if parser.found("modified-date") || parser.found("long-format") {
+        stdout.write(&format!("{:>20} ", system_time_to_string(metadata.modified().expect("can't get modification date from file metadata"))).as_bytes()).try(stderr);
+    }
+    if parser.found("created-date") {
+        stdout.write(&format!("{:>20} ", system_time_to_string(metadata.created().expect("can't get creation date from file metadata"))).as_bytes()).try(stderr);
+    }
+    if parser.found("accessed-date") {
+        stdout.write(&format!("{:>20} ", system_time_to_string(metadata.accessed().expect("can't get access date from file metadata"))).as_bytes()).try(stderr);
+    }
+
     if item_path.starts_with("./") {
         stdout.write(&item_path[2..].as_bytes()).try(stderr);
-    }else{
+    } else {
         stdout.write(item_path.as_bytes()).try(stderr);
     }
+    if parser.found("long-format") && symlink_metadata.file_type().is_symlink() {
+        let symlink_target = fs::read_link(item_path)
+            .expect("can't read link")
+            .into_os_string()
+            .into_string()
+            .expect("c'ant get path as string");
+        stdout.write(&format!(" -> {}", symlink_target).as_bytes()).try(stderr);
+        if !link_error.is_empty() {
+            stdout.write(&format!(" ({})", link_error).as_bytes()).try(stderr);
+        }
+    }
+
     stdout.write("\n".as_bytes()).try(stderr);
     stdout.flush().try(stderr);
 }
@@ -98,24 +138,20 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
         show_hidden = true;
     }
 
-    let symlink_metadata = fs::symlink_metadata(path).try(stderr);
     let metadata = fs::metadata(path).try(stderr);
     if metadata.is_dir() {
         let read_dir = Path::new(path).read_dir().try(stderr);
 
-        let mut entries: Vec<String> = read_dir
-                .filter_map(|x| x.ok())
-                .map(|x| {
-                    let file_name = x.file_name().to_string_lossy().into_owned();
-                    file_name
-                })
-                .filter(|x| {
-                    match show_hidden {
+        let mut entries: Vec<String> = read_dir.filter_map(|x| x.ok())
+            .map(|x| {
+                     let file_name = x.file_name().to_string_lossy().into_owned();
+                     file_name
+                 })
+            .filter(|x| match show_hidden {
                         true => true,
-                        false => !x.starts_with(".")
-                    }
-                })
-                .collect();
+                        false => !x.starts_with("."),
+                    })
+            .collect();
 
         if parser.found("reverse") {
             entries.sort_by(|a, b| b.cmp(a));
@@ -129,15 +165,13 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
                 entry_path.push('/');
             }
             entry_path.push_str(&entry);
-            let symlink_metadata = fs::symlink_metadata(&entry_path).try(stderr);
-            let metadata = fs::metadata(&entry_path).try(stderr);
-            print_item(&entry_path, &metadata, &symlink_metadata, &parser, stdout, stderr);
+            print_item(&entry_path, &parser, stdout, stderr);
             if parser.found("recursive") && metadata.is_dir() {
                 list_dir(&entry_path, parser, stdout, stderr);
             }
         }
     } else {
-        print_item(&path, &metadata, &symlink_metadata, &parser, stdout, stderr);
+        print_item(&path, &parser, stdout, stderr);
     }
 }
 
@@ -152,6 +186,9 @@ fn main() {
         .add_flag(&["h", "human-readable"])
         .add_flag(&["r", "reverse"])
         .add_flag(&["R", "recursive"])
+        .add_flag(&["", "modified-date"])
+        .add_flag(&["", "accessed-date"])
+        .add_flag(&["", "created-date"])
         .add_flag(&["", "help"]);
     parser.parse(env::args());
 
