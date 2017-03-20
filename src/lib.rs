@@ -402,7 +402,7 @@ impl ArgParser {
     }
 }
 
-pub fn system_time_to_string(system_time: SystemTime) -> String {
+pub fn system_time_to_utc_string(system_time: SystemTime) -> String {
     let timestamp = system_time.duration_since(UNIX_EPOCH).expect("can't get duration since unix epoch");
     NaiveDateTime::from_timestamp(timestamp.as_secs() as i64, 0).to_string()
 }

@@ -13,7 +13,7 @@ use std::os::unix::fs::MetadataExt;
 
 use std::process::exit;
 
-use coreutils::{ArgParser, to_human_readable_string, system_time_to_string};
+use coreutils::{ArgParser, to_human_readable_string, system_time_to_utc_string};
 use extra::option::OptionalExt;
 
 
@@ -40,11 +40,11 @@ OPTIONS
         reverse order while sorting
     -R, --recursive
         list subdirectories recursively
-    --modified-date
+    --mdate --modified-date
         display date of last modification
-    --accessed-date
+    --adate --accessed-date
         display date of last access
-    --created-date
+    --cdate --created-date
         display date of creation
 
 "#; /* @MANEND */
@@ -103,13 +103,13 @@ fn print_item(item_path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stde
         }
     }
     if parser.found("modified-date") || parser.found("long-format") {
-        stdout.write(&format!("{:>20} ", system_time_to_string(metadata.modified().expect("can't get modification date from file metadata"))).as_bytes()).try(stderr);
+        stdout.write(&format!("{:>20} ", system_time_to_utc_string(metadata.modified().expect("can't get modification date from file metadata"))).as_bytes()).try(stderr);
     }
     if parser.found("created-date") {
-        stdout.write(&format!("{:>20} ", system_time_to_string(metadata.created().expect("can't get creation date from file metadata"))).as_bytes()).try(stderr);
+        stdout.write(&format!("{:>20} ", system_time_to_utc_string(metadata.created().expect("can't get creation date from file metadata"))).as_bytes()).try(stderr);
     }
     if parser.found("accessed-date") {
-        stdout.write(&format!("{:>20} ", system_time_to_string(metadata.accessed().expect("can't get access date from file metadata"))).as_bytes()).try(stderr);
+        stdout.write(&format!("{:>20} ", system_time_to_utc_string(metadata.accessed().expect("can't get access date from file metadata"))).as_bytes()).try(stderr);
     }
 
     if item_path.starts_with("./") {
@@ -187,9 +187,9 @@ fn main() {
         .add_flag(&["h", "human-readable"])
         .add_flag(&["r", "reverse"])
         .add_flag(&["R", "recursive"])
-        .add_flag(&["", "modified-date"])
-        .add_flag(&["", "accessed-date"])
-        .add_flag(&["", "created-date"])
+        .add_flag(&["mdate", "modified-date"])
+        .add_flag(&["adate", "accessed-date"])
+        .add_flag(&["cdate", "created-date"])
         .add_flag(&["", "help"]);
     parser.parse(env::args());
 
@@ -223,11 +223,11 @@ fn test_human_readable() {
 }
 
 #[test]
-fn test_system_time_to_string() {
+fn test_system_time_to_utc_string() {
     use std::time::SystemTime;
     use chrono::prelude::{DateTime,UTC};
 
     let system_time_now = SystemTime::now();
     let utc_now: DateTime<UTC> = UTC::now();
-    assert_eq!(system_time_to_string(system_time_now), utc_now.format("%Y-%m-%d %H:%M:%S").to_string());
+    assert_eq!(system_time_to_utc_string(system_time_now), utc_now.format("%Y-%m-%d %H:%M:%S").to_string());
 }
