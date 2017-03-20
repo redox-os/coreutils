@@ -1,4 +1,5 @@
 #![deny(warnings)]
+extern crate chrono;
 
 extern crate coreutils;
 extern crate extra;
@@ -219,4 +220,14 @@ fn test_human_readable() {
     assert_eq!(to_human_readable_string(1024u64.pow(4) * 4), "4.0T");
     assert_eq!(to_human_readable_string(1024u64.pow(5) * 5), "5.0P");
     assert_eq!(to_human_readable_string(1024u64.pow(6) * 6), "6.0E");
+}
+
+#[test]
+fn test_system_time_to_string() {
+    use std::time::SystemTime;
+    use chrono::prelude::{DateTime,UTC};
+
+    let system_time_now = SystemTime::now();
+    let utc_now: DateTime<UTC> = UTC::now();
+    assert_eq!(system_time_to_string(system_time_now), utc_now.format("%Y-%m-%d %H:%M:%S").to_string());
 }
