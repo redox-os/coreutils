@@ -16,7 +16,7 @@ use coreutils::{ArgParser, to_human_readable_string, system_time_to_string};
 use extra::option::OptionalExt;
 
 
-const MAN_PAGE: &'static str = r#"
+const MAN_PAGE: &'static str = /* @MANSTART{ls} */ r#"
 NAME
     ls - list directory contents
 
