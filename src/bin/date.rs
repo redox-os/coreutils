@@ -7,7 +7,7 @@ use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
-use coreutils::ArgParser;
+use coreutils::{ArgParser, format_time};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{date} */ r#"
@@ -15,7 +15,7 @@ NAME
     date - prints the system time
 
 SYNOPSIS
-    date [ -h | --help]
+    date [ -h | --help] [offset]
 
 DESCRIPTION
     Prints the system time and date
@@ -25,30 +25,6 @@ OPTIONS
     --help
         display this help and exit
 "#; /* @MANEND */
-
-// Sweet algorithm from http://ptspts.blogspot.com/2009/11/how-to-convert-unix-timestamp-to-civil.html
-// TODO: Apply timezone offset
-fn format_time(mut ts: i64) -> String {
-    let s = ts%86400;
-    ts /= 86400;
-    let h = s/3600;
-    let m = s/60%60;
-    let s = s%60;
-    let x = (ts*4+102032)/146097+15;
-    let b = ts+2442113+x-(x/4);
-    let mut c = (b*20-2442)/7305;
-    let d = b-365*c-c/4;
-    let mut e = d*1000/30601;
-    let f = d-e*30-e*601/1000;
-    if e < 14 {
-        c -= 4716;
-        e -= 1;
-    } else {
-        c -= 4715;
-        e -= 13;
-    }
-    format!("{:>04}-{:>02}-{:>02} {:>02}:{:>02}:{:>02}", c, e, f, h, m, s)
-}
 
 fn main() {
     let stdout = stdout();
@@ -81,8 +57,7 @@ fn main() {
 
     let time = SystemTime::now();
     let duration = time.duration_since(UNIX_EPOCH).try(&mut stderr);
-    let mut ts = duration.as_secs() as i64;
-    ts += tz_offset * 3600;
+    let ts = duration.as_secs() as i64;
 
-    stdout.write(format!("{} {}\n", format_time(ts), tz_name).as_bytes()).try(&mut stderr);
+    stdout.write(format!("{} {}\n", format_time(ts, tz_offset), tz_name).as_bytes()).try(&mut stderr);
 }
