@@ -1,12 +1,9 @@
-extern crate chrono;
-
 use std::borrow::Borrow;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use chrono::NaiveDateTime;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// The parameter styles for short, e.g. `-s`,
@@ -402,9 +399,37 @@ impl ArgParser {
     }
 }
 
-pub fn system_time_to_utc_string(system_time: SystemTime) -> String {
-    let timestamp = system_time.duration_since(UNIX_EPOCH).expect("can't get duration since unix epoch");
-    NaiveDateTime::from_timestamp(timestamp.as_secs() as i64, 0).to_string()
+pub fn format_system_time(time: SystemTime) -> String {
+    let tz_offset = 0; //TODO Apply timezone offset
+    match time.duration_since(UNIX_EPOCH) {
+        Ok(duration) => format_time(duration.as_secs() as i64, tz_offset), 
+        Err(_) => "duration since epoch err".to_string()
+        }
+}
+
+// Sweet algorithm from http://ptspts.blogspot.com/2009/11/how-to-convert-unix-timestamp-to-civil.html
+// TODO: Apply timezone offset
+pub fn format_time(mut ts: i64, tz_offset: i64) -> String {
+    ts += tz_offset * 3600;
+    let s = ts%86400;
+    ts /= 86400;
+    let h = s/3600;
+    let m = s/60%60;
+    let s = s%60;
+    let x = (ts*4+102032)/146097+15;
+    let b = ts+2442113+x-(x/4);
+    let mut c = (b*20-2442)/7305;
+    let d = b-365*c-c/4;
+    let mut e = d*1000/30601;
+    let f = d-e*30-e*601/1000;
+    if e < 14 {
+        c -= 4716;
+        e -= 1;
+    } else {
+        c -= 4715;
+        e -= 13;
+    }
+    format!("{:>04}-{:>02}-{:>02} {:>02}:{:>02}:{:>02}", c, e, f, h, m, s)
 }
 
 pub fn to_human_readable_string(size: u64) -> String {

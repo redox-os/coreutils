@@ -1,6 +1,4 @@
 #![deny(warnings)]
-extern crate chrono;
-
 extern crate coreutils;
 extern crate extra;
 
@@ -10,10 +8,9 @@ use std::fs::FileType;
 use std::path::Path;
 use std::io::{stdout, StdoutLock, stderr, Stderr, Write};
 use std::os::unix::fs::MetadataExt;
-
 use std::process::exit;
 
-use coreutils::{ArgParser, to_human_readable_string, system_time_to_utc_string};
+use coreutils::{ArgParser, to_human_readable_string, format_system_time};
 use extra::option::OptionalExt;
 
 
@@ -22,7 +19,7 @@ NAME
     ls - list directory contents
 
 SYNOPSIS
-    ls [ -h | --help | -l ][FILE]...
+    ls [ -h | --help | -l ] [FILE]...
 
 DESCRIPTION
     List information about the FILE(s), or the current directory
@@ -103,14 +100,27 @@ fn print_item(item_path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stde
         }
     }
     if parser.found("modified-date") || parser.found("long-format") {
-        stdout.write(&format!("{:>20} ", system_time_to_utc_string(metadata.modified().expect("can't get modification date from file metadata"))).as_bytes()).try(stderr);
-    }
-    if parser.found("created-date") {
-        stdout.write(&format!("{:>20} ", system_time_to_utc_string(metadata.created().expect("can't get creation date from file metadata"))).as_bytes()).try(stderr);
+        let mtime = match metadata.modified(){
+            Ok(mtime) => format_system_time(mtime),
+            Err(_) => "mdate err".to_string(),
+        };
+        stdout.write(&format!("{:>20} ", mtime).as_bytes()).try(stderr);
     }
     if parser.found("accessed-date") {
-        stdout.write(&format!("{:>20} ", system_time_to_utc_string(metadata.accessed().expect("can't get access date from file metadata"))).as_bytes()).try(stderr);
+        let atime = match metadata.accessed(){
+            Ok(atime) => format_system_time(atime),
+            Err(_) => "adate err".to_string(),
+        };
+        stdout.write(&format!("{:>20} ", atime).as_bytes()).try(stderr);
     }
+    if parser.found("created-date") {
+        let ctime = match metadata.created(){
+            Ok(ctime) => format_system_time(ctime),
+            Err(_) => "cdate err".to_string(),
+        };
+        stdout.write(&format!("{:>20} ", ctime).as_bytes()).try(stderr);
+    }
+
 
     if item_path.starts_with("./") {
         stdout.write(&item_path[2..].as_bytes()).try(stderr);
@@ -223,11 +233,12 @@ fn test_human_readable() {
 }
 
 #[test]
-fn test_system_time_to_utc_string() {
-    use std::time::SystemTime;
-    use chrono::prelude::{DateTime,UTC};
-
-    let system_time_now = SystemTime::now();
-    let utc_now: DateTime<UTC> = UTC::now();
-    assert_eq!(system_time_to_utc_string(system_time_now), utc_now.format("%Y-%m-%d %H:%M:%S").to_string());
+fn test_format_system_time() {
+    use std::ops::Add;
+    use std::time::{SystemTime, Duration};
+    let now = SystemTime::now();
+    let future = SystemTime::now().add(Duration::from_secs(10));
+    assert_ne!(format_system_time(now), format_system_time(future));
+    // compare up to ten minutes: 2017-03-21 17:1_:__
+    assert_eq!(format_system_time(now)[..15], format_system_time(future)[..15]);
 }
