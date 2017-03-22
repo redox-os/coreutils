@@ -39,10 +39,10 @@ AUTHOR
     Written by Žad Deljkić.
 "#; /* @MANEND */
 
-fn head<R: Read, W: Write>(input: R, output: W, num: usize, parser: &ArgParser) -> io::Result<()> {
+fn head<R: Read, W: Write>(input: R, output: W, lines: bool, num: usize) -> io::Result<()> {
     let mut writer = io::BufWriter::new(output);
 
-    if parser.found(&'n') || parser.found("lines") {
+    if lines {
         let lines = io::BufReader::new(input).lines().take(num);
 
         for line_res in lines {
@@ -54,8 +54,7 @@ fn head<R: Read, W: Write>(input: R, output: W, num: usize, parser: &ArgParser) 
                 Err(err) => return Err(err),
             };
         }
-    }
-    else if parser.found(&'c') || parser.found("bytes") {
+    } else {
         let bytes = input.bytes().take(num);
 
         for byte_res in bytes {
@@ -94,12 +93,12 @@ fn main() {
         return;
     }
 
-    let num: usize = 
+    let (lines, num): (bool, usize) =
         if let Some(num) = parser.get_opt("lines") {
-            num.parse().try(&mut stderr)
+            (true, num.parse().try(&mut stderr))
         }
         else if let Some(num) = parser.get_opt("bytes") {
-            num.parse().try(&mut stderr)
+            (false, num.parse().try(&mut stderr))
         }
         else {
             fail("missing argument (number of lines/bytes)", &mut stderr);
@@ -110,17 +109,17 @@ fn main() {
     if parser.args.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
-        head(stdin, stdout, num, &parser).try(&mut stderr);
+        head(stdin, stdout, lines, num).try(&mut stderr);
     } else if parser.args.len() == 1 {
         let file = fs::File::open(&parser.args[0]).try(&mut stderr);
-        head(file, stdout, num, &parser).try(&mut stderr);
+        head(file, stdout, lines, num).try(&mut stderr);
     } else {
         for path in &parser.args {
             let file = fs::File::open(&path).try(&mut stderr);
             stdout.write(b"==> ").try(&mut stderr);
             stdout.write(path.as_bytes()).try(&mut stderr);
             stdout.writeln(b" <==").try(&mut stderr);
-            head(file, &mut stdout, num, &parser).try(&mut stderr);
+            head(file, &mut stdout, lines, num).try(&mut stderr);
         }
     }
 }

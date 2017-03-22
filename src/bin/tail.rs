@@ -48,10 +48,10 @@ AUTHOR
     Written by Žad Deljkić.
 "#; /* @MANEND */
 
-fn tail<R: Read, W: Write>(input: R, output: W, skip: bool, num: usize, parser: &ArgParser) -> io::Result<()> {
+fn tail<R: Read, W: Write>(input: R, output: W, lines: bool, skip: bool, num: usize) -> io::Result<()> {
     let mut writer = io::BufWriter::new(output);
 
-    if parser.found(&'n') || parser.found("lines") {
+    if lines {
         if skip {
             let lines = io::BufReader::new(input).lines().skip(num);
 
@@ -86,8 +86,7 @@ fn tail<R: Read, W: Write>(input: R, output: W, skip: bool, num: usize, parser: 
                 try!(writer.write_all(line.as_bytes()));
             }
         }
-    }
-    else if parser.found(&'c') || parser.found("bytes") {
+    } else {
         if skip {
             let bytes = input.bytes().skip(num);
 
@@ -97,8 +96,7 @@ fn tail<R: Read, W: Write>(input: R, output: W, skip: bool, num: usize, parser: 
                     Err(err) => return Err(err),
                 };
             }
-        }
-        else {
+        } else {
             let bytes = input.bytes();
             let mut deque = VecDeque::new();
 
@@ -147,12 +145,12 @@ fn main() {
         stderr.flush().try(&mut stderr);
         return;
     }
-    let (skip, num): (bool, usize) = 
+    let (lines, skip, num): (bool, bool, usize) =
         if let Some(num) = parser.get_opt("lines") {
-            (num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
+            (true, num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
         }
         else if let Some(num) = parser.get_opt("bytes") {
-            (num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
+            (false, num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
         }
         else {
             fail("missing argument (number of lines/bytes)", &mut stderr);
@@ -162,17 +160,17 @@ fn main() {
     if parser.args.is_empty() {
         let stdin = io::stdin();
         let stdin = stdin.lock();
-        tail(stdin, stdout, skip, num, &parser).try(&mut stderr);
+        tail(stdin, stdout, lines, skip, num).try(&mut stderr);
     } else if parser.args.len() == 1 {
         let file = fs::File::open(&parser.args[0]).try(&mut stderr);
-        tail(file, stdout, skip, num, &parser).try(&mut stderr);
+        tail(file, stdout, lines, skip, num).try(&mut stderr);
     } else {
         for path in &parser.args {
             let file = fs::File::open(&path).try(&mut stderr);
             stdout.write(b"==> ").try(&mut stderr);
             stdout.write(path.as_bytes()).try(&mut stderr);
             stdout.writeln(b" <==").try(&mut stderr);
-            tail(file, &mut stdout, skip, num, &parser).try(&mut stderr);
+            tail(file, &mut stdout, lines, skip, num).try(&mut stderr);
         }
     }
 }
