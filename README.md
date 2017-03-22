@@ -22,6 +22,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `free`
 - `head`
 - `kill`
+- `ln`
 - `ls`
 - `mkdir`
 - `mv`
