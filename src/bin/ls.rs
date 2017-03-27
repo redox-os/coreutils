@@ -132,7 +132,7 @@ fn print_item(item_path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stde
             .expect("can't read link")
             .into_os_string()
             .into_string()
-            .expect("c'ant get path as string");
+            .expect("can't get path as string");
         stdout.write(&format!(" -> {}", symlink_target).as_bytes()).try(stderr);
         if !link_error.is_empty() {
             stdout.write(&format!(" ({})", link_error).as_bytes()).try(stderr);
