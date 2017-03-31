@@ -92,6 +92,7 @@ fn main() {
     let mut stderr = stderr();
     let mut parser = ArgParser::new(2)
         .add_flag(&["n", "numeric-sort"])
+        .add_flag(&["u", "unique"])
         .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
@@ -118,6 +119,9 @@ fn main() {
                 l.sort_by(numeric_compare);
             } else {
                 l.sort();
+            }
+            if parser.found("unique") {
+                l.dedup();
             }
             for x in l {
                 println!("{}", x);
