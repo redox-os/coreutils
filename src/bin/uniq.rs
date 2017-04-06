@@ -4,6 +4,7 @@ extern crate coreutils;
 extern crate extra;
 
 use std::env;
+use std::mem;
 use std::fs::File;
 use std::process::exit;
 use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader};
@@ -26,6 +27,9 @@ OPTIONS
     -h
     --help
         display this help and exit
+    -c
+    --count
+        precede each output line with a count of the number of times the line occurred in the input
     -i
     --ignore-case
         compare lines case-insensitively
@@ -43,11 +47,7 @@ fn lines_from_stdin() -> Result<Vec<String>, Error> {
 
     let f = BufReader::new(stdin.lock());
     for line in f.lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(e) => return Err(e),
-        };
-        lines.push(line);
+        lines.push(line?);
     }
     Ok(lines)
 }
@@ -56,71 +56,57 @@ fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<String>, Error> {
     let mut lines = Vec::new();
 
     for path in paths {
-        let f = try!(File::open(path));
-        let f = BufReader::new(f);
+        let f = BufReader::new(File::open(path)?);
         for line in f.lines() {
-            let line = match line {
-                Ok(l) => l,
-                Err(e) => return Err(e),
-            };
-            lines.push(line);
+            lines.push(line?);
         }
     }
     Ok(lines)
 }
 
-fn repeated_lines(vector: Vec<String>) -> Vec<String> {
-    let mut repeated_lines =  Vec::new();
-
-    let ln = vector.len();
-    if ln <= 1 {
-       return repeated_lines;
+fn eq_strings(left: &str, right: &str, ignore_case: bool) -> bool {
+    if ignore_case {
+        left.to_lowercase() == right.to_lowercase()
+    } else {
+        left == right
     }
-
-    let mut r: usize = 1;
-
-    while r < ln {
-        let first = &vector[(r - 1)];
-        let second = &vector[r];
-        if first == second {
-            repeated_lines.push(first.to_owned());
-            r += 2;  // skip repeatead
-        } else {
-            r += 1;
-        }
-        if r == ln {
-            let last = &vector[ln - 1];
-            repeated_lines.push(last.to_owned());
-        }
-    }
-    repeated_lines
 }
 
-fn unique_lines(vector: Vec<String>) -> Vec<String> {
-    let mut unique_lines =  Vec::new();
+fn get_squashed_lines(lines: &mut Vec<String>, ignore_case: bool) -> Vec<(usize, String)> {
+    let mut squashed =  Vec::new();
+    let llen = lines.len();
 
-    let ln = vector.len();
-    if ln <= 1 {
-       return vector;
+    let mut r: usize = 0;
+
+    while r < llen {
+        let mut rnext: usize = r + 1;
+        let mut count: usize = 1;
+
+        while rnext < llen && eq_strings(&lines[r], &lines[rnext], ignore_case) {
+            count += 1;
+            rnext += 1;
+        }
+
+        squashed.push((count, r));
+        r += count;
     }
 
-    let mut r: usize = 1;
+    squashed
+        .into_iter()
+        .map(|(c, i)| (c, mem::replace(&mut lines[i], String::from(""))))
+        .collect()
+}
 
-    while r < ln {
-        let first = &vector[(r - 1)];
-        let second = &vector[r];
-        if first != second {
-            unique_lines.push(first.to_owned());
-            r += 1;
-        } else {
-            r += 2;  // skip repeatead
-        }
-        if r == ln {
-            let last = &vector[ln - 1];
-            unique_lines.push(last.to_owned());
-        }
-    }
-    unique_lines
+fn unique_lines(lines: Vec<(usize, String)>) -> Vec<(usize, String)> {
+   lines.into_iter()
+       .filter(|&(k,_)| k == 1)
+       .collect::<Vec<(usize, String)>>()
+}
+
+fn repeated_lines(lines: Vec<(usize, String)>) -> Vec<(usize, String)> {
+   lines.into_iter()
+       .filter(|&(k,_)| k > 1)
+       .collect::<Vec<(usize, String)>>()
 }
 
 fn main() {
@@ -128,8 +114,9 @@ fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(2)
+    let mut parser = ArgParser::new(5)
         .add_flag(&["i", "ignore-case"])
+        .add_flag(&["c", "count"])
         .add_flag(&["d", "repeated-lines"])
         .add_flag(&["u", "unique-lines"])
         .add_flag(&["h", "help"]);
@@ -144,28 +131,29 @@ fn main() {
     let lines = match parser.args.is_empty() {
         true => lines_from_stdin(),
         false => {
-            let mut paths = Vec::new();
-            for dir in parser.args.iter() {
-                paths.push(dir);
-            }
+            let paths = parser.args.iter().collect::<Vec<_>>();
             lines_from_files(&paths)
         }
     };
 
     match lines {
         Ok(mut l) => {
-            if parser.found("ignore-case") {
-                l = l.iter().map(|x| x.to_lowercase()).collect();
-            }
+            let mut squashed = get_squashed_lines(&mut l, parser.found("ignore-case"));
+
             if parser.found("unique-lines") {
-                l = unique_lines(l);
+                squashed = unique_lines(squashed);
             } else if parser.found("repeated-lines") {
-                l = repeated_lines(l);
-            } else {
-                l.dedup();
+                squashed = repeated_lines(squashed);
             }
-            for x in l {
-                println!("{}", x);
+
+            if parser.found("count") {
+                for (c, v) in squashed {
+                    println!("{} {}", c, v);
+                }
+            } else {
+                for (_, v) in squashed {
+                    println!("{}", v);
+                }
             }
         }
         Err(e) => {
