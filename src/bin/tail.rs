@@ -5,10 +5,12 @@ extern crate extra;
 
 use std::collections::VecDeque;
 use std::env;
-use std::fs;
+use std::fs::File;
+use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 use std::io::{self, BufRead, Read, Write};
 use std::io::{Seek, SeekFrom};
+use std::error::Error;
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
@@ -50,9 +52,12 @@ OPTIONS
         Follow the files content, that is, continue to read the given files
         and print any change that occurs.
 
-    -s
+    -F
+        Like -f, but keep checking if the files exist or have been replaced.
+
+    -s SECONDS
     --sleep-interval SECONDS
-        With -f, read at intervals of SECONDS seconds (defaults to 1.0).
+        With -f or -F, read at intervals of SECONDS seconds (defaults to 1.0).
 
 AUTHOR
     Written by Žad Deljkić.
@@ -151,10 +156,10 @@ fn tail<R: Read, W: Write>(input: R, output: W, lines: bool, skip: bool, num: us
     Ok(())
 }
 
-fn follow<R, W>(inputs: Vec<(&str, R)>, output: W, sleep_interval: Duration) -> io::Result<()>
-    where R: Read + Seek, W: Write
+fn follow<W>(files: Vec<(&str, Option<File>)>, output: W, sleep_interval: Duration, follow_name: bool) -> io::Result<()>
+    where W: Write
 {
-    if inputs.is_empty() {
+    if files.is_empty() {
         return Ok(());
     }
 
@@ -163,13 +168,20 @@ fn follow<R, W>(inputs: Vec<(&str, R)>, output: W, sleep_interval: Duration) -> 
 
     let mut writer = io::BufWriter::new(output);
 
-    let mut last_updated_filename = inputs.last().unwrap().0;
+    let mut last_updated_filename = files.last().unwrap().0;
 
     let mut readers = Vec::new();
-    for (filename, input) in inputs {
-        let mut reader = io::BufReader::new(input);
-        let input_end = reader.seek(SeekFrom::End(0))?;
-        readers.push((filename, reader, input_end));
+    for (filename, file_opt) in files {
+        let follow_info = if let Some(file) = file_opt {
+            let metadata = file.metadata()?;
+            let mut reader = io::BufReader::new(file);
+            let file_end = reader.seek(SeekFrom::End(0))?;
+            Some((reader, file_end, metadata))
+        } else {
+            None
+        };
+
+        readers.push((filename, follow_info));
     }
 
     let mut buf = Vec::new();
@@ -177,31 +189,59 @@ fn follow<R, W>(inputs: Vec<(&str, R)>, output: W, sleep_interval: Duration) -> 
     loop {
         std::thread::sleep(sleep_interval);
 
-        for &mut (filename, ref mut reader, ref mut last_input_end) in readers.iter_mut() {
-            let input_end = reader.seek(SeekFrom::End(0))?;
+        for &mut (filename, ref mut follow_info) in readers.iter_mut() {
+            if follow_name {
+                match File::open(filename) {
+                    Err(ref e) if follow_info.is_some() => {
+                        writeln!(stderr, "tail: file '{}' has become inaccessible: {}", filename, e.description())?;
+                        *follow_info = None;
+                    }
+                    Ok(file) => {
+                        if let &mut Some((ref mut reader, ref mut seek_pos, ref mut metadata)) = follow_info {
+                            let new_metadata = file.metadata()?;
 
-            if input_end != *last_input_end {
-                if filename != last_updated_filename {
-                    writer.write_all(b"\n")?;
-                    print_filename_header(filename, &mut writer)?;
-                    last_updated_filename = filename;
+                            if metadata.dev() != new_metadata.dev() ||
+                               metadata.ino() != new_metadata.ino() {
+                                writeln!(stderr, "tail: file '{}' replaced", filename)?;
+                                *metadata = new_metadata;
+                                *reader = io::BufReader::new(file);
+                                *seek_pos = reader.seek(SeekFrom::Start(0))?;
+                            }
+                        } else {
+                            writeln!(stderr, "tail: file '{}' appeared", filename)?;
+                            let metadata = file.metadata()?;
+                            let mut reader = io::BufReader::new(file);
+                            let seek_pos = reader.seek(SeekFrom::Start(0))?;
+                            *follow_info = Some((reader, seek_pos, metadata));
+                        }
+                    }
+                    _ => {}
                 }
+            }
 
-                if input_end < *last_input_end {
-                    stderr.write_all("tail: file ".as_bytes())?;
-                    stderr.write_all(filename.as_bytes())?;
-                    stderr.write_all(" truncated\n".as_bytes())?;
+            if let &mut Some((ref mut reader, ref mut last_seek_pos, _)) = follow_info {
+                let seek_pos = reader.seek(SeekFrom::End(0))?;
 
-                    reader.seek(SeekFrom::Start(0))?;
-                } else {
-                    reader.seek(SeekFrom::Start(*last_input_end))?;
+                if seek_pos != *last_seek_pos {
+                    if filename != last_updated_filename {
+                        writer.write_all(b"\n")?;
+                        print_filename_header(filename, &mut writer)?;
+                        last_updated_filename = filename;
+                    }
+
+                    if seek_pos < *last_seek_pos {
+                        writeln!(stderr, "tail: file '{}' truncated", filename)?;
+                        reader.seek(SeekFrom::Start(0))?;
+                    } else {
+                        reader.seek(SeekFrom::Start(*last_seek_pos))?;
+                    }
+                    buf.clear();
+                    reader.read_to_end(&mut buf)?;
+                    writer.write_all(&buf[..])?;
+                    writer.flush()?;
+
+                    *last_seek_pos = seek_pos;
                 }
-                buf.clear();
-                reader.read_to_end(&mut buf)?;
-                writer.write_all(&buf[..])?;
-                writer.flush()?;
-
-                *last_input_end = input_end;
             }
         }
     }
@@ -218,11 +258,12 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    let mut parser = ArgParser::new(5)
+    let mut parser = ArgParser::new(6)
         .add_opt_default("n", "lines", "10")
         .add_opt("c", "bytes")
         .add_flag(&["h", "help"])
         .add_flag(&["f"])
+        .add_flag(&["F"])
         .add_opt_default("s", "sleep-interval", "1.0");
     parser.parse(env::args());
 
@@ -233,6 +274,9 @@ fn main() {
     }
     if parser.found(&'c') || parser.found("bytes") {
         parser.opt("lines").clear();
+    }
+    if parser.found(&'F') {
+        *parser.flag(&'f') = true;
     }
     if let Err(err) = parser.found_invalid() {
         stderr.write_all(err.as_bytes()).try(&mut stderr);
@@ -282,23 +326,35 @@ fn main() {
         }
     } else {
         let files = parser.args.iter()
-            .map(|filename| (filename.as_str(), fs::File::open(filename).try(&mut stderr)))
+            .map(|filename| {
+                let file_opt = match File::open(filename) {
+                    Ok(f) => Some(f),
+                    Err(e) => {
+                        writeln!(stderr, "tail: cannot open file '{}': {}", filename, e.description()).try(&mut stderr);
+                        None
+                    }
+                };
+                (filename.as_str(), file_opt)
+            })
             .collect::<Vec<(_, _)>>();
 
         let mut print_newline = false;
-        for &(filename, ref file) in &files {
-            if file_count > 1 {
-                if print_newline {
-                    stdout.write_all(b"\n").try(&mut stderr);
+        for &(filename, ref file_opt) in &files {
+            if let &Some(ref file) = file_opt {
+                if file_count > 1 {
+                    if print_newline {
+                        stdout.write_all(b"\n").try(&mut stderr);
+                    }
+                    print_newline = true;
+                    print_filename_header(filename, &mut stdout).try(&mut stderr);
                 }
-                print_newline = true;
-                print_filename_header(filename, &mut stdout).try(&mut stderr);
+                tail(file, &mut stdout, lines, skip, num).try(&mut stderr);
             }
-            tail(file, &mut stdout, lines, skip, num).try(&mut stderr);
         }
 
         if parser.found(&'f') {
-            follow(files, &mut stdout, sleep_interval).try(&mut stderr);
+            let follow_name = parser.found(&'F');
+            follow(files, &mut stdout, sleep_interval, follow_name).try(&mut stderr);
         }
     }
 }
