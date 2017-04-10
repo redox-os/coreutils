@@ -4,7 +4,6 @@ extern crate coreutils;
 extern crate extra;
 
 use std::env;
-use std::mem;
 use std::fs::File;
 use std::process::exit;
 use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader};
@@ -72,7 +71,7 @@ fn eq_strings(left: &str, right: &str, ignore_case: bool) -> bool {
     }
 }
 
-fn get_squashed_lines(lines: &mut Vec<String>, ignore_case: bool) -> Vec<(usize, String)> {
+fn get_squashed_lines(lines: &[String], ignore_case: bool) -> Vec<(usize, &String)> {
     let mut squashed =  Vec::new();
     let llen = lines.len();
 
@@ -87,26 +86,23 @@ fn get_squashed_lines(lines: &mut Vec<String>, ignore_case: bool) -> Vec<(usize,
             rnext += 1;
         }
 
-        squashed.push((count, r));
+        squashed.push((count, &lines[r]));
         r += count;
     }
 
     squashed
-        .into_iter()
-        .map(|(c, i)| (c, mem::replace(&mut lines[i], String::from(""))))
-        .collect()
 }
 
-fn unique_lines(lines: Vec<(usize, String)>) -> Vec<(usize, String)> {
+fn unique_lines(lines: Vec<(usize, &String)>) -> Vec<(usize, &String)> {
    lines.into_iter()
        .filter(|&(k,_)| k == 1)
-       .collect::<Vec<(usize, String)>>()
+       .collect::<Vec<_>>()
 }
 
-fn repeated_lines(lines: Vec<(usize, String)>) -> Vec<(usize, String)> {
+fn repeated_lines(lines: Vec<(usize, &String)>) -> Vec<(usize, &String)> {
    lines.into_iter()
        .filter(|&(k,_)| k > 1)
-       .collect::<Vec<(usize, String)>>()
+       .collect::<Vec<_>>()
 }
 
 fn main() {
@@ -137,8 +133,8 @@ fn main() {
     };
 
     match lines {
-        Ok(mut l) => {
-            let mut squashed = get_squashed_lines(&mut l, parser.found("ignore-case"));
+        Ok(ref l) => {
+            let mut squashed = get_squashed_lines(&l, parser.found("ignore-case"));
 
             if parser.found("unique-lines") {
                 squashed = unique_lines(squashed);
