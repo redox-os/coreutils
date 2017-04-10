@@ -45,7 +45,7 @@ fn main() {
         let args = env::args().skip(2);
         if args.len() > 0 {
             for arg in args {
-               let fd = std::fs::OpenOptions::new().append(true).open(arg);
+               let fd = std::fs::OpenOptions::new().append(true).create(true).open(arg);
                match fd {
                    Ok(f) => fds.push(f),
                    Err(e) => println!("Err(e): {}", e),
