@@ -164,6 +164,10 @@ name = "true"
 path = "src/bin/true.rs"
 
 [[bin]]
+name = "uniq"
+path = "src/bin/uniq.rs"
+
+[[bin]]
 name = "wc"
 path = "src/bin/wc.rs"
 
