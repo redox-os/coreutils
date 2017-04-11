@@ -4,9 +4,10 @@ extern crate coreutils;
 extern crate extra;
 
 use std::env;
+use std::str;
 use std::fs::File;
 use std::process::exit;
-use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader};
+use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader, BufWriter};
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 
@@ -40,38 +41,42 @@ OPTIONS
         only print unique lines
 "#; /* @MANEND */
 
-fn lines_from_stdin() -> Result<Vec<String>, Error> {
+fn lines_from_stdin() -> Result<Vec<Vec<u8>>, Error> {
     let stdin = stdin();
     let mut lines = Vec::new();
 
     let f = BufReader::new(stdin.lock());
-    for line in f.lines() {
+    for line in f.split(b'\n') {
         lines.push(line?);
     }
     Ok(lines)
 }
 
-fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<String>, Error> {
+fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<Vec<u8>>, Error> {
     let mut lines = Vec::new();
 
     for path in paths {
         let f = BufReader::new(File::open(path)?);
-        for line in f.lines() {
+        for line in f.split(b'\n') {
             lines.push(line?);
         }
     }
     Ok(lines)
 }
 
-fn eq_strings(left: &str, right: &str, ignore_case: bool) -> bool {
+fn to_lowercase(vector: &Vec<u8>) -> Vec<u8> {
+    vector.iter().map(|c| 0x20 | c).collect::<Vec<_>>()
+}
+
+fn eq_strings(left: &Vec<u8>, right: &Vec<u8>, ignore_case: bool) -> bool {
     if ignore_case {
-        left.to_lowercase() == right.to_lowercase()
+        to_lowercase(left) == to_lowercase(right)
     } else {
         left == right
     }
 }
 
-fn get_squashed_lines(lines: &[String], ignore_case: bool) -> Vec<(usize, &String)> {
+fn get_squashed_lines(lines: &Vec<Vec<u8>>, ignore_case: bool) -> Vec<(usize, &Vec<u8>)> {
     let mut squashed =  Vec::new();
     let llen = lines.len();
 
@@ -93,13 +98,13 @@ fn get_squashed_lines(lines: &[String], ignore_case: bool) -> Vec<(usize, &Strin
     squashed
 }
 
-fn unique_lines(lines: Vec<(usize, &String)>) -> Vec<(usize, &String)> {
+fn unique_lines(lines: Vec<(usize, &Vec<u8>)>) -> Vec<(usize, &Vec<u8>)> {
    lines.into_iter()
        .filter(|&(k,_)| k == 1)
        .collect::<Vec<_>>()
 }
 
-fn repeated_lines(lines: Vec<(usize, &String)>) -> Vec<(usize, &String)> {
+fn repeated_lines(lines: Vec<(usize, &Vec<u8>)>) -> Vec<(usize, &Vec<u8>)> {
    lines.into_iter()
        .filter(|&(k,_)| k > 1)
        .collect::<Vec<_>>()
@@ -108,7 +113,7 @@ fn repeated_lines(lines: Vec<(usize, &String)>) -> Vec<(usize, &String)> {
 fn main() {
 
     let stdout = stdout();
-    let mut stdout = stdout.lock();
+    let mut stdout = BufWriter::with_capacity(8192, stdout.lock());
     let mut stderr = stderr();
     let mut parser = ArgParser::new(5)
         .add_flag(&["i", "ignore-case"])
@@ -144,11 +149,14 @@ fn main() {
 
             if parser.found("count") {
                 for (c, v) in squashed {
-                    println!("{} {}", c, v);
+                    let line = str::from_utf8(&v[..]).expect("Unable to parse line");
+                    stdout.write(&format!("{} {}\n", c, line).as_bytes()).unwrap();
                 }
             } else {
                 for (_, v) in squashed {
-                    println!("{}", v);
+                    let line = str::from_utf8(&v[..]).expect("Unable to parse line");
+                    stdout.write(&format!("{}\n", line).as_bytes()).unwrap();
+
                 }
             }
         }
