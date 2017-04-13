@@ -64,13 +64,14 @@ fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<Vec<u8>>, Error> {
     Ok(lines)
 }
 
-fn to_lowercase(vector: &Vec<u8>) -> Vec<u8> {
-    vector.iter().map(|c| 0x20 | c).collect::<Vec<_>>()
-}
-
 fn eq_strings(left: &Vec<u8>, right: &Vec<u8>, ignore_case: bool) -> bool {
     if ignore_case {
-        to_lowercase(left) == to_lowercase(right)
+        left.len() == right.len() &&
+        left
+            .iter()
+            .zip(right.iter())
+            .all(|(&l, &r)|  l | 0x20 == r | 0x20)
+
     } else {
         left == right
     }
@@ -149,14 +150,15 @@ fn main() {
 
             if parser.found("count") {
                 for (c, v) in squashed {
-                    let line = str::from_utf8(&v[..]).expect("Unable to parse line");
-                    stdout.write(&format!("{} {}\n", c, line).as_bytes()).unwrap();
+                    let _ = stdout.write_fmt(format_args!("{} ", c))
+                        .and_then(|_| stdout.write_all(b" "))
+                        .and_then(|_| stdout.write_all(v))
+                        .and_then(|_| stdout.write_all(b"\n"));
                 }
             } else {
                 for (_, v) in squashed {
-                    let line = str::from_utf8(&v[..]).expect("Unable to parse line");
-                    stdout.write(&format!("{}\n", line).as_bytes()).unwrap();
-
+                    let _ = stdout.write_all(v)
+                        .and_then(|_| stdout.write_all(b"\n"));
                 }
             }
         }
