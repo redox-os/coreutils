@@ -11,6 +11,8 @@ use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader, BufWriter
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 
+const HELP_INFO:       &'static str = "Try ‘uniq --help’ for more information.\n";
+const REQUIRES_OPTION: &'static str = "option requires an argument\n";
 const MAN_PAGE: &'static str = r#"
 NAME
     uniq - report or omit repeated lines
@@ -24,21 +26,24 @@ DESCRIPTION
     With no FILE(s), read standard input.
 
 OPTIONS
-    -h
-    --help
-        display this help and exit
     -c
     --count
         precede each output line with a count of the number of times the line occurred in the input
-    -i
-    --ignore-case
-        compare lines case-insensitively
     -d
     --repeated-lines
         only print duplicate lines, one for each group
+    -i
+    --ignore-case
+        compare lines case-insensitively
+    -s
+    --skip-chars=N
+        avoid comparing the first N characters
     -u
     --unique-lines
         only print unique lines
+    -h
+    --help
+        display this help and exit
 "#; /* @MANEND */
 
 fn lines_from_stdin() -> Result<Vec<Vec<u8>>, Error> {
@@ -64,7 +69,10 @@ fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<Vec<u8>>, Error> {
     Ok(lines)
 }
 
-fn eq_strings(left: &Vec<u8>, right: &Vec<u8>, ignore_case: bool) -> bool {
+fn eq_strings(left: &Vec<u8>, right: &Vec<u8>, skip_chars: usize, ignore_case: bool) -> bool {
+    let left = if skip_chars >= left.len() { &[] } else { &left[skip_chars..] };
+    let right = if skip_chars >= right.len() { &[] } else { &right[skip_chars..] };
+
     if ignore_case {
         left.len() == right.len() &&
         left
@@ -77,7 +85,7 @@ fn eq_strings(left: &Vec<u8>, right: &Vec<u8>, ignore_case: bool) -> bool {
     }
 }
 
-fn get_squashed_lines(lines: &Vec<Vec<u8>>, ignore_case: bool) -> Vec<(usize, &Vec<u8>)> {
+fn get_squashed_lines(lines: &Vec<Vec<u8>>, skip_chars: usize, ignore_case: bool) -> Vec<(usize, &Vec<u8>)> {
     let mut squashed =  Vec::new();
     let llen = lines.len();
 
@@ -87,7 +95,7 @@ fn get_squashed_lines(lines: &Vec<Vec<u8>>, ignore_case: bool) -> Vec<(usize, &V
         let mut rnext: usize = r + 1;
         let mut count: usize = 1;
 
-        while rnext < llen && eq_strings(&lines[r], &lines[rnext], ignore_case) {
+        while rnext < llen && eq_strings(&lines[r], &lines[rnext], skip_chars, ignore_case) {
             count += 1;
             rnext += 1;
         }
@@ -116,10 +124,11 @@ fn main() {
     let stdout = stdout();
     let mut stdout = BufWriter::with_capacity(8192, stdout.lock());
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(5)
-        .add_flag(&["i", "ignore-case"])
+    let mut parser = ArgParser::new(6)
+        .add_opt("s", "skip-chars")
         .add_flag(&["c", "count"])
         .add_flag(&["d", "repeated-lines"])
+        .add_flag(&["i", "ignore-case"])
         .add_flag(&["u", "unique-lines"])
         .add_flag(&["h", "help"]);
     parser.parse(env::args());
@@ -140,7 +149,21 @@ fn main() {
 
     match lines {
         Ok(ref l) => {
-            let mut squashed = get_squashed_lines(&l, parser.found("ignore-case"));
+            let mut skip_chars: usize = 0;
+            if parser.found(&'s') || parser.found("skip-chars") {
+                if let Some(c) = parser.get_opt(&'s') {
+                    skip_chars = c.parse::<usize>().try(&mut stderr);
+                } else if let Some(c) = parser.get_opt("skip-chars") {
+                    skip_chars = c.parse::<usize>().try(&mut stderr);
+                } else {
+                    stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
+                    stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+                    stderr.flush().try(&mut stderr);
+                    exit(1);
+                }
+            }
+
+            let mut squashed = get_squashed_lines(&l, skip_chars, parser.found("ignore-case"));
 
             if parser.found("unique-lines") {
                 squashed = unique_lines(squashed);
