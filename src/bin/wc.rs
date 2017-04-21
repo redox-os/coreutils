@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![feature(io)]
 
 extern crate coreutils;
 extern crate extra;
@@ -64,21 +65,21 @@ impl Counter {
         let mut word_count = 0;
         let mut byte_count = 0;
         let mut got_space = true;
-        let mut input_bytes = input.bytes();
+        let mut input_chars = input.chars();
 
-        while let Some(Ok(byte)) = input_bytes.next() {
-            if byte == b'\n' {
+        while let Some(Ok(rune)) = input_chars.next() {
+            if rune == '\n' {
                 line_count += 1;
             }
 
-            if byte.is_whitespace() {
+            if rune.is_whitespace() {
                 got_space = true;
             } else if got_space {
                 got_space = false;
                 word_count += 1;
             }
 
-            byte_count += 1;
+            byte_count += rune.len_utf8() as u64;
         }
 
         Counter { lines: line_count, words: word_count, bytes: byte_count }
@@ -242,18 +243,22 @@ fn main() {
     }
 }
 
-pub trait AsciiWhitespace { fn is_whitespace(self) -> bool; }
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::io::stderr;
+    use extra::option::OptionalExt;
 
-impl AsciiWhitespace for u8 {
-    fn is_whitespace(self) -> bool {
-        //FIXME this works like iswspace w/ default C locale
-        //but not good enough for en_US.UTF8 among others
+    use super::Counter;
 
-        self == b'\n' // newline
-        || self == b'\t' // tab
-        || self == b'\r' // cr
-        || self == 0xc // formfeed
-        || self == 0xb // vtab
-        || self == b' ' // space
+    #[test]
+    fn count_multi_line_lang_file() {
+        let mut stderr = stderr();
+        let file = File::open("testing/multi_line_lang_file").try(&mut stderr);
+        let count = Counter::new(file);
+
+        assert_eq!(count.lines, 15);
+        assert_eq!(count.words, 66);
+        assert_eq!(count.bytes, 569);
     }
 }
