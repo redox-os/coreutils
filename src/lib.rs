@@ -38,7 +38,7 @@ impl Hash for Param {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match *self {
             Param::Short(ref c) => c.hash(state),
-            Param::Long(ref s) => s.hash(state)
+            Param::Long(ref s) => s.hash(state),
         }
     }
 }
@@ -54,7 +54,10 @@ struct Rhs<T> {
 
 impl<T> Rhs<T> {
     fn new(value: T) -> Self {
-        Rhs { value: value, occurrences: 0 }
+        Rhs {
+            value: value,
+            occurrences: 0,
+        }
     }
 }
 
@@ -75,11 +78,17 @@ enum Value {
 
 impl Value {
     fn new_opt(value: Rc<RefCell<String>>) -> Self {
-        Value::Opt { rhs: Rhs::new(value), found: false }
+        Value::Opt {
+            rhs: Rhs::new(value),
+            found: false,
+        }
     }
 
     fn new_setting(value: Rc<RefCell<String>>) -> Self {
-        Value::Setting { rhs: Rhs::new(value), found: false }
+        Value::Setting {
+            rhs: Rhs::new(value),
+            found: false,
+        }
     }
 }
 
@@ -125,8 +134,7 @@ impl ArgParser {
                 if let Some(short) = flag.chars().next() {
                     self.params.insert(Param::Short(short), Value::Flag(Rhs::new(value.clone())));
                 }
-            }
-            else if !flag.is_empty() {
+            } else if !flag.is_empty() {
                 self.params.insert(Param::Long((*flag).to_owned()), Value::Flag(Rhs::new(value.clone())));
             }
         }
@@ -174,9 +182,9 @@ impl ArgParser {
     ///
     /// For example
     /// > dd if=/path/file
-    ///   ^  ^    
-    ///   |  |    
-    ///   |  |    
+    ///   ^  ^
+    ///   |  |
+    ///   |  |
     ///   |  `-- The setting set to /path/file
     ///   `-- The command to list files.
     pub fn add_setting(mut self, setting: &str) -> Self {
@@ -198,7 +206,7 @@ impl ArgParser {
     /// Start parsing user inputted args for which flags and opts are used at
     /// runtime. The rest of the args that are not associated to opts get added
     /// to `ArgParser.args`.
-    pub fn parse<A: Iterator<Item=String>>(&mut self, args: A) {
+    pub fn parse<A: Iterator<Item = String>>(&mut self, args: A) {
         let mut args = args.skip(1);
         while let Some(arg) = args.next() {
             if arg.starts_with("--") {
@@ -216,8 +224,7 @@ impl ArgParser {
                         Some(&mut Value::Opt { rhs: ref mut opt_rhs, ref mut found }) => {
                             if (*opt_rhs.value).borrow().is_empty() {
                                 opt_rhs.occurrences = 1;
-                            }
-                            else {
+                            } else {
                                 opt_rhs.occurrences += 1;
                             }
                             (*opt_rhs.value).borrow_mut().clear();
@@ -226,8 +233,7 @@ impl ArgParser {
                         }
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
-                }
-                else {
+                } else {
                     match self.params.get_mut(arg) {
                         Some(&mut Value::Flag(ref mut rhs)) => {
                             *(*rhs.value).borrow_mut() = true;
@@ -240,8 +246,7 @@ impl ArgParser {
                         _ => self.invalid.push(Param::Long(arg.to_owned())),
                     }
                 }
-            }
-            else if arg.starts_with("-") {
+            } else if arg.starts_with("-") {
                 let mut chars = arg[1..].chars();
                 while let Some(ch) = chars.next() {
                     match self.params.get_mut(&ch) {
@@ -255,16 +260,20 @@ impl ArgParser {
                                 *(*rhs.value).borrow_mut() = rest;
                                 *found = true;
                             } else {
-                                *(*rhs.value).borrow_mut() = args.next().map(|a| {*found = true; a}).unwrap_or("".to_owned());
+                                *(*rhs.value).borrow_mut() = args.next()
+                                    .map(|a| {
+                                             *found = true;
+                                             a
+                                         })
+                                    .unwrap_or("".to_owned());
                             }
                             break;
                         }
-                        Some(&mut Value::Setting{..}) => self.invalid.push(Param::Short(ch)),
+                        Some(&mut Value::Setting { .. }) => self.invalid.push(Param::Short(ch)),
                         None => self.invalid.push(Param::Short(ch)),
                     }
                 }
-            }
-            else if arg.contains("=") {
+            } else if arg.contains("=") {
                 if arg.is_empty() {
                     //Arg `--` means we are done parsing args, collect the rest
                     self.args.extend(args);
@@ -277,8 +286,7 @@ impl ArgParser {
                         Some(&mut Value::Setting { rhs: ref mut opt_rhs, ref mut found }) => {
                             if (*opt_rhs.value).borrow().is_empty() {
                                 opt_rhs.occurrences = 1;
-                            }
-                            else {
+                            } else {
                                 opt_rhs.occurrences += 1;
                             }
                             (*opt_rhs.value).borrow_mut().clear();
@@ -288,8 +296,7 @@ impl ArgParser {
                         _ => self.invalid.push(Param::Long(lhs.to_owned())),
                     }
                 }
-            }
-            else {
+            } else {
                 self.args.push(arg);
             }
         }
@@ -368,13 +375,13 @@ impl ArgParser {
         }
 
         let mut and: bool = false;
-        let mut output =
-            if self.invalid.len() == 1 {
+        let mut output = if self.invalid.len() == 1 {
                 "Invalid parameter"
             } else {
                 and = true;
                 "Invalid parameters"
-            }.to_owned();
+            }
+            .to_owned();
 
         let mut iter = self.invalid.iter().peekable();
         while let Some(param) = iter.next() {
@@ -403,25 +410,25 @@ pub fn format_system_time(time: SystemTime) -> String {
     let tz_offset = 0; //TODO Apply timezone offset
     match time.duration_since(UNIX_EPOCH) {
         Ok(duration) => format_time(duration.as_secs() as i64, tz_offset), 
-        Err(_) => "duration since epoch err".to_string()
-        }
+        Err(_) => "duration since epoch err".to_string(),
+    }
 }
 
 // Sweet algorithm from http://ptspts.blogspot.com/2009/11/how-to-convert-unix-timestamp-to-civil.html
 // TODO: Apply timezone offset
-pub fn format_time(mut ts: i64, tz_offset: i64) -> String {
+pub fn get_time_tuple(mut ts: i64, tz_offset: i64) -> (i64, i64, i64, i64, i64, i64) {
     ts += tz_offset * 3600;
-    let s = ts%86400;
+    let s = ts % 86400;
     ts /= 86400;
-    let h = s/3600;
-    let m = s/60%60;
-    let s = s%60;
-    let x = (ts*4+102032)/146097+15;
-    let b = ts+2442113+x-(x/4);
-    let mut c = (b*20-2442)/7305;
-    let d = b-365*c-c/4;
-    let mut e = d*1000/30601;
-    let f = d-e*30-e*601/1000;
+    let h = s / 3600;
+    let m = s / 60 % 60;
+    let s = s % 60;
+    let x = (ts * 4 + 102032) / 146097 + 15;
+    let b = ts + 2442113 + x - (x / 4);
+    let mut c = (b * 20 - 2442) / 7305;
+    let d = b - 365 * c - c / 4;
+    let mut e = d * 1000 / 30601;
+    let f = d - e * 30 - e * 601 / 1000;
     if e < 14 {
         c -= 4716;
         e -= 1;
@@ -429,6 +436,11 @@ pub fn format_time(mut ts: i64, tz_offset: i64) -> String {
         c -= 4715;
         e -= 13;
     }
+    (c, e, f, h, m, s)
+}
+
+pub fn format_time(ts: i64, tz_offset: i64) -> String {
+    let (c, e, f, h, m, s) = get_time_tuple(ts, tz_offset);
     format!("{:>04}-{:>02}-{:>02} {:>02}:{:>02}:{:>02}", c, e, f, h, m, s)
 }
 
@@ -454,8 +466,7 @@ mod tests {
     fn stop_parsing() {
         let args = vec![String::from("binname"), String::from("-a"), String::from("--"), String::from("-v")];
         let mut parser = ArgParser::new(2);
-        parser = parser.add_flag(&["a"])
-                       .add_flag(&["v"]);
+        parser = parser.add_flag(&["a"]).add_flag(&["v"]);
         parser.parse(args.into_iter());
         assert!(parser.found(&'a'));
         assert!(!parser.found(&'v'));
@@ -467,9 +478,9 @@ mod tests {
         let args = vec![String::from("binname"), String::from("-asdf"), String::from("-f"), String::from("foo")];
         let mut parser = ArgParser::new(4);
         parser = parser.add_flag(&["a"])
-                       .add_flag(&["d"])
-                       .add_opt("s", "")
-                       .add_opt("f", "");
+            .add_flag(&["d"])
+            .add_opt("s", "")
+            .add_opt("f", "");
         parser.parse(args.into_iter());
         assert!(parser.found(&'a'));
         assert!(!parser.found(&'d'));
@@ -490,9 +501,7 @@ mod tests {
     fn settings() {
         let args = vec![String::from("binname"), String::from("-h"), String::from("if=bar")];
         let mut parser = ArgParser::new(4);
-        parser = parser.add_flag(&["h"])
-                       .add_setting("if")
-                       .add_setting_default("of", "foo");
+        parser = parser.add_flag(&["h"]).add_setting("if").add_setting_default("of", "foo");
         parser.parse(args.into_iter());
         assert!(parser.found("if"));
         assert!(parser.get_setting("if") == Some(String::from("bar")));
