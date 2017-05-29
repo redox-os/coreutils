@@ -182,3 +182,7 @@ path = "src/bin/yes.rs"
 [[bin]]
 name = "tee"
 path = "src/bin/tee.rs"
+
+[[bin]]
+name = "stat"
+path = "src/bin/stat.rs"
