@@ -9,7 +9,7 @@ use std::io::{stdout, stderr, Write};
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{chmod} */ r#"
+const MAN_PAGE: &'static str = /* @MANSTART{stat} */ r#"
 NAME
     stat - display file status
 
