@@ -45,6 +45,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `tr`
 - `true`
 - `uniq`
+- `uptime`
 - `wc`
 - `which`
 - `yes`
