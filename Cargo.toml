@@ -168,6 +168,10 @@ name = "uniq"
 path = "src/bin/uniq.rs"
 
 [[bin]]
+name = "uptime"
+path = "src/bin/uptime.rs"
+
+[[bin]]
 name = "wc"
 path = "src/bin/wc.rs"
 
