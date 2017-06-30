@@ -4,7 +4,7 @@ extern crate coreutils;
 extern crate extra;
 extern crate syscall;
 
-use std::env;
+use std::{env, fmt};
 use std::io::{stdout, stderr, Write};
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
@@ -23,6 +23,27 @@ OPTIONS
     --help, -h
         print this message
 "#; /* @MANEND */
+
+
+struct Perms(u16);
+
+impl fmt::Display for Perms {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(0{:o}/", self.0 & 0o777)?;
+        let perm = |i, c| {
+            if self.0 & ((1 << i) as u16) != 0 {
+                c
+            } else {
+                "-"
+            }
+        };
+        write!(f, "{}{}{}", perm(8, "r"), perm(7, "w"), perm(6, "x"))?;
+        write!(f, "{}{}{}", perm(5, "r"), perm(4, "w"), perm(3, "x"))?;
+        write!(f, "{}{}{}", perm(2, "r"), perm(1, "w"), perm(0, "x"))?;
+        write!(f, ")")?;
+        Ok(())
+    }
+}
 
 fn main() {
     let stdout = stdout();
@@ -52,7 +73,7 @@ fn main() {
         println!("File: {}", path);
         println!("Size: {}  Blocks: {}  IO Block: {} {}", st.st_size, st.st_blocks, st.st_blksize, file_type);
         println!("Device: {}  Inode: {}  Links: {}", st.st_dev, st.st_ino, st.st_nlink);
-        println!("Access: {:o}  Uid: {}  Gid: {}", st.st_mode, st.st_uid, st.st_gid);
+        println!("Access: {}  Uid: {}  Gid: {}", Perms(st.st_mode), st.st_uid, st.st_gid);
         println!("Access: {}.{:09}", st.st_atime, st.st_atime_nsec);
         println!("Modify: {}.{:09}", st.st_mtime, st.st_mtime_nsec);
         println!("Change: {}.{:09}", st.st_ctime, st.st_ctime_nsec);
