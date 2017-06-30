@@ -108,6 +108,10 @@ name = "pwd"
 path = "src/bin/pwd.rs"
 
 [[bin]]
+name = "readlink"
+path = "src/bin/readlink.rs"
+
+[[bin]]
 name = "realpath"
 path = "src/bin/realpath.rs"
 
