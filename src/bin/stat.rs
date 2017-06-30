@@ -4,7 +4,7 @@ extern crate coreutils;
 extern crate extra;
 extern crate syscall;
 
-use std::{env, fmt};
+use std::{env, fmt, fs};
 use std::io::{stdout, stderr, Write};
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
@@ -70,7 +70,11 @@ fn main() {
             syscall::MODE_SYMLINK => "symbolic link",
             _ => ""
         };
-        println!("File: {}", path);
+        if st.st_mode & syscall::MODE_SYMLINK == syscall::MODE_SYMLINK {
+            println!("File: {} -> {}", path, fs::read_link(path).unwrap().display());
+        } else {
+            println!("File: {}", path);
+        }
         println!("Size: {}  Blocks: {}  IO Block: {} {}", st.st_size, st.st_blocks, st.st_blksize, file_type);
         println!("Device: {}  Inode: {}  Links: {}", st.st_dev, st.st_ino, st.st_nlink);
         println!("Access: {}  Uid: {}  Gid: {}", Perms(st.st_mode), st.st_uid, st.st_gid);
