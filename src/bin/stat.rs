@@ -43,8 +43,14 @@ fn main() {
         let fd = syscall::open(path, syscall::O_CLOEXEC | syscall::O_STAT).unwrap();
         syscall::fstat(fd, &mut st).unwrap();
         syscall::close(fd).unwrap();
+        let file_type = match st.st_mode & syscall::MODE_TYPE {
+            syscall::MODE_FILE => "regular file",
+            syscall::MODE_DIR => "directory",
+            syscall::MODE_SYMLINK => "symbolic link",
+            _ => ""
+        };
         println!("File: {}", path);
-        println!("Size: {}  Blocks: {}  IO Block: {}", st.st_size, st.st_blocks, st.st_blksize);
+        println!("Size: {}  Blocks: {}  IO Block: {} {}", st.st_size, st.st_blocks, st.st_blksize, file_type);
         println!("Device: {}  Inode: {}  Links: {}", st.st_dev, st.st_ino, st.st_nlink);
         println!("Access: {:o}  Uid: {}  Gid: {}", st.st_mode, st.st_uid, st.st_gid);
         println!("Access: {}.{:09}", st.st_atime, st.st_atime_nsec);
