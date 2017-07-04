@@ -61,7 +61,7 @@ fn main() {
 
     for path in &parser.args[0..] {
         let mut st = syscall::Stat::default();
-        let fd = syscall::open(path, syscall::O_CLOEXEC | syscall::O_STAT).unwrap();
+        let fd = syscall::open(path, syscall::O_CLOEXEC | syscall::O_STAT | syscall::O_NOFOLLOW).unwrap();
         syscall::fstat(fd, &mut st).unwrap();
         syscall::close(fd).unwrap();
         let file_type = match st.st_mode & syscall::MODE_TYPE {
