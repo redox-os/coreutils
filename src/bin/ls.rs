@@ -1,5 +1,6 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 extern crate coreutils;
+extern crate termion;
 extern crate extra;
 
 use std::env;
@@ -10,6 +11,8 @@ use std::io::{stdout, stderr, Stderr, Write, BufWriter};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 use std::vec::Vec;
+use std::cmp::max;
+use std::cmp::min;
 
 use coreutils::{ArgParser, to_human_readable_string, format_system_time};
 use extra::option::OptionalExt;
@@ -209,11 +212,91 @@ fn main() {
             list_dir(&dir, &parser, &mut output, &mut stderr);
         }
     }
-    for i in output {
-        stdout.write(i.as_bytes()).try(&mut stderr);
-        stdout.write("\n".as_bytes()).try(&mut stderr);
+
+    if parser.found("long-format") {
+        for (i, word) in output.iter().enumerate() {
+            stdout.write(word.as_bytes()).try(&mut stderr);
+            if i % 4 == 3 {
+                !stdout.write("\n".as_bytes()).try(&mut stderr);
+            }
+        }
+    } else {
+        let terminal_size = termion::terminal_size().unwrap().0 as usize;
+        let columned = make_columns(output, terminal_size);
+        for lines in columned {
+            for columns in lines {
+                stdout.write(columns.as_bytes()).try(&mut stderr);
+                stdout.write("  ".as_bytes()).try(&mut stderr);
+            }
+            stdout.write("\n".as_bytes()).try(&mut stderr);
+        }
     }
     stdout.flush().try(&mut stderr);
+}
+
+fn make_columns(list: Vec<String>, terminal_width: usize) -> Vec<Vec<String>> {
+    let word_lengths: Vec<usize> = list.iter().map(|x: &String| -> usize {(&x).len()}).collect();
+    let columns_amt = bin_search( word_lengths.iter().fold(0              , |x, y| {min(x, *y)})
+                                , word_lengths.iter().fold(std::usize::MAX, |x, y| {max(x, *y)})
+                                , word_lengths
+                                , terminal_width);
+    let mut columns: Vec<Vec<String>> = vec![Vec::new(); columns_amt];
+    let mut i = 0;
+    let mut j = 0;
+    for column in &mut columns {
+        for word in column {
+            word.push_str(list.get(i).unwrap().as_str());
+            i += 1;
+        }
+        j += 1;
+    }
+    columns
+}
+
+
+
+fn bin_search(min: usize, max: usize, words: Vec<usize>, terminal_width: usize) -> usize {
+    let diff = min as isize - max as isize;
+    let fits = try_rows(&words, min + (max - min) / 2, terminal_width);
+    if  diff == -1 || diff == 0 || diff == 1{
+        return min;
+    } else if fits {
+        return bin_search(min + (max - min) / 2, max, words, terminal_width);
+    } else {
+        return bin_search(min, min + (max - min) / 2, words, terminal_width);
+    }
+}
+
+fn try_rows(input: &Vec<usize>, columns: usize, width: usize) -> bool {
+
+    let lines_amt = (input.len() / columns) + 1;
+
+    let sum_line_widths = |widths_list: Vec<usize>| -> usize {
+        widths_list.iter().fold(0, |x, y| { x + *y})
+    };
+
+    let split_into_columns = |words: &Vec<usize>| -> Vec<Vec<usize>> {
+        let mut outputs: Vec<Vec<usize>> = vec![Vec::new(); columns];
+        let mut i = 0;
+        for output in &mut outputs {
+            let mut j = 0;
+            while j < lines_amt {
+                output.push(*words.get(i).unwrap());
+                i += 1;
+                j += 1;
+            }
+        }
+        outputs
+    };
+    
+    let longest_word = |words: &Vec<usize>| -> usize {
+        words.iter().fold(0, |x, y| {max(x, *y)})
+    };
+    sum_line_widths(
+        split_into_columns(input).iter().map(
+            longest_word
+        ).collect()
+    ) <= width
 }
 
 #[test]
