@@ -2,7 +2,6 @@
 
 extern crate coreutils;
 extern crate extra;
-extern crate syscall;
 
 use std::env;
 use std::fs;
