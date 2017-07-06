@@ -1,6 +1,5 @@
-//#![deny(warnings)]
+#![deny(warnings)]
 extern crate coreutils;
-extern crate termion;
 extern crate extra;
 
 use std::env;
@@ -11,10 +10,9 @@ use std::io::{stdout, stderr, Stderr, Write, BufWriter};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 use std::vec::Vec;
-use std::cmp::max;
-use std::cmp::min;
 
 use coreutils::{ArgParser, to_human_readable_string, format_system_time};
+use coreutils::columns::print_columns;
 use extra::option::OptionalExt;
 
 
@@ -221,43 +219,71 @@ fn main() {
             }
         }
     } else {
-        let terminal_size = termion::terminal_size().unwrap().0 as usize;
-        let columned = make_columns(output, terminal_size);
-        for lines in columned {
-            for columns in lines {
-                stdout.write(columns.as_bytes()).try(&mut stderr);
-                stdout.write("  ".as_bytes()).try(&mut stderr);
-            }
-            stdout.write("\n".as_bytes()).try(&mut stderr);
-        }
+        print_columns(output);
     }
     stdout.flush().try(&mut stderr);
 }
 
-fn make_columns(list: Vec<String>, terminal_width: usize) -> Vec<Vec<String>> {
-    let word_lengths: Vec<usize> = list.iter().map(|x: &String| -> usize {(&x).len()}).collect();
-    let columns_amt = bin_search( word_lengths.iter().fold(0              , |x, y| {min(x, *y)})
-                                , word_lengths.iter().fold(std::usize::MAX, |x, y| {max(x, *y)})
-                                , word_lengths
-                                , terminal_width);
-    let mut columns: Vec<Vec<String>> = vec![Vec::new(); columns_amt];
-    let mut i = 0;
-    let mut j = 0;
-    for column in &mut columns {
-        for word in column {
-            word.push_str(list.get(i).unwrap().as_str());
-            i += 1;
+/*
+fn print_columns(words: Vec<String>) {
+    let stdout = stdout();
+    let mut stdout = BufWriter::new(stdout.lock());
+    let mut stderr = stderr();
+
+    let terminal_size = termion::terminal_size().unwrap().0 as usize;
+    let columned = make_columns(words, terminal_size);
+    for i in 0..columned[0].len() {
+        for j in 0..columned.len() {
+            if i < columned[j].len() {
+                stdout.write(columned[j][i].as_bytes()).try(&mut stderr);
+            }
         }
-        j += 1;
+        stdout.write("\n".as_bytes()).try(&mut stderr);
     }
-    columns
+    stdout.flush().try(&mut stderr);
+}
+
+
+fn make_columns(mut words: Vec<String>, terminal_width: usize) -> Vec<Vec<String>> {
+
+    let word_lengths: Vec<usize> = 
+        words.iter().map(|x: &String| -> usize {(&x).len() + 2}).collect();
+
+    let columns_amt = bin_search( word_lengths.iter().fold(0   , |x, y| {min(x, *y)})
+                                , word_lengths.iter().fold(1000, |x, y| {max(x, *y)})
+                                , &word_lengths
+                                , terminal_width);
+
+    let longest_words: Vec<usize> = 
+        split_into_columns( &word_lengths
+                          , columns_amt
+                          , (words.len() / columns_amt) + 1
+                          ).iter().map(longest_word).collect();
+
+    let mut words_with_space: Vec<String> = Vec::new();
+    let lines_amt = (words.len() / columns_amt) + 1;
+    let mut longest_words_rep = Vec::new();
+    for longest_word in longest_words {
+        for _ in 0..lines_amt {
+            longest_words_rep.push(longest_word.clone());
+        }
+    }
+
+    for i in 0..words.len() {
+        
+        let whitespace = " ".repeat(longest_words_rep[i] - words[i].len());
+        words[i].push_str(whitespace.as_str());
+        words_with_space.push(words[i].clone());
+    }
+
+    split_into_columns::<String>(&words_with_space, columns_amt, (words.len() / columns_amt) + 1)
 }
 
 
 
-fn bin_search(min: usize, max: usize, words: Vec<usize>, terminal_width: usize) -> usize {
+fn bin_search(min: usize, max: usize, words: &Vec<usize>, terminal_width: usize) -> usize {
     let diff = min as isize - max as isize;
-    let fits = try_rows(&words, min + (max - min) / 2, terminal_width);
+    let fits = try_rows(words, min + (max - min) / 2, terminal_width);
     if  diff == -1 || diff == 0 || diff == 1{
         return min;
     } else if fits {
@@ -265,6 +291,30 @@ fn bin_search(min: usize, max: usize, words: Vec<usize>, terminal_width: usize) 
     } else {
         return bin_search(min, min + (max - min) / 2, words, terminal_width);
     }
+}
+
+fn longest_word(words: &Vec<usize>) -> usize {
+    words.iter().fold(0, |x, y| {max(x, *y)})
+}
+
+fn split_into_columns<T: Clone>(words: &Vec<T>, columns: usize, lines_amt: usize) -> Vec<Vec<T>> {
+    let mut outputs: Vec<Vec<T>> = Vec::new();
+    for _ in 0..columns {
+        outputs.push(Vec::new())
+    }
+    let mut i = 0;
+    'outer: for output in &mut outputs {
+        let mut j = 0;
+        while j < lines_amt {
+            if i >= words.len() {
+                break 'outer;
+            }
+            output.push(words.get(i).unwrap().clone());
+            i += 1;
+            j += 1;
+        }
+    }
+    outputs
 }
 
 fn try_rows(input: &Vec<usize>, columns: usize, width: usize) -> bool {
@@ -275,29 +325,13 @@ fn try_rows(input: &Vec<usize>, columns: usize, width: usize) -> bool {
         widths_list.iter().fold(0, |x, y| { x + *y})
     };
 
-    let split_into_columns = |words: &Vec<usize>| -> Vec<Vec<usize>> {
-        let mut outputs: Vec<Vec<usize>> = vec![Vec::new(); columns];
-        let mut i = 0;
-        for output in &mut outputs {
-            let mut j = 0;
-            while j < lines_amt {
-                output.push(*words.get(i).unwrap());
-                i += 1;
-                j += 1;
-            }
-        }
-        outputs
-    };
-    
-    let longest_word = |words: &Vec<usize>| -> usize {
-        words.iter().fold(0, |x, y| {max(x, *y)})
-    };
     sum_line_widths(
-        split_into_columns(input).iter().map(
+        split_into_columns(input, columns, lines_amt).iter().map(
             longest_word
         ).collect()
     ) <= width
 }
+*/
 
 #[test]
 fn test_human_readable() {
