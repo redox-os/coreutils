@@ -9,8 +9,10 @@ use std::path::Path;
 use std::io::{stdout, stderr, Stderr, Write, BufWriter};
 use std::os::unix::fs::MetadataExt;
 use std::process::exit;
+use std::vec::Vec;
 
 use coreutils::{ArgParser, to_human_readable_string, format_system_time};
+use coreutils::columns::print_columns;
 use extra::option::OptionalExt;
 
 
@@ -75,8 +77,8 @@ fn mode_to_human_readable(file_type: &FileType, symlink_file_type: &FileType, mo
     return result;
 }
 
-fn print_item<W: Write>(item_path: &str, parser: &ArgParser, output: &mut W, stderr: &mut Stderr) {
-
+fn print_item(item_path: &str, parser: &ArgParser, output: &mut Vec<String>, stderr: &mut Stderr) {
+    
     let mut link_error = "";
     let symlink_metadata = fs::symlink_metadata(&item_path).try(stderr);
     let metadata = match fs::metadata(&item_path) {
@@ -87,16 +89,15 @@ fn print_item<W: Write>(item_path: &str, parser: &ArgParser, output: &mut W, std
         }
     };
     if parser.found("long-format") {
-        output.write(&format!("{} {:>5} {:>5} ",
+        output.push(format!("{} {:>5} {:>5} ",
                               mode_to_human_readable(&(metadata.file_type()), &(symlink_metadata.file_type()), metadata.mode()),
                               metadata.uid(),
                               metadata.gid())
-                              .as_bytes())
-            .try(stderr);
+                    );
         if parser.found("human-readable") {
-            output.write(&format!("{:>6} ", to_human_readable_string(metadata.size())).as_bytes()).try(stderr);
+            output.push(format!("{:>6} ", to_human_readable_string(metadata.size())));
         } else {
-            output.write(&format!("{:>8} ", metadata.size()).as_bytes()).try(stderr);
+            output.push(format!("{:>8} ", metadata.size()));
         }
     }
     if parser.found("modified-date") || parser.found("long-format") {
@@ -104,28 +105,28 @@ fn print_item<W: Write>(item_path: &str, parser: &ArgParser, output: &mut W, std
             Ok(mtime) => format_system_time(mtime),
             Err(_) => "mdate err".to_string(),
         };
-        output.write(&format!("{:>20} ", mtime).as_bytes()).try(stderr);
+        output.push(format!("{:>20} ", mtime));
     }
     if parser.found("accessed-date") {
         let atime = match metadata.accessed(){
             Ok(atime) => format_system_time(atime),
             Err(_) => "adate err".to_string(),
         };
-        output.write(&format!("{:>20} ", atime).as_bytes()).try(stderr);
+        output.push(format!("{:>20} ", atime));
     }
     if parser.found("created-date") {
         let ctime = match metadata.created(){
             Ok(ctime) => format_system_time(ctime),
             Err(_) => "cdate err".to_string(),
         };
-        output.write(&format!("{:>20} ", ctime).as_bytes()).try(stderr);
+        output.push(format!("{:>20} ", ctime));
     }
 
 
     if item_path.starts_with("./") {
-        output.write(&item_path[2..].as_bytes()).try(stderr);
+        output.push(item_path[2..].to_string());
     } else {
-        output.write(item_path.as_bytes()).try(stderr);
+        output.push(item_path.to_string());
     }
     if parser.found("long-format") && symlink_metadata.file_type().is_symlink() {
         let symlink_target = fs::read_link(item_path)
@@ -133,16 +134,14 @@ fn print_item<W: Write>(item_path: &str, parser: &ArgParser, output: &mut W, std
             .into_os_string()
             .into_string()
             .expect("can't get path as string");
-        output.write(&format!(" -> {}", symlink_target).as_bytes()).try(stderr);
+        output.push(format!(" -> {}", symlink_target));
         if !link_error.is_empty() {
-            output.write(&format!(" ({})", link_error).as_bytes()).try(stderr);
+            output.push(format!(" ({})", link_error));
         }
     }
-
-    output.write("\n".as_bytes()).try(stderr);
 }
 
-fn list_dir<W: Write>(path: &str, parser: &ArgParser, output: &mut W, stderr: &mut Stderr) {
+fn list_dir(path: &str, parser: &ArgParser, output: &mut Vec<String>, stderr: &mut Stderr) {
     let show_hidden = parser.found("all");
 
     let metadata = fs::metadata(path).try(stderr);
@@ -203,13 +202,26 @@ fn main() {
     }
 
 
+    let mut output = Vec::new();
     if parser.args.is_empty() {
-        list_dir(".", &parser, &mut stdout, &mut stderr);
+        list_dir(".", &parser, &mut output, &mut stderr);
     } else {
         for dir in parser.args.iter() {
-            list_dir(&dir, &parser, &mut stdout, &mut stderr);
+            list_dir(&dir, &parser, &mut output, &mut stderr);
         }
     }
+
+    if parser.found("long-format") {
+        for (i, word) in output.iter().enumerate() {
+            stdout.write(word.as_bytes()).try(&mut stderr);
+            if i % 4 == 3 {
+                !stdout.write("\n".as_bytes()).try(&mut stderr);
+            }
+        }
+    } else {
+        print_columns(output);
+    }
+    stdout.flush().try(&mut stderr);
 }
 
 #[test]
