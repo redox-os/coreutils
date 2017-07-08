@@ -78,7 +78,7 @@ fn mode_to_human_readable(file_type: &FileType, symlink_file_type: &FileType, mo
 }
 
 fn print_item(item_path: &str, parser: &ArgParser, output: &mut Vec<String>, stderr: &mut Stderr) {
-    
+
     let mut link_error = "";
     let symlink_metadata = fs::symlink_metadata(&item_path).try(stderr);
     let metadata = match fs::metadata(&item_path) {
@@ -123,22 +123,25 @@ fn print_item(item_path: &str, parser: &ArgParser, output: &mut Vec<String>, std
     }
 
 
-    if item_path.starts_with("./") {
-        output.push(item_path[2..].to_string());
+    let mut name = if item_path.starts_with("./") {
+        item_path[2..].to_string()
     } else {
-        output.push(item_path.to_string());
-    }
+        item_path.to_string()
+    };
+
     if parser.found("long-format") && symlink_metadata.file_type().is_symlink() {
         let symlink_target = fs::read_link(item_path)
             .expect("can't read link")
             .into_os_string()
             .into_string()
             .expect("can't get path as string");
-        output.push(format!(" -> {}", symlink_target));
+        name.push_str(&format!(" -> {}", symlink_target));
         if !link_error.is_empty() {
-            output.push(format!(" ({})", link_error));
+            name.push_str(&format!(" ({})", link_error));
         }
     }
+
+    output.push(name);
 }
 
 fn list_dir(path: &str, parser: &ArgParser, output: &mut Vec<String>, stderr: &mut Stderr) {
