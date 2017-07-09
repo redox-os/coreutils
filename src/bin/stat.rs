@@ -2,12 +2,18 @@
 
 extern crate coreutils;
 extern crate extra;
+extern crate time;
+extern crate userutils;
 
 use std::{env, fmt, fs};
-use std::io::{stdout, stderr, Write};
+use std::fs::File;
+use std::io::{stdout, stderr, Read, Write};
+use std::vec::Vec;
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
+use userutils::{Passwd, Group};
 use std::os::unix::fs::MetadataExt;
+use time::Timespec;
 
 const MAN_PAGE: &'static str = /* @MANSTART{stat} */ r#"
 NAME
@@ -24,6 +30,7 @@ OPTIONS
         print this message
 "#; /* @MANEND */
 
+const TIME_FMT: &'static str = "%Y-%m-%d %H:%M:%S.%f %z";
 
 struct Perms(u32);
 
@@ -45,6 +52,24 @@ impl fmt::Display for Perms {
     }
 }
 
+fn lookup_user<'a>(passwd: &'a [Passwd], uid: u32) -> &'a str {
+    for i in passwd {
+        if i.uid == uid {
+            return i.user;
+        }
+    }
+    "UNKNOWN"
+}
+
+fn lookup_group<'a>(group: &'a [Group], gid: u32) -> &'a str {
+    for i in group {
+        if i.gid == gid {
+            return i.group;
+        }
+    }
+    "UNKNOWN"
+}
+
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
@@ -57,6 +82,26 @@ fn main() {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         return;
+    }
+
+    let mut passwd_string = String::new();
+    File::open("/etc/passwd").unwrap().read_to_string(&mut passwd_string).unwrap();
+
+    let mut passwd = Vec::new();
+    for line in passwd_string.lines() {
+        if let Ok(entry) = Passwd::parse(line) {
+            passwd.push(entry);
+        }
+    }
+
+    let mut group_string = String::new();
+    File::open("/etc/group").unwrap().read_to_string(&mut group_string).unwrap();
+
+    let mut groups = Vec::new();
+    for line in group_string.lines() {
+        if let Ok(entry) = Group::parse(line) {
+            groups.push(entry);
+        }
     }
 
     for path in &parser.args[0..] {
@@ -77,9 +122,11 @@ fn main() {
         }
         println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
         println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
-        println!("Access: {}  Uid: {}  Gid: {}", Perms(meta.mode()), meta.uid(), meta.gid());
-        println!("Access: {}.{:09}", meta.atime(), meta.atime_nsec());
-        println!("Modify: {}.{:09}", meta.mtime(), meta.mtime_nsec());
-        println!("Change: {}.{:09}", meta.ctime(), meta.ctime_nsec());
+        println!("Access: {}  Uid: ({}/ {})  Gid: ({}/ {})", Perms(meta.mode()),
+                                                             meta.uid(), lookup_user(&passwd, meta.uid()),
+                                                             meta.gid(), lookup_group(&groups, meta.gid()));
+        println!("Access: {}", time::at(Timespec::new(meta.atime(), meta.atime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+        println!("Modify: {}", time::at(Timespec::new(meta.mtime(), meta.mtime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+        println!("Change: {}", time::at(Timespec::new(meta.ctime(), meta.ctime_nsec() as i32)).strftime(TIME_FMT).unwrap());
     }
 }
