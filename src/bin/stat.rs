@@ -2,12 +2,14 @@
 
 extern crate coreutils;
 extern crate extra;
+extern crate time;
 
 use std::{env, fmt, fs};
 use std::io::{stdout, stderr, Write};
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use std::os::unix::fs::MetadataExt;
+use time::Timespec;
 
 const MAN_PAGE: &'static str = /* @MANSTART{stat} */ r#"
 NAME
@@ -24,6 +26,7 @@ OPTIONS
         print this message
 "#; /* @MANEND */
 
+const TIME_FMT: &'static str = "%Y-%m-%d %H:%M:%S.%f %z";
 
 struct Perms(u32);
 
@@ -78,8 +81,8 @@ fn main() {
         println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
         println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
         println!("Access: {}  Uid: {}  Gid: {}", Perms(meta.mode()), meta.uid(), meta.gid());
-        println!("Access: {}.{:09}", meta.atime(), meta.atime_nsec());
-        println!("Modify: {}.{:09}", meta.mtime(), meta.mtime_nsec());
-        println!("Change: {}.{:09}", meta.ctime(), meta.ctime_nsec());
+        println!("Access: {}", time::at(Timespec::new(meta.atime(), meta.atime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+        println!("Modify: {}", time::at(Timespec::new(meta.mtime(), meta.mtime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+        println!("Change: {}", time::at(Timespec::new(meta.ctime(), meta.ctime_nsec() as i32)).strftime(TIME_FMT).unwrap());
     }
 }
