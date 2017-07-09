@@ -2,14 +2,19 @@
 
 extern crate coreutils;
 extern crate extra;
+extern crate syscall;
 
 use std::env;
 use std::fs::File;
-use std::io::{stdout, stderr, Write};
+use std::io::{stdout, stderr, Error, Write};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::Path;
 use std::process::exit;
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
+use syscall::data::TimeSpec;
+use syscall::flag::O_WRONLY;
 
 const MAN_PAGE: &'static str = /* @MANSTART{touch} */ r#"
 NAME
@@ -47,7 +52,19 @@ fn main() {
     else {
         // TODO update file modification date/time
         for arg in env::args().skip(1) {
-            File::create(&arg).try(&mut stderr);
+            if Path::new(&arg).is_file() {
+                let mtime = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+
+                let file = syscall::open(&arg, O_WRONLY).map_err(|e| Error::from_raw_os_error(e.errno)).try(&mut stderr);
+                let res = syscall::futimens(file, &[TimeSpec {
+                    tv_sec: mtime.as_secs() as i64,
+                    tv_nsec: mtime.subsec_nanos() as i32,
+                }]).map_err(|e| Error::from_raw_os_error(e.errno));
+                let _ = syscall::close(file);
+                res.try(&mut stderr);
+            } else {
+                File::create(&arg).try(&mut stderr);
+            }
         }
     }
 }
