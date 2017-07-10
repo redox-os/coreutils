@@ -3,18 +3,18 @@
 extern crate coreutils;
 extern crate extra;
 extern crate syscall;
+extern crate filetime;
 
 use std::env;
 use std::fs::File;
-use std::io::{stdout, stderr, Error, Write};
+use std::io::{stdout, stderr, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::path::Path;
 use std::process::exit;
 use coreutils::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
-use syscall::data::TimeSpec;
-use syscall::flag::O_WRONLY;
+use filetime::{set_file_times, FileTime};
 
 const MAN_PAGE: &'static str = /* @MANSTART{touch} */ r#"
 NAME
@@ -54,14 +54,8 @@ fn main() {
         for arg in env::args().skip(1) {
             if Path::new(&arg).is_file() {
                 let mtime = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-                let file = syscall::open(&arg, O_WRONLY).map_err(|e| Error::from_raw_os_error(e.errno)).try(&mut stderr);
-                let res = syscall::futimens(file, &[TimeSpec {
-                    tv_sec: mtime.as_secs() as i64,
-                    tv_nsec: mtime.subsec_nanos() as i32,
-                }]).map_err(|e| Error::from_raw_os_error(e.errno));
-                let _ = syscall::close(file);
-                res.try(&mut stderr);
+                let time = FileTime::from_seconds_since_1970(mtime.as_secs(), mtime.subsec_nanos());
+                set_file_times(&arg, time, time).try(&mut stderr);
             } else {
                 File::create(&arg).try(&mut stderr);
             }
