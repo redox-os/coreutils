@@ -54,7 +54,7 @@ fn main() {
         let uptime_secs = uptime % 60;
         let uptime_mins = (uptime / SECONDS_PER_MINUTE) % 60;
         let uptime_hours = (uptime / SECONDS_PER_HOUR) % 24;
-        let uptime_days = (uptime / SECONDS_PER_DAY) % 365;
+        let uptime_days = uptime / SECONDS_PER_DAY;
 
         let fmt_result;
         if uptime_days > 0 {
