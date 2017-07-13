@@ -39,6 +39,10 @@ OPTIONS
     --recursive
         Remove directories and their contents recursively.
 
+    -f
+    --force
+        Ignore nonexistent files.
+
     -v
     --verbose
         Print the file changes that have been successfully performed.
@@ -54,10 +58,13 @@ fn main() {
     let mut parser = ArgParser::new(1)
         .add_flag(&["i", "interactive"])
         .add_flag(&["r", "R", "recursive"])
+        .add_flag(&["f", "force"])
         .add_flag(&["d", "dir"])
         .add_flag(&["v", "verbose"])
         .add_flag(&["h", "help"]);
     parser.parse(env::args());
+
+    let force = parser.found("force");
 
     if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
@@ -78,13 +85,15 @@ fn main() {
     }
 
     let mut exit_status = 0i32;
-    for arg in &parser.args {
-        if fs::metadata(&arg).is_err() {
-            stderr.write(b"aborting due to invalid path: '").try(&mut stderr);
-            stderr.write(arg.as_bytes()).try(&mut stderr);
-            stderr.write(b"'\n").try(&mut stderr);
-            stderr.flush().try(&mut stderr);
-            exit(1);
+    if !force {
+        for arg in &parser.args {
+            if fs::metadata(&arg).is_err() {
+                stderr.write(b"aborting due to invalid path: '").try(&mut stderr);
+                stderr.write(arg.as_bytes()).try(&mut stderr);
+                stderr.write(b"'\n").try(&mut stderr);
+                stderr.flush().try(&mut stderr);
+                exit(1);
+            }
         }
     }
     for arg in &parser.args {
@@ -151,12 +160,16 @@ fn main() {
                 if input.chars().next().unwrap() != 'y' { continue }
             }
             if let Err(message) = fs::remove_file(Path::new(arg)) {
-                stderr.write(b"cannot remove '").try(&mut stderr);
-                stderr.write(arg.as_bytes()).try(&mut stderr);
-                stderr.write(b"': ").try(&mut stderr);
-                print_error(message, &mut stderr);
-                exit_status = 1;
-            } else if parser.found("verbose") {
+                if message.kind() != io::ErrorKind::NotFound {
+                    stderr.write(b"cannot remove '").try(&mut stderr);
+                    stderr.write(arg.as_bytes()).try(&mut stderr);
+                    stderr.write(b"': ").try(&mut stderr);
+                    print_error(message, &mut stderr);
+                    exit_status = 1;
+                    continue;
+                }
+            }
+            if parser.found("verbose") {
                 stdout.write(b"removed '").try(&mut stderr);
                 stdout.write(arg.as_bytes()).try(&mut stderr);
                 stdout.write(b"'\n").try(&mut stderr);
