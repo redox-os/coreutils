@@ -38,7 +38,7 @@ fn main() {
     }
 
     for path in &parser.args[0..] {
-        if let Some(end) = path.rfind(|c| c == '/') {
+        if let Some(end) = path.rfind('/') {
             println!("{}", &path[..end]);
         } else {
             println!(".");
