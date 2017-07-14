@@ -15,9 +15,14 @@ filetime = { git = "https://github.com/alexcrichton/filetime.git" }
 redox_syscall = "0.1"
 walkdir = "1"
 time = "0.1"
+base64 = "~0.6.0"
 
 [lib]
 path = "src/lib.rs"
+
+[[bin]]
+name = "base64"
+path = "src/bin/base64.rs"
 
 [[bin]]
 name = "basename"

@@ -6,6 +6,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 
 **Currently included:**
 
+- `base64`
 - `basename`
 - `cat`
 - `chmod`
