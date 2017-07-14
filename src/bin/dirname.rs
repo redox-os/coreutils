@@ -38,10 +38,15 @@ fn main() {
     }
 
     for path in &parser.args[0..] {
-        if let Some(end) = path.rfind('/') {
-            println!("{}", &path[..end]);
+        if path.len() != 0 && path.chars().all(|c| c == '/') {
+            println!("/");
         } else {
-            println!(".");
+            let path = path.trim_right_matches('/');
+            if let Some(end) = path.rfind('/') {
+                println!("{}", &path[..end]);
+            } else {
+                println!(".");
+            }
         }
     }
 }
