@@ -1,11 +1,12 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 
 use std::process;
 use std::env;
 use std::io::{self, Write};
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 
 const MAN_PAGE: &'static str = /* @MANSTART{true} */ r#"NAME
     true - do nothing, successfully

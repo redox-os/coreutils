@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate time;
@@ -9,7 +10,7 @@ use std::{env, fmt, fs};
 use std::fs::File;
 use std::io::{stdout, stderr, Read, Write};
 use std::vec::Vec;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use userutils::{Passwd, Group};
 use std::os::unix::fs::MetadataExt;

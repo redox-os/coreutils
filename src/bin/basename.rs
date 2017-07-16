@@ -1,11 +1,13 @@
 #![deny(warnings)]
+
 extern crate coreutils;
 extern crate extra;
+extern crate arg_parser;
 
 use std::io::{self, Write};
 use std::env;
 use std::process;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{basename} */ r#"

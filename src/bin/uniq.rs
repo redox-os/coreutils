@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -8,7 +9,7 @@ use std::str;
 use std::fs::File;
 use std::process::exit;
 use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader, BufWriter};
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 
 const HELP_INFO:       &'static str = "Try ‘uniq --help’ for more information.\n";

@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -11,7 +12,7 @@ use std::time::Duration;
 use std::io::{self, BufRead, Read, Write};
 use std::io::{Seek, SeekFrom};
 use std::error::Error;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
 

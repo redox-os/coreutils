@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
 

@@ -1,4 +1,6 @@
 #![deny(warnings)]
+
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate base64;
@@ -8,7 +10,7 @@ use std::path::Path;
 use std::fs::File;
 use std::env;
 use std::process;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
 

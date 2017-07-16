@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -10,7 +11,7 @@ use std::fs;
 use std::io::{self, BufReader, Read, Stderr, StdoutLock, Write};
 use std::process::exit;
 use extra::option::OptionalExt;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 
 const MAN_PAGE: &'static str = /* @MANSTART{cat} */ r#"NAME
     cat - concatenate files and print on the standard output

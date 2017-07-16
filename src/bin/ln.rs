@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -10,7 +11,7 @@ use std::fs::{remove_dir_all, hard_link};
 use std::os::unix::fs::symlink;
 use std::process::exit;
 
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
 
