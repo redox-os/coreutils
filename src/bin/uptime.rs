@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate syscall;
 
 use std::io::{self, Write};
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use std::fmt::Write as FmtWrite;
 use std::env;

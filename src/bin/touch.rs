@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate syscall;
@@ -11,7 +12,7 @@ use std::io::{stdout, stderr, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::path::Path;
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
 use filetime::{set_file_times, FileTime};

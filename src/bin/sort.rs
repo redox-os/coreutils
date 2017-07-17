@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -7,7 +8,7 @@ use std::env;
 use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader};
 use std::process::exit;
 use std::cmp::Ordering;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use std::fs::File;
 use extra::option::OptionalExt;
 

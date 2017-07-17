@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -8,7 +9,8 @@ use std::fs;
 use std::path::Path;
 use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
 use std::process::exit;
-use coreutils::{ArgParser, to_human_readable_string};
+use arg_parser::ArgParser;
+use coreutils::to_human_readable_string;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{du} */ r#"

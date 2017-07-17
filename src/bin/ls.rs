@@ -1,4 +1,6 @@
 #![deny(warnings)]
+
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -11,7 +13,8 @@ use std::os::unix::fs::MetadataExt;
 use std::process::exit;
 use std::vec::Vec;
 
-use coreutils::{ArgParser, to_human_readable_string, format_system_time};
+use arg_parser::ArgParser;
+use coreutils::{to_human_readable_string, format_system_time};
 use coreutils::columns::print_columns;
 use extra::option::OptionalExt;
 

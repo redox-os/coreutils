@@ -1,8 +1,9 @@
 //#![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use std::{process, env};
 use std::io::{self, Read, Write};
 

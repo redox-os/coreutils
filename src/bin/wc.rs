@@ -1,6 +1,7 @@
 #![deny(warnings)]
 #![feature(io)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -9,7 +10,7 @@ use std::fs::File;
 use std::io::{self, stdout, stderr, Read, Write, Stderr};
 use std::ops::{Add, AddAssign};
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::WriteExt;
 

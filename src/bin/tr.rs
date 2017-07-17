@@ -6,6 +6,7 @@
  * (c) Michael Gehring <mg@ebfe.org>
  * (c) kwantam <kwantam@gmail.com>
  */
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -15,7 +16,7 @@ use std::default::Default;
 use std::env;
 use std::io::{self, Stdout, Stderr,  BufRead, Read, Write};
 
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::io::{fail, WriteExt};
 
 use std::char::from_u32;
