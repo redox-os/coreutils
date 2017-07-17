@@ -73,7 +73,7 @@ fn main() {
         exit(0);
     }
     if parser.found("recursive") {
-        *parser.flag("directory") = true;
+        *parser.flag("dir") = true;
     }
     if let Err(err) = parser.found_invalid() {
         stderr.write(err.as_bytes()).try(&mut stderr);
@@ -109,7 +109,7 @@ fn main() {
                 stdin.read_line(input).try(&mut stderr);
                 if input.chars().next().unwrap() != 'y' { continue }
             }
-            if parser.found("directory") {
+            if parser.found("dir") {
                 // Attempt to remove a directory and all of it's contents if recursive mode is enabled.
                 // If recursion is not enabled, attempt to remove the directory if it is empty.
                 if parser.found("recursive") {
