@@ -6,8 +6,6 @@ extern crate extra;
 #[cfg(target_os = "redox")]
 extern crate syscall;
 
-use arg_parser::ArgParser;
-
 #[cfg(target_os = "redox")]
 fn df(path: &str, parser: &ArgParser) -> ::std::io::Result<()> {
     use coreutils::to_human_readable_string;
