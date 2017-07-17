@@ -7,7 +7,7 @@ extern crate extra;
 extern crate syscall;
 
 #[cfg(target_os = "redox")]
-fn df(path: &str, parser: &ArgParser) -> ::std::io::Result<()> {
+fn df(path: &str, parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
     use coreutils::to_human_readable_string;
     use std::io::Error;
     use syscall::data::StatVfs;
