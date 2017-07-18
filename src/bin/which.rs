@@ -5,7 +5,6 @@ extern crate coreutils;
 extern crate extra;
 
 use std::env;
-use std::path::Path;
 use std::process::exit;
 use std::io::{stdout, stderr, Write};
 use arg_parser::ArgParser;
@@ -43,32 +42,23 @@ fn main() {
         exit(1);
     }
 
-    let mut string = String::new();
-    let path = env::var("PATH").unwrap();
-
-    let read_dir = Path::new(&path).read_dir().try(&mut stderr);
-    let binaries: Vec<String> = read_dir
-        .filter_map(|x| x.ok())
-        .map(|dir| {
-            let mut file_name = dir.file_name().to_string_lossy().into_owned();
-            if dir.file_type().try(&mut stderr).is_dir() {
-                file_name.push('/');
-            }
-            file_name
-        })
-        .collect();
+    let paths = env::var("PATH").unwrap();
 
     for program in parser.args.iter() {
-        if binaries.contains(program) {
-            string.push_str(&path);
-            string.push('/');
-            string.push_str(program);
-        } else {
-            string.push_str(program);
-            string.push_str(" not found");
-        }
-        string.push('\n');
-    }
+        let mut executable_path = None;
 
-    stdout.write(string.as_bytes()).try(&mut stderr);
+        for mut path in env::split_paths(&paths) {
+            path.push(program);
+            if path.exists() {
+                executable_path = Some(path);
+                break;
+            }
+        }
+
+        if let Some(path) = executable_path {
+            println!("{}", path.display());
+        } else {
+            println!("{} not found", program);
+        }
+    }
 }
