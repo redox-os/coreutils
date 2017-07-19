@@ -15,7 +15,7 @@ NAME
     reset - terminal initialization
 
 SYNOPSIS
-    reset [ -h | --help]
+    reset [ -h | --help ]
 
 DESCRIPTION
     Initialize the terminal, clearing the screen and setting all parameters to their default values
