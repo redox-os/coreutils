@@ -64,13 +64,19 @@ fn main() {
             _ => fail("use --help", &mut stderr),
         };
 
-        if parser.found("force") {
-            remove_dir_all(dst).try(&mut stderr);
+        let mut dst = dst.to_owned();
+        if dst.is_dir() {
+            dst.push(src.file_name().unwrap_or(src.as_os_str()));
         }
+
+        if parser.found("force") {
+            remove_dir_all(&dst).try(&mut stderr);
+        }
+
         if parser.found("symbolic") {
-            symlink(src, dst).try(&mut stderr);
+            symlink(src, &dst).try(&mut stderr);
         } else {
-            hard_link(src, dst).try(&mut stderr);
+            hard_link(src, &dst).try(&mut stderr);
         }
     }
 
