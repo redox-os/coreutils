@@ -65,8 +65,6 @@ DESCRIPTION
     --truncate
     -t   first truncate string1 to length of string2
 
-    *NOTE* octal escapes are not implemented yet
-
     In either string the notation a-b means a range of charac-
     ters from a to b in increasing ASCII order.  The character
     `\' followed by 1, 2 or 3 octal digits stands for the char-
@@ -130,7 +128,13 @@ impl<'a> Iterator for Unescape<'a> {
                 // we know that \ is 1 byte long so we can index into the string safely
                 let c = self.string[1..].chars().next().unwrap();
                 // do some matching on '0' (or 'x') here
-                (Some(unescape_char(c)), 1 + c.len_utf8())
+                if c.is_digit(8) {
+                    // Octal escape
+                    let len = self.string[1..].chars().take(3).take_while(|c| c.is_digit(8)).count();
+                    (Some(char::from(u8::from_str_radix(&self.string[1..1+len], 8).unwrap())), 1 + len)
+                } else {
+                    (Some(unescape_char(c)), 1 + c.len_utf8())
+                }
             },
             c => (Some(c), c.len_utf8()),   // not an escape char
         };
