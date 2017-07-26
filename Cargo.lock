@@ -171,7 +171,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#e35d0bc6cd03cf67b96b56e1e42450be0274b2c6"
+source = "git+https://github.com/redox-os/userutils.git#1725b377cddb42af08209a652bc63008e2b59f1c"
 dependencies = [
  "arg_parser 0.1.0 (git+https://github.com/redox-os/arg-parser.git)",
  "argon2rs 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
