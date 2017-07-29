@@ -6,7 +6,7 @@ dependencies = [
  "base64 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "extra 0.1.0 (git+https://github.com/redox-os/libextra.git)",
  "filetime 0.1.10 (git+https://github.com/alexcrichton/filetime.git)",
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "termion 1.4.0 (git+https://github.com/redox-os/termion.git)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
@@ -37,6 +37,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitflags"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "blake2-rfc"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -55,6 +60,19 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "conv"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "custom_derive"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "extra"
 version = "0.1.0"
 source = "git+https://github.com/redox-os/libextra.git#402932084acd5fef4812945887ceaaa2ddd5f264"
@@ -65,7 +83,7 @@ version = "0.1.10"
 source = "git+https://github.com/alexcrichton/filetime.git#143c1cf99682d736b863639ea071472afe03e15e"
 dependencies = [
  "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -93,16 +111,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "magenta"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "conv 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "magenta-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "magenta-sys"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "rand"
-version = "0.3.15"
+version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "magenta 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "redox_syscall"
-version = "0.1.27"
+version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -110,7 +146,7 @@ name = "redox_termios"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -138,7 +174,7 @@ version = "1.4.0"
 source = "git+https://github.com/redox-os/termion.git#63d2464aba93ac8ec0118255e9a41debcb809c1f"
 dependencies = [
  "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -148,7 +184,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -159,7 +195,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -171,14 +207,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#1725b377cddb42af08209a652bc63008e2b59f1c"
+source = "git+https://github.com/redox-os/userutils.git#c05f37f653ae6740b526c0b162f9af426216db59"
 dependencies = [
  "arg_parser 0.1.0 (git+https://github.com/redox-os/arg-parser.git)",
  "argon2rs 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "extra 0.1.0 (git+https://github.com/redox-os/libextra.git)",
  "liner 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "termion 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -207,16 +243,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum arg_parser 0.1.0 (git+https://github.com/redox-os/arg-parser.git)" = "<none>"
 "checksum argon2rs 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)" = "3f67b0b6a86dae6e67ff4ca2b6201396074996379fba2b92ff649126f37cb392"
 "checksum base64 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "96434f987501f0ed4eb336a411e0631ecd1afa11574fe148587adc4ff96143c9"
+"checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
 "checksum blake2-rfc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)" = "0c6a476f32fef3402f1161f89d0d39822809627754a126f8441ff2a9d45e2d59"
 "checksum byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff81738b726f5d099632ceaffe7fb65b90212e8dce59d518729e7e8634032d3d"
 "checksum constant_time_eq 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "07dcb7959f0f6f1cf662f9a7ff389bcb919924d99ac41cf31f10d611d8721323"
+"checksum conv 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "78ff10625fd0ac447827aa30ea8b861fead473bb60aeb73af6c1c58caf0d1299"
+"checksum custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "ef8ae57c4978a2acd8b869ce6b9ca1dfe817bff704c220209fdef2c0b75a01b9"
 "checksum extra 0.1.0 (git+https://github.com/redox-os/libextra.git)" = "<none>"
 "checksum filetime 0.1.10 (git+https://github.com/alexcrichton/filetime.git)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)" = "bb7b49972ee23d8aa1026c365a5b440ba08e35075f18c459980c7395c221ec48"
 "checksum liner 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f9e406164c25b420480023985bdf65cef366855666ad4cb12cd3eaee82dcb399"
-"checksum rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "022e0636ec2519ddae48154b028864bdce4eaf7d35226ab8e65c611be97b189d"
-"checksum redox_syscall 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)" = "80dcf663dc552529b9bfc7bdb30ea12e5fa5d3545137d850a91ad410053f68e9"
+"checksum magenta 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4bf0336886480e671965f794bc9b6fce88503563013d1bfb7a502c81fe3ac527"
+"checksum magenta-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "40d014c7011ac470ae28e2f76a02bfea4a8480f73e701353b49ad7a8d75f4699"
+"checksum rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)" = "eb250fd207a4729c976794d03db689c9be1d634ab5a1c9da9492a13d8fecbcdf"
+"checksum redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)" = "ddab7acd8e7bf3e49dfdf78ac1209b992329eb2f66e0bf672ab49c70a76d1d68"
 "checksum redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bc495930de8d330f14856cface52561b7d79a072c76e438cf8f34d7233a35fa7"
 "checksum safemem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e27a8b19b835f7aea908818e871f5cc3a5a186550c30773be987e155e8163d8f"
 "checksum same-file 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d931a44fdaa43b8637009e7632a02adc4f2b2e0733c08caa4cf00e8da4a117a7"
