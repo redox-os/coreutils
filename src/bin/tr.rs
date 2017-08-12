@@ -231,7 +231,7 @@ impl Translation {
         println!("replace: {}", self.replace);
     }
 
-    fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
+    fn get_opts(&mut self, stdout: &mut Stdout, stderr: &mut Stderr) -> &mut Translation {
         let mut parser = ArgParser::new(2)
             .add_flag(&["c", "complement"])
             .add_flag(&["d", "delete"])
