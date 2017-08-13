@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate walkdir;
@@ -9,7 +10,7 @@ use std::fs;
 use std::io::{stderr, stdout, Write};
 use std::path;
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::io::fail;
 use extra::option::OptionalExt;
 use walkdir::WalkDir;

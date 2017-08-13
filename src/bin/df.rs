@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 #[cfg(target_os = "redox")]
 extern crate syscall;
 
 #[cfg(target_os = "redox")]
-fn df(path: &str, parser: &coreutils::ArgParser) -> ::std::io::Result<()> {
+fn df(path: &str, parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
     use coreutils::to_human_readable_string;
     use std::io::Error;
     use syscall::data::StatVfs;
@@ -48,7 +49,7 @@ fn main() {
     use std::fs::File;
     use std::io::{stdout, stderr, BufRead, BufReader, Write};
     use std::process::exit;
-    use coreutils::ArgParser;
+    use arg_parser::ArgParser;
     use extra::option::OptionalExt;
 
     const MAN_PAGE: &'static str = /* @MANSTART{df} */ r#"

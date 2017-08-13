@@ -1,15 +1,21 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
+extern crate syscall;
+extern crate filetime;
 
 use std::env;
 use std::fs::File;
 use std::io::{stdout, stderr, Write};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::Path;
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
+use filetime::{set_file_times, FileTime};
 
 const MAN_PAGE: &'static str = /* @MANSTART{touch} */ r#"
 NAME
@@ -47,7 +53,13 @@ fn main() {
     else {
         // TODO update file modification date/time
         for arg in env::args().skip(1) {
-            File::create(&arg).try(&mut stderr);
+            if Path::new(&arg).is_file() {
+                let mtime = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                let time = FileTime::from_seconds_since_1970(mtime.as_secs(), mtime.subsec_nanos());
+                set_file_times(&arg, time, time).try(&mut stderr);
+            } else {
+                File::create(&arg).try(&mut stderr);
+            }
         }
     }
 }

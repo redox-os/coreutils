@@ -7,24 +7,21 @@ extern crate extra;
 use std::env;
 use std::io::{stdout, stderr, Write};
 use arg_parser::ArgParser;
-use extra::io::WriteExt;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{yes} */ r#"
+const MAN_PAGE: &'static str = /* @MANSTART{dirname} */ r#"
 NAME
-    yes - print the letter y or a given word, forever.
+    dirname - strip last component from file name
 
 SYNOPSIS
-    yes [ [ -h | --help ] | [ word ] ]
+    dirname [ -h | --help ] FILE...
 
 DESCRIPTION
-    The yes utility prints the word passed as an operand, forever. If no operand is passed, then
-    it defaults to the letter 'y'.
+    Strip last component from file name.
 
 OPTIONS
-    -h
-    --help
-        Print this manual page.
+    --help, -h
+        print this message
 "#; /* @MANEND */
 
 fn main() {
@@ -41,16 +38,16 @@ fn main() {
         return;
     }
 
-    if parser.args.is_empty() {
-        loop {
-            stdout.writeln(b"y").try(&mut stderr);
-        }
-    }
-    else {
-        let answer = parser.args.join(" ");
-        let print = answer.as_bytes();
-        loop {
-            stdout.writeln(print).try(&mut stderr);
+    for path in &parser.args[0..] {
+        if path.len() != 0 && path.chars().all(|c| c == '/') {
+            println!("/");
+        } else {
+            let path = path.trim_right_matches('/');
+            if let Some(end) = path.rfind('/') {
+                println!("{}", &path[..end]);
+            } else {
+                println!(".");
+            }
         }
     }
 }

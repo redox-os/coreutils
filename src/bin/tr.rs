@@ -6,6 +6,7 @@
  * (c) Michael Gehring <mg@ebfe.org>
  * (c) kwantam <kwantam@gmail.com>
  */
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -15,7 +16,7 @@ use std::default::Default;
 use std::env;
 use std::io::{self, Stdout, Stderr,  BufRead, Read, Write};
 
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::io::{fail, WriteExt};
 
 use std::char::from_u32;
@@ -63,8 +64,6 @@ DESCRIPTION
 
     --truncate
     -t   first truncate string1 to length of string2
-
-    *NOTE* octal escapes are not implemented yet
 
     In either string the notation a-b means a range of charac-
     ters from a to b in increasing ASCII order.  The character
@@ -129,7 +128,13 @@ impl<'a> Iterator for Unescape<'a> {
                 // we know that \ is 1 byte long so we can index into the string safely
                 let c = self.string[1..].chars().next().unwrap();
                 // do some matching on '0' (or 'x') here
-                (Some(unescape_char(c)), 1 + c.len_utf8())
+                if c.is_digit(8) {
+                    // Octal escape
+                    let len = self.string[1..].chars().take(3).take_while(|c| c.is_digit(8)).count();
+                    (Some(char::from(u8::from_str_radix(&self.string[1..1+len], 8).unwrap())), 1 + len)
+                } else {
+                    (Some(unescape_char(c)), 1 + c.len_utf8())
+                }
             },
             c => (Some(c), c.len_utf8()),   // not an escape char
         };
@@ -226,7 +231,7 @@ impl Translation {
         println!("replace: {}", self.replace);
     }
 
-    fn get_opts(&mut self, stdout: &mut Stdout, mut stderr: &mut Stderr) -> &mut Translation {
+    fn get_opts(&mut self, stdout: &mut Stdout, stderr: &mut Stderr) -> &mut Translation {
         let mut parser = ArgParser::new(2)
             .add_flag(&["c", "complement"])
             .add_flag(&["d", "delete"])

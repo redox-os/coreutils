@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate syscall;
@@ -7,16 +8,16 @@ extern crate syscall;
 use std::env;
 use std::io::{stderr, stdout, Error, Write};
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
-use syscall::flag::SIGKILL;
+use syscall::flag::{SIGTERM, SIGKILL};
 
 const MAN_PAGE: &'static str = /* @MANSTART{shutdown} */ r#"
 NAME
     shutdown - stop the system
 
 SYNOPSIS
-    shutdown [ -h | -help ]
+    shutdown [ -h | --help ] [ -r | --reboot ]
 
 DESCRIPTION
     Attempt to shutdown the system using ACPI. Failure will be logged to the terminal
@@ -25,6 +26,10 @@ OPTIONS
     -h
     --help
         display this help and exit
+
+    -r
+    --reboot
+        reboot instead of powering off
 "#; /* @MANEND */
 
 fn main() {
@@ -32,7 +37,8 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
-        .add_flag(&["h", "help"]);
+        .add_flag(&["h", "help"])
+        .add_flag(&["r", "reboot"]);
     parser.parse(env::args());
 
     if parser.found("help") {
@@ -41,5 +47,9 @@ fn main() {
         exit(0);
     }
 
-    syscall::kill(1, SIGKILL).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+    if parser.found("reboot") {
+        syscall::kill(1, SIGTERM).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+    } else {
+        syscall::kill(1, SIGKILL).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+    }
 }

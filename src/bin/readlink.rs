@@ -8,18 +8,17 @@ use std::env;
 use std::fs;
 use std::io::{stdout, stderr, Write};
 use arg_parser::ArgParser;
-use extra::io::fail;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{rmdir} */ r#"
+const MAN_PAGE: &'static str = /* @MANSTART{readlink} */ r#"
 NAME
-    rmdir - delete directories
+    readlink - read the contents of a symbolic link
 
 SYNOPSIS
-    rmdir [ -h | --help ] DIRECTORY...
+    readlink [ -h | --help ] FILE...
 
 DESCRIPTION
-    The rmdir utility deletes the directory named by the DIRECTORY operand. Multiple directories can be passed.
+    Read the contents of a symbolic link.
 
 OPTIONS
     --help, -h
@@ -40,11 +39,7 @@ fn main() {
         return;
     }
 
-    if parser.args.is_empty() {
-        fail("No arguments. Use --help to see the usage.", &mut stderr);
-    }
-
-    for path in &parser.args {
-        fs::remove_dir(path).try(&mut stderr);
+    for path in &parser.args[0..] {
+        println!("{}", fs::read_link(path).unwrap().display());
     }
 }

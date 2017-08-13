@@ -1,4 +1,6 @@
 #![deny(warnings)]
+
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -9,7 +11,7 @@ use std::io::{self, BufRead, Read, Write};
 use std::slice;
 use std::str::FromStr;
 
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;

@@ -8,16 +8,26 @@ name = "coreutils"
 version = "0.1.0"
 
 [dependencies]
+arg_parser = { git = "https://github.com/redox-os/arg-parser.git" }
 extra = { git = "https://github.com/redox-os/libextra.git" }
 lazy_static = ">=0.2"
+termion = { git = "https://github.com/redox-os/termion.git", branch = "redox_termios" }
+userutils = { git = "https://github.com/redox-os/userutils.git" }
+filetime = { git = "https://github.com/alexcrichton/filetime.git" }
 redox_syscall = "0.1"
 walkdir = "1"
+time = "0.1"
+base64 = "~0.6.0"
 
 [target.'cfg(all(unix, not(target_os = "redox")))'.dependencies]
 nix = ">=0.8"
 
 [lib]
 path = "src/lib.rs"
+
+[[bin]]
+name = "base64"
+path = "src/bin/base64.rs"
 
 [[bin]]
 name = "basename"
@@ -54,6 +64,10 @@ path = "src/bin/dd.rs"
 [[bin]]
 name = "df"
 path = "src/bin/df.rs"
+
+[[bin]]
+name = "dirname"
+path = "src/bin/dirname.rs"
 
 [[bin]]
 name = "du"
@@ -110,6 +124,10 @@ path = "src/bin/ps.rs"
 [[bin]]
 name = "pwd"
 path = "src/bin/pwd.rs"
+
+[[bin]]
+name = "readlink"
+path = "src/bin/readlink.rs"
 
 [[bin]]
 name = "realpath"
@@ -172,6 +190,10 @@ name = "uniq"
 path = "src/bin/uniq.rs"
 
 [[bin]]
+name = "uptime"
+path = "src/bin/uptime.rs"
+
+[[bin]]
 name = "wc"
 path = "src/bin/wc.rs"
 
@@ -186,3 +208,11 @@ path = "src/bin/yes.rs"
 [[bin]]
 name = "tee"
 path = "src/bin/tee.rs"
+
+[[bin]]
+name = "stat"
+path = "src/bin/stat.rs"
+
+[[bin]]
+name = "uname"
+path = "src/bin/uname.rs"

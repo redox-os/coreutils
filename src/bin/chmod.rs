@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -8,7 +9,7 @@ use std::fs;
 use std::io::{stdout, stderr, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::u32;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::io::fail;
 use extra::option::OptionalExt;
 

@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
@@ -7,7 +8,8 @@ use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
-use coreutils::{ArgParser, format_time};
+use arg_parser::ArgParser;
+use coreutils::format_time;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{date} */ r#"

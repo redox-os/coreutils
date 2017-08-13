@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
+extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 
 use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
-use coreutils::ArgParser;
+use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{reset} */ r#"
@@ -14,7 +15,7 @@ NAME
     reset - terminal initialization
 
 SYNOPSIS
-    reset [ -h | --help]
+    reset [ -h | --help ]
 
 DESCRIPTION
     Initialize the terminal, clearing the screen and setting all parameters to their default values
