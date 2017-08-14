@@ -34,10 +34,6 @@ name = "cat"
 path = "src/bin/cat.rs"
 
 [[bin]]
-name = "chmod"
-path = "src/bin/chmod.rs"
-
-[[bin]]
 name = "clear"
 path = "src/bin/clear.rs"
 
@@ -74,10 +70,6 @@ name = "echo"
 path = "src/bin/echo.rs"
 
 [[bin]]
-name = "env"
-path = "src/bin/env.rs"
-
-[[bin]]
 name = "false"
 path = "src/bin/false.rs"
 
@@ -96,10 +88,6 @@ path = "src/bin/kill.rs"
 [[bin]]
 name = "ln"
 path = "src/bin/ln.rs"
-
-[[bin]]
-name = "ls"
-path = "src/bin/ls.rs"
 
 [[bin]]
 name = "mkdir"
