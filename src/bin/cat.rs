@@ -1,7 +1,6 @@
 #![deny(warnings)]
 
 extern crate arg_parser;
-extern crate coreutils;
 extern crate extra;
 
 use std::cell::Cell; // Provide mutable fields in immutable structs

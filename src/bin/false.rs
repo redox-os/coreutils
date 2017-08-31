@@ -1,7 +1,6 @@
 #![deny(warnings)]
 
 extern crate arg_parser;
-extern crate coreutils;
 
 use std::process;
 use std::env;

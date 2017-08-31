@@ -7,7 +7,6 @@
  * (c) kwantam <kwantam@gmail.com>
  */
 extern crate arg_parser;
-extern crate coreutils;
 extern crate extra;
 
 use std::cell::Cell;
