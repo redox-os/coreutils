@@ -10,7 +10,7 @@ use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{pwd} */ r#"
 NAME
-    pwd - return working directory name
+    pwd - print working directory
 
 SYNOPSIS
     pwd [ -h | --help ]
