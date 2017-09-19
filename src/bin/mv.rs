@@ -49,35 +49,36 @@ fn main() {
 
     let recurse = parser.found("recursive");
     let verbose = parser.found("verbose");
-    let execute = ! parser.found("no-action");
+    let execute = !parser.found("no-action");
 
     if parser.args.is_empty() {
         fail("No source argument. Use --help to see the usage.", &mut stderr);
-    }
-    else if parser.args.len() == 1 {
+    } else if parser.args.len() == 1 {
         fail("No destination argument. Use --help to see the usage.", &mut stderr);
-    }
-    else if parser.args.len() == 2 && ! recurse {
-        let src = path::Path::new(&parser.args[0]);
-        let mut dst = path::PathBuf::from(&parser.args[1]);
-        if dst.is_dir() {
-            dst.push(src.file_name().try(&mut stderr))
-        }
-        if execute {
-            fs::rename(src, dst).try(&mut stderr);
-        }
-        if verbose {
-            println!("{}", src.display());
-        }
-    }
-    else {
+    } else {
         // This unwrap won't panic since it's been verified not to be empty
         let dst = parser.args.pop().unwrap();
         let dst = path::PathBuf::from(dst);
-        if dst.is_dir() {
+        if dst.is_file() {
+            if parser.args.len() == 2 {
+                let src = path::Path::new(&parser.args[0]);
+                if src.is_file() {
+                    if execute {
+                        fs::rename(src, dst).try(&mut stderr);
+                    }
+                    if verbose {
+                        println!("{}", src.display());
+                    }
+                } else {
+                    fail("Cannot move directory unto a file. Use --help to see the usage.", &mut stderr)
+                }
+            } else {
+                fail("When moving multiple objects, destination should be to a path, not a file. Use --help to see the usage.", &mut stderr);
+            }
+        } else if dst.is_dir() {
             for ref arg in parser.args {
                 let src = path::Path::new(arg);
-                if src.is_dir() && ! recurse {
+                if src.is_dir() && !recurse {
                     fail("Can not move directories non-recursive", &mut stderr);
                 }
                 if recurse {
@@ -104,11 +105,7 @@ fn main() {
                     }
                 }
             }
-        }
-        else if dst.is_file() {
-            fail("Destination should be a path, not a file. Use --help to see the usage.", &mut stderr);
-        }
-        else {
+        } else {
             fail("No destination found. Use --help to see the usage.", &mut stderr);
         }
     }
