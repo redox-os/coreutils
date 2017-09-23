@@ -61,66 +61,60 @@ fn main() {
 
     let recurse = parser.found("recursive");
     let verbose = parser.found("verbose");
-    let execute = ! parser.found("no-action");
+    let execute = !parser.found("no-action");
 
     if parser.args.is_empty() {
         fail("No source argument. Use --help to see the usage.", &mut stderr);
-    }
-    else if parser.args.len() == 1 {
+    } else if parser.args.len() == 1 {
         fail("No destination argument. Use --help to see the usage.", &mut stderr);
-    }
-    else if parser.args.len() == 2 && ! recurse {
-        let src = path::Path::new(&parser.args[0]);
-        let mut dst = path::PathBuf::from(&parser.args[1]);
-        if dst.is_dir() {
-            dst.push(src.file_name().try(&mut stderr))
-        }
-        if execute {
-            fs::copy(src, dst).try(&mut stderr);
-        }
-        if verbose {
-            println!("{}", src.display());
-        }
-    }
-    else {
+    } else {
         // This unwrap won't panic since it's been verified not to be empty
         let dst = parser.args.pop().unwrap();
         let dst = path::PathBuf::from(dst);
-        if dst.is_dir() {
-            for ref arg in parser.args {
-                let src = path::Path::new(arg);
-                if src.is_dir() && ! recurse {
-                    fail("Can not copy directories non-recursive", &mut stderr);
-                }
-                if recurse {
-                    for entry in WalkDir::new(arg) {
-                        let entry = entry.unwrap();
-                        let src = path::Path::new(entry.path());
-                        if execute {
-                            if src.is_dir() {
-                                fs::create_dir(dst.join(src)).try(&mut stderr);
-                            } else if src.is_file() {
-                                fs::copy(src, dst.join(src)).try(&mut stderr);
-                            } // here we might also want to check for symlink, hardlink, socket, block, char, ...?
-                        }
-                        if verbose {
-                            println!("{}", src.display());
-                        }
+        if dst.is_file() {
+            if parser.args.len() == 2 {
+                let src = path::Path::new(&parser.args[0]);
+                if src.is_file() {
+                    if execute {
+                        fs::copy(src, dst).try(&mut stderr);
+                    }
+                    if verbose {
+                        println!("{}", src.display());
                     }
                 } else {
+                    fail("Attempted to copy a non-file onto a file. Use --help to see the usage.", &mut stderr);
+                }
+            } else {
+                fail("Cannot copy multiple objects onto one location. Use --help to see the usage.", &mut stderr);
+            }
+        } else if dst.is_dir() {
+            for ref arg in parser.args {
+                let src = path::Path::new(arg);
+                if src.is_dir() {
+                    if recurse {
+                        for entry in WalkDir::new(arg) {
+                            let entry = entry.unwrap();
+                            let src = path::Path::new(entry.path());
+                            if execute {
+                                fs::create_dir(dst.join(src)).try(&mut stderr);
+                            }
+                            if verbose {
+                                println!("{}", src.display());
+                            }
+                        }
+                    } else {
+                        fail("Can not move directories without the -r recursive tag. Use --help to see the usage.", &mut stderr);
+                    }
+                } else if src.is_file() {
                     if execute {
                         fs::copy(src, dst.join(src.file_name().try(&mut stderr))).try(&mut stderr);
                     }
                     if verbose {
                         println!("{}", src.display());
                     }
-                }
+                } // here we might also want to check for symlink, hardlink, socket, block, char, ...?
             }
-        }
-        else if dst.is_file() {
-            fail("Destination should be a path, not a file. Use --help to see the usage.", &mut stderr);
-        }
-        else {
+        } else {
             fail("No destination found. Use --help to see the usage.", &mut stderr);
         }
     }
