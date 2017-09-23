@@ -73,7 +73,7 @@ fn main() {
         let dst = path::PathBuf::from(dst);
         if dst.is_file() {
             if parser.args.len() == 2 {
-                let src = path::Path::new(parser.args[0]);
+                let src = path::Path::new(&parser.args[0]);
                 if src.is_file() {
                     if execute {
                         fs::copy(src, dst).try(&mut stderr);
