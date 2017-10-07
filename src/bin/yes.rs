@@ -4,6 +4,7 @@ extern crate arg_parser;
 extern crate extra;
 
 use std::env;
+use std::process;
 use std::io::{stdout, stderr, Write};
 use arg_parser::ArgParser;
 use extra::io::WriteExt;
@@ -26,6 +27,8 @@ OPTIONS
         Print this manual page.
 "#; /* @MANEND */
 
+const HELP_INFO:       &'static str = "Try ‘yes --help’ for more information.\n";
+
 fn main() {
     let stdout = stdout();
     let mut stdout = stdout.lock();
@@ -40,16 +43,20 @@ fn main() {
         return;
     }
 
-    if parser.args.is_empty() {
-        loop {
-            stdout.writeln(b"y").try(&mut stderr);
-        }
+    if let Err(err) = parser.found_invalid() {
+        stderr.write_all(err.as_bytes()).try(&mut stderr);
+        stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+        process::exit(1);
     }
-    else {
-        let answer = parser.args.join(" ");
-        let print = answer.as_bytes();
-        loop {
-            stdout.writeln(print).try(&mut stderr);
-        }
+
+    let answer = if parser.args.is_empty() {
+        "y".to_owned()
+    } else {
+        parser.args.join(" ")
+    };
+    let print = answer.as_bytes();
+    loop {
+        stdout.writeln(print).try(&mut stderr);
     }
 }
