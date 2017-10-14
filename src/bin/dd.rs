@@ -13,7 +13,7 @@ use arg_parser::ArgParser;
 use coreutils::to_human_readable_string;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{du} */ r#"
+const MAN_PAGE: &'static str = /* @MANSTART{dd} */ r#"
 NAME
     dd - copy a file
 
@@ -93,7 +93,7 @@ fn main() {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
-    } 
+    }
 
     let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
     let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();

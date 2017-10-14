@@ -11,7 +11,7 @@ use extra::option::OptionalExt;
 use std::fmt::Write as FmtWrite;
 use std::env;
 
-const MAN_PAGE: &'static str = /* @MANSTART{date} */ r#"
+const MAN_PAGE: &'static str = /* @MANSTART{uptime} */ r#"
 NAME
     uptime - show how long the system has been running
 
