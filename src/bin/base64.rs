@@ -3,13 +3,15 @@
 extern crate arg_parser;
 extern crate extra;
 extern crate base64;
+#[macro_use]
+extern crate coreutils;
 
 use std::io::{self, Write, Read, Stderr};
 use std::path::Path;
 use std::fs::File;
-use std::env;
 use std::process;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 use extra::io::fail;
 
@@ -57,31 +59,17 @@ AUTHOR
     Written by Jose Narvaez.
 "#; /* @MANEND */
 
-const HELP_INFO: &'static str = "Try ‘base64 --help’ for more information.\n";
 fn main() {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = io::stderr();
-    let stdin = io::stdin();
-
     let mut parser = ArgParser::new(3)
         .add_flag(&["d", "decode"])
         .add_flag(&["e", "encode"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("base64"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        process::exit(0);
-    }
-
-    if let Err(err) = parser.found_invalid() {
-        stderr.write_all(err.as_bytes()).try(&mut stderr);
-        stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-        stderr.flush().try(&mut stderr);
-        process::exit(1);
-    }
+    let stdout = io::stdout();
+    let stdout = stdout.lock();
+    let mut stderr = io::stderr();
+    let stdin = io::stdin();
 
     let mut input: Option<Box<Read>> = None;
     let mut output: Option<Box<Write>> = None;

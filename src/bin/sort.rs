@@ -2,14 +2,14 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
-use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader};
-use std::process::exit;
+use std::io::{stderr, stdin, Error, Write, BufRead, BufReader};
 use std::cmp::Ordering;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use std::fs::File;
-use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = r#"
 NAME
@@ -86,21 +86,13 @@ fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<String>, Error> {
 }
 
 fn main() {
-
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(2)
         .add_flag(&["n", "numeric-sort"])
         .add_flag(&["u", "unique"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("sort"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let mut stderr = stderr();
 
     let lines = match parser.args.is_empty() {
         true => lines_from_stdin(),

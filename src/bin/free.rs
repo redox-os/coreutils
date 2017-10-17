@@ -42,10 +42,11 @@ fn free(parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
 
 #[cfg(target_os = "redox")]
 fn main() {
-    use std::env;
     use std::io::{stdout, stderr, Write};
     use std::process::exit;
     use arg_parser::ArgParser;
+    #[macro_use]
+    use coreutils::arg_parser::ArgParserExt;
     use extra::option::OptionalExt;
 
     const MAN_PAGE: &'static str = /* @MANSTART{free} */ r#"
@@ -72,13 +73,7 @@ fn main() {
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "human-readable"])
         .add_flag(&["help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    parser.process_common(help_info!("free"), MAN_PAGE);
 
     println!("{:<8}{:>10}{:>10}{:>10}", "", "total", "used", "free");
     free(&parser).try(&mut stderr);

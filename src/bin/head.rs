@@ -2,11 +2,13 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
 
@@ -69,28 +71,19 @@ fn head<R: Read, W: Write>(input: R, output: W, lines: bool, num: usize) -> io::
 }
 
 fn main() {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = io::stderr();
     let mut parser = ArgParser::new(3)
         .add_opt_default("n", "lines", "10")
         .add_opt("c", "bytes")
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("head"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        return;
-    }
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = io::stderr();
+
     if parser.found(&'c') || parser.found("bytes") {
         parser.opt(&'n').clear();
         parser.opt("lines").clear();
-    }
-    if let Err(err) = parser.found_invalid() {
-        stderr.write_all(err.as_bytes()).try(&mut stderr);
-        stderr.flush().try(&mut stderr);
-        return;
     }
 
     let (lines, num): (bool, usize) =

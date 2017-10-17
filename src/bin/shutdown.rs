@@ -3,11 +3,12 @@
 extern crate arg_parser;
 extern crate extra;
 extern crate syscall;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
-use std::io::{stderr, stdout, Error, Write};
-use std::process::exit;
+use std::io::{stderr, Error};
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 use syscall::flag::{SIGTERM, SIGKILL};
 
@@ -32,19 +33,12 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"])
         .add_flag(&["r", "reboot"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("shutdown"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let mut stderr = stderr();
 
     if parser.found("reboot") {
         syscall::kill(1, SIGTERM).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);

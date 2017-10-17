@@ -2,16 +2,17 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::str;
 use std::fs::File;
 use std::process::exit;
 use std::io::{stdout, stderr, stdin, Error, Write, BufRead, BufReader, BufWriter};
 use arg_parser::ArgParser;
+use coreutils::arg_parser::{ArgParserExt, print_help};
 use extra::option::OptionalExt;
 
-const HELP_INFO:       &'static str = "Try ‘uniq --help’ for more information.\n";
 const REQUIRES_OPTION: &'static str = "option requires an argument\n";
 const MAN_PAGE: &'static str = r#"
 NAME
@@ -120,10 +121,6 @@ fn repeated_lines(lines: Vec<(usize, &Vec<u8>)>) -> Vec<(usize, &Vec<u8>)> {
 }
 
 fn main() {
-
-    let stdout = stdout();
-    let mut stdout = BufWriter::with_capacity(8192, stdout.lock());
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(6)
         .add_opt("s", "skip-chars")
         .add_flag(&["c", "count"])
@@ -131,13 +128,11 @@ fn main() {
         .add_flag(&["i", "ignore-case"])
         .add_flag(&["u", "unique-lines"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("uniq"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let stdout = stdout();
+    let mut stdout = BufWriter::with_capacity(8192, stdout.lock());
+    let mut stderr = stderr();
 
     let lines = match parser.args.is_empty() {
         true => lines_from_stdin(),
@@ -156,9 +151,7 @@ fn main() {
                 } else if let Some(c) = parser.get_opt("skip-chars") {
                     skip_chars = c.parse::<usize>().try(&mut stderr);
                 } else {
-                    stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
-                    stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-                    stderr.flush().try(&mut stderr);
+                    print_help(REQUIRES_OPTION, help_info!("uniq"));
                     exit(1);
                 }
             }

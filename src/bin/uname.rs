@@ -2,15 +2,14 @@
 
 extern crate extra;
 extern crate arg_parser;
+#[macro_use]
+extern crate coreutils;
 
-use std::io::{self, Write};
-use std::env;
-use std::process;
+use std::io::Read;
 use std::fs::File;
 use std::string::String;
 use arg_parser::ArgParser;
-use extra::option::OptionalExt;
-use std::io::Read;
+use coreutils::arg_parser::ArgParserExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{uname} */ r#"
 NAME
@@ -47,9 +46,6 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = io::stderr();
     let mut parser = ArgParser::new(7)
         .add_flag(&["a", "all"])
         .add_flag(&["m", "machine"])
@@ -58,13 +54,7 @@ fn main() {
         .add_flag(&["s", "kernel-name"])
         .add_flag(&["v", "kernel-version"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        process::exit(0);
-    }
+    parser.process_common(help_info!("uname"), MAN_PAGE);
 
     if parser.found("all") {
         *parser.flag("machine") = true;

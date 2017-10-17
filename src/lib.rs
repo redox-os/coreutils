@@ -175,3 +175,85 @@ pub fn to_human_readable_string(size: u64) -> String {
             sizef / 1024f64.powf(digit_groups as f64),
             UNITS[digit_groups as usize])
 }
+
+#[macro_export]
+macro_rules! help_info {
+    ($cmd:expr) => (concat!("Type '", $cmd, " --help' for more info"));
+}
+
+pub mod arg_parser {
+    extern crate arg_parser;
+    extern crate extra;
+    use std::process;
+    use std::env;
+    use std::io::{stdout, stderr, Write};
+    use self::arg_parser::ArgParser;
+    use self::extra::option::OptionalExt;
+    use self::extra::io::fail;
+
+    #[inline]
+    pub fn print_man_page(man_page: &str) {
+        let stdout = stdout();
+        let mut stdout = stdout.lock();
+        let mut stderr = stderr();
+        stdout.write_all(man_page.as_bytes()).try(&mut stderr);
+        stdout.flush().try(&mut stderr);
+    }
+
+    #[inline]
+    pub fn print_help(err: &str, info: &str) {
+        let stdout = stdout();
+        let mut stdout = stdout.lock();
+        let mut stderr = stderr();
+        stderr.write_all(err.as_bytes()).try(&mut stderr);
+        stdout.write_all(info.as_bytes()).try(&mut stderr);
+        stderr.flush().try(&mut stderr);
+    }
+
+    pub trait ArgParserExt {
+        fn process_common(&mut self, help_info: &str, man_page: &str);
+
+        fn parse_env(&mut self);
+        fn process_invalid(&self, help_info: &str);
+        fn process_help(&self, man_page: &str);
+        fn process_no_argument(&self);
+    }
+
+    impl ArgParserExt for ArgParser {
+
+        fn process_common(&mut self, help_info: &str, man_page: &str) {
+            self.parse_env();
+            self.process_invalid(help_info);
+            self.process_help(man_page);
+        }
+
+        #[inline]
+        fn parse_env(&mut self) {
+            self.parse(env::args());
+        }
+
+        #[inline]
+        fn process_invalid(&self, help_info: &str) {
+            if let Err(err) = self.found_invalid() {
+                print_help(&err, help_info);
+            }
+        }
+
+        #[inline]
+        fn process_help(&self, man_page: &str) {
+            if self.found("help") {
+                print_man_page(man_page);
+                process::exit(0);
+            }
+        }
+
+        #[inline]
+        fn process_no_argument(&self) {
+            if self.args.is_empty() {
+                let mut stderr = stderr();
+                fail("No arguments. Use --help to see the usage.", &mut stderr);
+            }
+        }
+
+    }
+}

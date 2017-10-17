@@ -2,11 +2,13 @@
 
 extern crate extra;
 extern crate arg_parser;
+#[macro_use]
+extern crate coreutils;
 
 use std::io::{self, Write};
-use std::env;
 use std::process;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::{ArgParserExt, print_help};
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{basename} */ r#"
@@ -49,44 +51,30 @@ AUTHOR
     Written by Michael Murphy.
 "#; /* @MANEND */
 
-const HELP_INFO:       &'static str = "Try ‘basename --help’ for more information.\n";
 const MISSING_OPERAND: &'static str = "missing operand\n";
 const REQUIRES_OPTION: &'static str = "option requires an argument -- ‘s’\n";
 
 fn main() {
-    let stdout          = io::stdout();
-    let mut stdout      = stdout.lock();
-    let mut stderr      = io::stderr();
     let mut parser = ArgParser::new(4)
         .add_opt("s", "suffix")
         .add_flag(&["a", "multiple"])
         .add_flag(&["z", "zero"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("basename"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        process::exit(0);
-    }
+    let stdout          = io::stdout();
+    let mut stdout      = stdout.lock();
+    let mut stderr      = io::stderr();
+
     if parser.found("suffix") {
         if parser.get_opt(&'s').is_none() && parser.get_opt("suffix").is_none() {
-            stderr.write_all(REQUIRES_OPTION.as_bytes()).try(&mut stderr);
-            stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-            stderr.flush().try(&mut stderr);
+            print_help(REQUIRES_OPTION, help_info!("basename"));
             process::exit(1);
         }
         *parser.flag("multiple") = true;
     }
     if parser.args.is_empty() {
-        stdout.write_all(MISSING_OPERAND.as_bytes()).try(&mut stderr);
-        stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-        process::exit(1);
-    }
-    if let Err(err) = parser.found_invalid() {
-        stderr.write_all(err.as_bytes()).try(&mut stderr);
-        stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
-        stderr.flush().try(&mut stderr);
+        print_help(MISSING_OPERAND, help_info!("basename"));
         process::exit(1);
     }
 
@@ -104,7 +92,7 @@ fn main() {
                 stderr.write_all("extra operand ‘".as_bytes()).try(&mut stderr);
                 stderr.write_all(extra_operand.as_bytes()).try(&mut stderr);
                 stderr.write_all("’\n".as_bytes()).try(&mut stderr);
-                stdout.write_all(HELP_INFO.as_bytes()).try(&mut stderr);
+                stdout.write_all(help_info!("basename").as_bytes()).try(&mut stderr);
                 stderr.flush().try(&mut stderr);
                 process::exit(1);
             }

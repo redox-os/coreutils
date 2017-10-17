@@ -2,12 +2,13 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::fs;
-use std::io::{stdout, stderr, Write};
+use std::io::stderr;
 use arg_parser::ArgParser;
-use extra::io::fail;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{rmdir} */ r#"
@@ -26,22 +27,12 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("rmdir"), MAN_PAGE);
+    parser.process_no_argument();
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        return;
-    }
-
-    if parser.args.is_empty() {
-        fail("No arguments. Use --help to see the usage.", &mut stderr);
-    }
+    let mut stderr = stderr();
 
     for path in &parser.args {
         fs::remove_dir(path).try(&mut stderr);

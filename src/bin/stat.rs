@@ -4,13 +4,15 @@ extern crate arg_parser;
 extern crate extra;
 extern crate time;
 extern crate userutils;
+#[macro_use]
+extern crate coreutils;
 
-use std::{env, fmt, fs};
+use std::{fmt, fs};
 use std::fs::File;
-use std::io::{stdout, stderr, Read, Write};
+use std::io::Read;
 use std::vec::Vec;
 use arg_parser::ArgParser;
-use extra::option::OptionalExt;
+use coreutils::arg_parser::ArgParserExt;
 use userutils::{Passwd, Group};
 use std::os::unix::fs::MetadataExt;
 use time::Timespec;
@@ -71,18 +73,9 @@ fn lookup_group<'a>(group: &'a [Group], gid: u32) -> &'a str {
 }
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        return;
-    }
+    parser.process_common(help_info!("stat"), MAN_PAGE);
 
     let mut passwd_string = String::new();
     File::open("/etc/passwd").unwrap().read_to_string(&mut passwd_string).unwrap();
