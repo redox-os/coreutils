@@ -3,13 +3,14 @@
 extern crate arg_parser;
 extern crate extra;
 extern crate syscall;
+#[macro_use]
+extern crate coreutils;
 
 use std::io::{self, Write};
-use std::process::exit;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 use std::fmt::Write as FmtWrite;
-use std::env;
 
 const MAN_PAGE: &'static str = /* @MANSTART{uptime} */ r#"
 NAME
@@ -32,19 +33,13 @@ const SECONDS_PER_HOUR: i64 = 3600;
 const SECONDS_PER_DAY: i64 = 86400;
 
 fn main() {
-   let stdout = io::stdout();
-   let mut stdout = stdout.lock();
-   let mut stderr = io::stderr();
-
-   let mut parser = ArgParser::new(1)
+    let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"]);
-   parser.parse(env::args());
+    parser.process_common(help_info!("uptime"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = io::stderr();
 
     let mut uptime_str = String::new();
 

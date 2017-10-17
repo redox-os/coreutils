@@ -2,11 +2,11 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
-use std::io::{stdout, stderr, Write};
 use arg_parser::ArgParser;
-use extra::option::OptionalExt;
+use coreutils::arg_parser::ArgParserExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{dirname} */ r#"
 NAME
@@ -24,18 +24,9 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        return;
-    }
+    parser.process_common(help_info!("dirname"), MAN_PAGE);
 
     for path in &parser.args[0..] {
         if path.len() != 0 && path.chars().all(|c| c == '/') {

@@ -3,13 +3,14 @@
 extern crate arg_parser;
 extern crate extra;
 extern crate walkdir;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::fs;
-use std::io::{stderr, stdout, Write};
+use std::io::stderr;
 use std::path;
-use std::process::exit;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::io::fail;
 use extra::option::OptionalExt;
 use walkdir::WalkDir;
@@ -31,21 +32,14 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["r", "recursive"])
         .add_flag(&["n", "no-action"])
         .add_flag(&["v", "verbose"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("mv"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let mut stderr = stderr();
 
     let recurse = parser.found("recursive");
     let verbose = parser.found("verbose");

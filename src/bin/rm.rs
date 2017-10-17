@@ -2,14 +2,16 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::{self, Write, Stderr};
 use std::path::Path;
 use std::process::exit;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{rm} */ r#"NAME
@@ -52,9 +54,6 @@ AUTHOR
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = io::stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["i", "interactive"])
         .add_flag(&["r", "R", "recursive"])
@@ -62,21 +61,16 @@ fn main() {
         .add_flag(&["d", "dir"])
         .add_flag(&["v", "verbose"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("rm"), MAN_PAGE);
+
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = io::stderr();
 
     let force = parser.found("force");
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
     if parser.found("recursive") {
         *parser.flag("dir") = true;
-    }
-    if let Err(err) = parser.found_invalid() {
-        stderr.write(err.as_bytes()).try(&mut stderr);
-        stderr.flush().try(&mut stderr);
     }
     if parser.args.is_empty() {
         stdout.write(b"missing operand\nTry 'rm --help' for more information.\n").try(&mut stderr);

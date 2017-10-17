@@ -1,14 +1,14 @@
 #![deny(warnings)]
 
 extern crate arg_parser;
+#[macro_use]
 extern crate coreutils;
 extern crate extra;
 
-use std::env;
 use std::io::{stdout, stderr, Write};
-use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use coreutils::format_time;
 use extra::option::OptionalExt;
 
@@ -29,18 +29,13 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
+    let mut parser = ArgParser::new(1)
+        .add_flag(&["h", "help"]);
+    parser.process_common(help_info!("date"), MAN_PAGE);
+
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(1)
-        .add_flag(&["h", "help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
 
     let mut tz_offset = 0;
     for arg in &parser.args {

@@ -2,15 +2,17 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
 use std::cell::Cell; // Provide mutable fields in immutable structs
-use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufReader, Read, Stderr, StdoutLock, Write};
-use std::process::exit;
+use std::process;
 use extra::option::OptionalExt;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{cat} */ r#"NAME
     cat - concatenate files and print on the standard output
@@ -80,7 +82,7 @@ struct Program {
 
 impl Program {
     /// Initialize the program's arguments and flags.
-    fn initialize(stdout: &mut StdoutLock, stderr: &mut Stderr) -> Program {
+    fn initialize() -> Program {
         let mut parser = ArgParser::new(10).
             add_flag(&["A", "show-all"]). //vET
             add_flag(&["b", "number-nonblank"]).
@@ -92,7 +94,7 @@ impl Program {
             add_flag(&["T", "show-tabs"]).
             add_flag(&["v", "show-nonprinting"]).
             add_flag(&["h", "help"]);
-        parser.parse(env::args());
+        parser.process_common(help_info!("cat"), MAN_PAGE);
 
         let mut cat = Program {
             exit_status:      Cell::new(0i32),
@@ -104,12 +106,6 @@ impl Program {
             squeeze_blank:    false,
             paths:            Vec::with_capacity(parser.args.len()),
         };
-
-        if parser.found("help") {
-            stdout.write(MAN_PAGE.as_bytes()).try(stderr);
-            stdout.flush().try(stderr);
-            exit(0);
-        }
 
         if parser.found("show-all") {
             cat.show_nonprinting = true;
@@ -291,5 +287,5 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-    exit(Program::initialize(&mut stdout, &mut stderr).and_execute(&mut stdout, &mut stderr));
+    process::exit(Program::initialize().and_execute(&mut stdout, &mut stderr));
 }

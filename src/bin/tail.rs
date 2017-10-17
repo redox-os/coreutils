@@ -2,9 +2,10 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
 use std::collections::VecDeque;
-use std::env;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
@@ -12,6 +13,7 @@ use std::io::{self, BufRead, Read, Write};
 use std::io::{Seek, SeekFrom};
 use std::error::Error;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 use extra::io::fail;
 
@@ -265,23 +267,12 @@ fn main() {
         .add_flag(&["f"])
         .add_flag(&["F"])
         .add_opt_default("s", "sleep-interval", "1.0");
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        return;
-    }
+    parser.process_common(help_info!("tail"), MAN_PAGE);
     if parser.found(&'c') || parser.found("bytes") {
         parser.opt("lines").clear();
     }
     if parser.found(&'F') {
         *parser.flag(&'f') = true;
-    }
-    if let Err(err) = parser.found_invalid() {
-        stderr.write_all(err.as_bytes()).try(&mut stderr);
-        stderr.flush().try(&mut stderr);
-        return;
     }
     let (lines, skip, num): (bool, bool, usize) =
         if let Some(num) = parser.get_opt("lines") {

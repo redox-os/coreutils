@@ -1,15 +1,15 @@
 #![deny(warnings)]
 
 extern crate arg_parser;
+#[macro_use]
 extern crate coreutils;
 extern crate extra;
 
-use std::env;
 use std::fs;
 use std::path::Path;
 use std::io::{stdout, stderr, StdoutLock, Stderr, Write};
-use std::process::exit;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use coreutils::to_human_readable_string;
 use extra::option::OptionalExt;
 
@@ -80,19 +80,14 @@ fn list_dir(path: &str, parser: &ArgParser, stdout: &mut StdoutLock, stderr: &mu
 }
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(2)
         .add_flag(&["h", "human-readable"])
         .add_flag(&["help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("du"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
     if parser.args.is_empty() {
         list_dir(".", &parser, &mut stdout, &mut stderr);

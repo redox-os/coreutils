@@ -1,8 +1,11 @@
 //#![deny(warnings)]
 
 extern crate arg_parser;
+#[macro_use]
+extern crate coreutils;
 
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use std::{process, env};
 use std::io::{self, Read, Write};
 
@@ -29,16 +32,9 @@ fn main() {
     let mut parser = ArgParser::new(2).
         add_flag(&["a", "append"]).
         add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("tee"), MAN_PAGE);
 
     let mut stdout = io::stdout();
-
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).unwrap();
-        stdout.flush().unwrap();
-        process::exit(0);
-    }
-
     let mut fds: Vec<std::fs::File> = Vec::with_capacity(env::args().len());
 
     if parser.found("append") {

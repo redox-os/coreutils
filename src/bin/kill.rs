@@ -4,6 +4,7 @@ extern crate arg_parser;
 extern crate extra;
 #[cfg(target_os = "redox")]
 extern crate syscall;
+extern crate coreutils;
 
 #[cfg(target_os = "redox")]
 fn main() {
@@ -12,6 +13,8 @@ fn main() {
     use arg_parser::ArgParser;
     use extra::io::fail;
     use extra::option::OptionalExt;
+    #[macro_use]
+    use coreutils;
 
     const MAN_PAGE: &'static str = /* @MANSTART{kill} */ r#"
     NAME
@@ -28,18 +31,13 @@ fn main() {
             print this message
     "#; /* @MANEND */
 
+    let mut parser = ArgParser::new(1)
+        .add_flag(&["h", "help"]);
+    parser.process_common(help_info!("kill"), MAN_PAGE);
+
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
-    let mut parser = ArgParser::new(1)
-        .add_flag(&["h", "help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        return;
-    }
 
     if let Some(sig_arg) = parser.args.get(0) {
         let sig = sig_arg.parse::<usize>().try(&mut stderr);

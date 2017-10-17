@@ -1,17 +1,16 @@
 #![deny(warnings)]
 
 extern crate arg_parser;
+#[macro_use]
 extern crate coreutils;
 extern crate extra;
 
-use std::env;
 use std::fs::File;
 use std::io::{self, stderr, stdin, stdout, Read, Write};
 use std::time::Instant;
-use std::process::exit;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use coreutils::to_human_readable_string;
-use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{dd} */ r#"
 NAME
@@ -75,25 +74,19 @@ impl<'a> io::Write for Output<'a> {
 }
 
 fn main() {
-    let stdin = stdin();
-    let stdin = stdin.lock();
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
-
     let mut parser = ArgParser::new(5)
         .add_flag(&["h", "help"])
         .add_setting_default("bs", "512")
         .add_setting_default("count", "-1")
         .add_setting("if")
         .add_setting("of");
-    parser.parse(env::args());
+    parser.process_common(help_info!("dd"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let stdin = stdin();
+    let stdin = stdin.lock();
+    let stdout = stdout();
+    let stdout = stdout.lock();
+    let mut stderr = stderr();
 
     let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
     let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();

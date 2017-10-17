@@ -2,12 +2,12 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
-use std::io::{stdout, stderr, Write};
-use std::process::exit;
+use std::io::{stdout, Write};
 use arg_parser::ArgParser;
-use extra::option::OptionalExt;
+use coreutils::arg_parser::ArgParserExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{clear} */ r#"
 NAME
@@ -26,18 +26,11 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("clear"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
-
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
     let _ = stdout.write(b"\x1B[2J");
 }

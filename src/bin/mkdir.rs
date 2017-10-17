@@ -2,13 +2,13 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::fs;
-use std::io::{stdout, stderr, Write};
-use std::process::exit;
+use std::io::stderr;
 use arg_parser::ArgParser;
-use extra::io::fail;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{mkdir} */ r#"
@@ -29,22 +29,13 @@ OPTIONS
 "#; /* @MANEND */
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(2)
         .add_flag(&["h", "help"])
         .add_flag(&["p", "parents"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("mkdir"), MAN_PAGE);
+    parser.process_no_argument();
 
-    if parser.found("help") {
-        stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
-    if parser.args.is_empty() {
-        fail("No arguments. Use --help to see the usage.", &mut stderr);
-    }
+    let mut stderr = stderr();
 
     let mut parents = false;
     if parser.found("parents") {

@@ -2,8 +2,9 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::fmt;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
@@ -11,6 +12,7 @@ use std::slice;
 use std::str::FromStr;
 
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 
 use extra::io::{fail, WriteExt};
 use extra::option::OptionalExt;
@@ -338,6 +340,15 @@ enum Mode {
 
 
 fn main() {
+    let mut parser = ArgParser::new(6)
+        .add_flag(&["h", "help"])
+        .add_flag(&["s"])
+        .add_opt("b", "")
+        .add_opt("c", "")
+        .add_opt("f", "")
+        .add_opt("d", "");
+    parser.process_common(help_info!("cut"), MAN_PAGE);
+
     // Arguments.
     let mut mode = None;
     let mut delimiter = None;
@@ -347,20 +358,6 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
-
-    let mut parser = ArgParser::new(6)
-        .add_flag(&["h", "help"])
-        .add_flag(&["s"])
-        .add_opt("b", "")
-        .add_opt("c", "")
-        .add_opt("f", "")
-        .add_opt("d", "");
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        let _ = stdout.write(MAN_PAGE.as_bytes());
-        return;
-    }
 
     if parser.found(&'s') {
         skip_if_missing = Some(true);

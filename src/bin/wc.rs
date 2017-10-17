@@ -3,13 +3,14 @@
 
 extern crate arg_parser;
 extern crate extra;
+#[macro_use]
+extern crate coreutils;
 
-use std::env;
 use std::fs::File;
 use std::io::{self, stdout, stderr, Read, Write, Stderr};
 use std::ops::{Add, AddAssign};
-use std::process::exit;
 use arg_parser::ArgParser;
+use coreutils::arg_parser::ArgParserExt;
 use extra::option::OptionalExt;
 use extra::io::WriteExt;
 
@@ -184,21 +185,12 @@ fn print_count<'a, W: Write>(parser: &ArgParser, count: Counter, path: &'a str, 
 }
 
 fn main() {
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(4)
         .add_flag(&["l", "lines"])
         .add_flag(&["w", "words"])
         .add_flag(&["c", "bytes"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
-
-    if parser.found("help") {
-        stdout.writeln(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    parser.process_common(help_info!("wc"), MAN_PAGE);
 
     if !(parser.found("lines") ||
          parser.found("words") ||
@@ -207,6 +199,10 @@ fn main() {
         *parser.flag("words") = true;
         *parser.flag("bytes") = true;
     }
+
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
     if parser.args.is_empty() {
         let stdin = io::stdin();

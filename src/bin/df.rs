@@ -50,6 +50,8 @@ fn main() {
     use std::io::{stdout, stderr, BufRead, BufReader, Write};
     use std::process::exit;
     use arg_parser::ArgParser;
+    #[macro_use]
+    use coreutils::arg_parser::ArgParserExt;
     use extra::option::OptionalExt;
 
     const MAN_PAGE: &'static str = /* @MANSTART{df} */ r#"
@@ -70,19 +72,14 @@ fn main() {
             display this help and exit
     "#; /* @MANEND */
 
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "human-readable"])
         .add_flag(&["help"]);
-    parser.parse(env::args());
+    parser.process_common(help_info!("df"), MAN_PAGE);
 
-    if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
-    }
+    let stdout = stdout();
+    let mut stdout = stdout.lock();
+    let mut stderr = stderr();
 
     println!("{:<10}{:>10}{:>10}{:>10}{:>5}", "Path", "Size", "Used", "Free", "Use%");
     if parser.args.is_empty() {
