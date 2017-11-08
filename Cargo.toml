@@ -11,9 +11,9 @@ version = "0.1.0"
 arg_parser = { git = "https://github.com/redox-os/arg-parser.git" }
 extra = { git = "https://github.com/redox-os/libextra.git" }
 termion = "1.5.1"
-userutils = { git = "https://github.com/redox-os/userutils.git" }
 filetime = "0.1.11"
 redox_syscall = "0.1"
+redox_users = { git = "https://github.com/redox-os/users.git" }
 walkdir = "1"
 time = "0.1"
 base64 = "~0.6.0"

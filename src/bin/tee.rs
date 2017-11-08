@@ -67,7 +67,7 @@ fn main() {
 
     let stdintemp = io::stdin();
     let mut stdin = stdintemp.lock();
-    let mut buffer: &mut [u8] = &mut[0 as u8; 4096];
+    let buffer: &mut [u8] = &mut[0 as u8; 4096];
     'programmloop: loop {
         let result_read = stdin.read(buffer);
         match result_read {
