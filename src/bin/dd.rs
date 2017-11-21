@@ -6,7 +6,7 @@ extern crate extra;
 
 use std::env;
 use std::fs::File;
-use std::io::{self, stderr, stdin, stdout, Read, Write};
+use std::io::{stderr, stdin, stdout, Read, Write};
 use std::time::Instant;
 use std::process::exit;
 use arg_parser::ArgParser;
@@ -39,41 +39,6 @@ OPTIONS
 
 "#; /* @MANEND */
 
-enum Input<'a> {
-    File(File),
-    Standard(io::StdinLock<'a>)
-}
-
-impl<'a> io::Read for Input<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match *self {
-            Input::File(ref mut f) => f.read(buf),
-            Input::Standard(ref mut s) => s.read(buf),
-        }
-    }
-}
-
-enum Output<'a> {
-    File(File),
-    Standard(io::StdoutLock<'a>)
-}
-
-impl<'a> io::Write for Output<'a> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match *self {
-            Output::File(ref mut f) => f.write(buf),
-            Output::Standard(ref mut s) => s.write(buf),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        match *self {
-            Output::File(ref mut f) => f.flush(),
-            Output::Standard(ref mut s) => s.flush(),
-        }
-    }
-}
-
 fn main() {
     let stdin = stdin();
     let stdin = stdin.lock();
@@ -98,20 +63,20 @@ fn main() {
     let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
     let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();
 
-    let mut input = match parser.found("if") {
+    let mut input: Box<Read> = match parser.found("if") {
         true => {
             let path = parser.get_setting("if").unwrap();
-            Input::File(File::open(path).expect("dd: failed to open if"))
+            Box::new(File::open(path).expect("dd: failed to open if"))
         },
-        false => Input::Standard(stdin)
+        false => Box::new(stdin),
     };
 
-    let mut output = match parser.found("of") {
+    let mut output: Box<Write> = match parser.found("of") {
         true => {
             let path = parser.get_setting("of").unwrap();
-            Output::File(File::create(path).expect("dd: failed to open of"))
+            Box::new(File::create(path).expect("dd: failed to open of"))
         },
-        false => Output::Standard(stdout)
+        false => Box::new(stdout),
     };
 
     let status = 1;
