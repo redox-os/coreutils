@@ -79,7 +79,6 @@ fn main() {
         false => Box::new(stdout),
     };
 
-    let status = 1;
     let mut in_recs = 0;
     let mut in_extra = 0;
     let mut out_recs = 0;
@@ -87,8 +86,6 @@ fn main() {
     let mut out_total = 0;
     let mut running = true;
     let mut buffer = vec![0; bs];
-    let mut last_print = 0;
-    let mut last_print_out = 0;
     let start = Instant::now();
     while running {
         let in_count = input.read(&mut buffer).expect("dd: failed to read if");
@@ -117,28 +114,11 @@ fn main() {
         }
 
         out_total += out_count as u64;
-
-        if status >= 2 {
-            let elapsed = start.elapsed().as_secs();
-            if elapsed > last_print {
-                let _ = write!(stderr, "\r\x1B[K{} bytes ({}B) copied, {} s, {}B/s", out_total, to_human_readable_string(out_total), elapsed, to_human_readable_string(out_total - last_print_out));
-                let _ = stderr.flush();
-                last_print = elapsed;
-                last_print_out = out_total;
-            }
-        }
     }
 
-    if status >= 1 {
-        let elapsed_duration = start.elapsed();
-        let elapsed = elapsed_duration.as_secs() as f64 + (elapsed_duration.subsec_nanos() as f64)/1000000000.0;
-
-        if status >= 2 && last_print > 0 {
-            let _ = writeln!(stderr, "");
-        }
-
-        let _ = writeln!(stderr, "{}+{} records in", in_recs, in_extra);
-        let _ = writeln!(stderr, "{}+{} records out", out_recs, out_extra);
-        let _ = writeln!(stderr, "{} bytes ({}B) copied, {} s, {}B/s", out_total, to_human_readable_string(out_total), elapsed, to_human_readable_string((out_total as f64/elapsed) as u64));
-    }
+    let elapsed_duration = start.elapsed();
+    let elapsed = elapsed_duration.as_secs() as f64 + (elapsed_duration.subsec_nanos() as f64)/1000000000.0;
+    let _ = writeln!(stderr, "{}+{} records in", in_recs, in_extra);
+    let _ = writeln!(stderr, "{}+{} records out", out_recs, out_extra);
+    let _ = writeln!(stderr, "{} bytes ({}B) copied, {} s, {}B/s", out_total, to_human_readable_string(out_total), elapsed, to_human_readable_string((out_total as f64/elapsed) as u64));
 }
