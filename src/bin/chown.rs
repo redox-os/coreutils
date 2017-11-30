@@ -12,7 +12,7 @@ use extra::option::OptionalExt;
 
 const MAN_PAGE: &'static str = /* @MANSTART{chown} */ r#"
 NAME
-    chown - delay for a specified amount of time.
+    chown - set user and/or group ownership of a file
 
 SYNOPSIS
     chown [-h | --help] [OWNER][:[GROUP]] FILE...
@@ -29,7 +29,7 @@ OPTIONS
         display this help and exit
 
 AUTHOR
-    Written by Michael Murphy.
+    Written by Jeremy Soller.
 "#; /* @MANEND */
 
 const MISSING_OPERAND: &'static str = "missing operand\n";
