@@ -34,6 +34,10 @@ name = "cat"
 path = "src/bin/cat.rs"
 
 [[bin]]
+name = "chown"
+path = "src/bin/chown.rs"
+
+[[bin]]
 name = "clear"
 path = "src/bin/clear.rs"
 
