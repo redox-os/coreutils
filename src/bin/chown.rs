@@ -64,11 +64,15 @@ fn main() {
         let mut parts = arg.splitn(2, ":");
 
         let uid = if let Some(part) = parts.next() {
-            match part.parse() {
-                Ok(id) => id,
-                Err(err) => {
-                    let _ = writeln!(stderr, "chown: failed to parse uid {}", part);
-                    exit(1);
+            if part.is_empty() {
+                -1i32 as u32
+            } else {
+                match part.parse() {
+                    Ok(id) => id,
+                    Err(err) => {
+                        let _ = writeln!(stderr, "chown: failed to parse uid {}: {}", part, err);
+                        exit(1);
+                    }
                 }
             }
         } else {
@@ -76,11 +80,15 @@ fn main() {
         };
 
         let gid = if let Some(part) = parts.next() {
-            match part.parse() {
-                Ok(id) => id,
-                Err(err) => {
-                    let _ = writeln!(stderr, "chown: failed to parse gid {}", part);
-                    exit(1);
+            if part.is_empty() {
+                -1i32 as u32
+            } else {
+                match part.parse() {
+                    Ok(id) => id,
+                    Err(err) => {
+                        let _ = writeln!(stderr, "chown: failed to parse gid {}: {}", part, err);
+                        exit(1);
+                    }
                 }
             }
         } else {
