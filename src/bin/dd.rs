@@ -46,10 +46,11 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
 
-    let mut parser = ArgParser::new(5)
+    let mut parser = ArgParser::new(6)
         .add_flag(&["h", "help"])
         .add_setting_default("bs", "512")
         .add_setting_default("count", "-1")
+        .add_setting_default("status", "1")
         .add_setting("if")
         .add_setting("of");
     parser.parse(env::args());
@@ -62,6 +63,7 @@ fn main() {
 
     let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
     let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();
+    let status = parser.get_setting("status").unwrap().parse::<usize>().unwrap();
 
     let mut input: Box<Read> = match parser.found("if") {
         true => {
@@ -79,7 +81,6 @@ fn main() {
         false => Box::new(stdout),
     };
 
-    let status = 1;
     let mut in_recs = 0;
     let mut in_extra = 0;
     let mut out_recs = 0;
