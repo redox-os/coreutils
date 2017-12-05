@@ -159,14 +159,14 @@ impl Program {
         if self.paths.is_empty() && flags_enabled {
             self.cat(&mut stdin.lock(), line_count, stdout, stderr);
         } else if self.paths.is_empty() {
-            io::copy(&mut stdin.lock(), stdout).try(stderr);
+            self.simple_cat(&mut stdin.lock(), stdout, stderr);
         } else {
             for path in &self.paths {
                 if flags_enabled && path == "-" {
                     self.cat(&mut stdin.lock(), line_count, stdout, stderr);
                 } else if path == "-" {
                     // Copy the standard input directly to the standard output.
-                    io::copy(&mut stdin.lock(), stdout).try(stderr);
+                    self.simple_cat(&mut stdin.lock(), stdout, stderr);
                 } else if fs::metadata(&path).map(|m| m.is_dir()).unwrap_or(false) {
                     stderr.write(path.as_bytes()).try(stderr);
                     stderr.write(b": Is a directory\n").try(stderr);
@@ -187,7 +187,7 @@ impl Program {
                         });
                 } else {
                     // Open a file and copy the contents directly to standard output.
-                    fs::File::open(&path).map(|ref mut file| { io::copy(file, stdout).try(stderr); })
+                    fs::File::open(&path).map(|ref mut file| { self.simple_cat(file, stdout, stderr); })
                         // If an error occurs, print the error and set the exit status.
                         .unwrap_or_else(|message| {
                             stderr.write(path.as_bytes()).try(stderr);
@@ -201,6 +201,18 @@ impl Program {
             }
         }
         self.exit_status.get()
+    }
+
+    /// A simple cat that runs a lot faster than self.cat() due to no iterators over single bytes.
+    fn simple_cat<F: Read>(&self, file: &mut F, stdout: &mut StdoutLock, stderr: &mut Stderr) { 
+        let mut buf: [u8; 8*8192] = [0; 8*8192]; // 64K seems to be the sweet spot for a buffer on my machine.
+        loop { 
+            let n_read = file.read(&mut buf).try(stderr);
+            if n_read == 0 { // We've reached the end of the input
+                break;
+            }
+            stdout.write_all(&buf[..n_read]).try(stderr);
+        }
     }
 
     /// Cats either a file or stdin based on the flag arguments given to the program.
