@@ -175,7 +175,7 @@ impl Program {
                 } else if flags_enabled {
                     fs::File::open(&path)
                         // Open the file and copy the file's contents to standard output based input arguments.
-                        .map(|file| self.cat(BufReader::new(file), line_count, stdout, stderr))
+                        .map(|file| self.cat(&mut BufReader::new(file), line_count, stdout, stderr))
                         // If an error occurred, print the error and set the exit status.
                         .unwrap_or_else(|message| {
                             stderr.write(path.as_bytes()).try(stderr);
@@ -216,73 +216,82 @@ impl Program {
     }
 
     /// Cats either a file or stdin based on the flag arguments given to the program.
-    fn cat<F: Read>(&self, file: F, line_count: &mut usize, stdout: &mut StdoutLock, stderr: &mut Stderr) {
+    fn cat<F: Read>(&self, file: &mut F, line_count: &mut usize, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         let mut character_count = 0;
         let mut last_line_was_blank = false;
+        let mut buf: [u8; 8*8192] = [0; 8*8192]; // 64K seems to be the sweet spot for a buffer on my machine.
+        let mut out_buf: Vec<u8> = Vec::with_capacity(24*8192); // Worst case 2 chars out per char
+        loop { 
+            let n_read = file.read(&mut buf).try(stderr);
+            if n_read == 0 { // We've reached the end of the input
+                break;
+            }
 
-        for byte in file.bytes().map(|x| x.unwrap()) {
-            if (self.number && character_count == 0) || (character_count == 0 && self.number_nonblank && byte != b'\n') {
-                stdout.write(b"     ").try(stderr);
-                stdout.write(line_count.to_string().as_bytes()).try(stderr);
-                stdout.write(b"  ").try(stderr);
-                *line_count += 1;
-            }
-            match byte {
-                0...8 | 11...31 => if self.show_nonprinting {
-                    push_caret(stdout, stderr, byte+64);
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                },
-                9 => {
-                    if self.show_tabs {
-                        push_caret(stdout, stderr, b'I');
-                    } else {
-                        stdout.write(&[byte]).try(stderr);
-                    }
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
+            for &byte in buf[0..n_read].iter() {
+                if character_count == 0 && (self.number || (self.number_nonblank && byte != b'\n')) {
+                    out_buf.write(b"     ").try(stderr);
+                    out_buf.write(line_count.to_string().as_bytes()).try(stderr);
+                    out_buf.write(b"  ").try(stderr);
+                    *line_count += 1;
                 }
-                10 => {
-                    if character_count == 0 {
-                        if self.squeeze_blank && last_line_was_blank {
-                            continue
-                        } else if !last_line_was_blank {
-                            last_line_was_blank = true;
+                match byte {
+                    0...8 | 11...31 => if self.show_nonprinting {
+                        push_caret(&mut out_buf, stderr, byte+64);
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
+                    },
+                    9 => {
+                        if self.show_tabs {
+                            push_caret(&mut out_buf, stderr, b'I');
+                        } else {
+                            out_buf.write(&[byte]).try(stderr);
                         }
-                    } else {
-                        last_line_was_blank = false;
-                        character_count = 0;
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
                     }
-                    if self.show_ends {
-                        stdout.write(b"$\n").try(stderr);
+                    10 => {
+                        if character_count == 0 {
+                            if self.squeeze_blank && last_line_was_blank {
+                                continue
+                            } else if !last_line_was_blank {
+                                last_line_was_blank = true;
+                            }
+                        } else {
+                            last_line_was_blank = false;
+                            character_count = 0;
+                        }
+                        if self.show_ends {
+                            out_buf.write(b"$\n").try(stderr);
+                        } else {
+                            out_buf.write(b"\n").try(stderr);
+                        }
+                    },
+                    32...126 => {
+                        out_buf.write(&[byte]).try(stderr);
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
+                    },
+                    127 => if self.show_nonprinting {
+                        push_caret(&mut out_buf, stderr, b'?');
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
+                    },
+                    128...159 => if self.show_nonprinting {
+                        out_buf.write(b"M-^").try(stderr);
+                        out_buf.write(&[byte-64]).try(stderr);
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
                     } else {
-                        stdout.write(b"\n").try(stderr);
-                    }
-                    stdout.flush().try(stderr);
-                },
-                32...126 => {
-                    stdout.write(&[byte]).try(stderr);
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                },
-                127 => if self.show_nonprinting {
-                    push_caret(stdout, stderr, b'?');
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                },
-                128...159 => if self.show_nonprinting {
-                    stdout.write(b"M-^").try(stderr);
-                    stdout.write(&[byte-64]).try(stderr);
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                } else {
-                    stdout.write(&[byte]).try(stderr);
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                },
-                _ => if self.show_nonprinting {
-                    stdout.write(b"M-").try(stderr);
-                    stdout.write(&[byte-128]).try(stderr);
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                } else {
-                    stdout.write(&[byte]).try(stderr);
-                    count_character(&mut character_count, &self.number, &self.number_nonblank);
-                },
+                        out_buf.write(&[byte]).try(stderr);
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
+                    },
+                    _ => if self.show_nonprinting {
+                        out_buf.write(b"M-").try(stderr);
+                        out_buf.write(&[byte-128]).try(stderr);
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
+                    } else {
+                        out_buf.write(&[byte]).try(stderr);
+                        count_character(&mut character_count, &self.number, &self.number_nonblank);
+                    },
+                }
             }
+            stdout.write_all(&out_buf).try(stderr);
+            out_buf.clear();
         }
     }
 }
@@ -294,7 +303,7 @@ fn count_character(character_count: &mut usize, number: &bool, number_nonblank: 
 }
 
 /// Print a caret notation to stdout.
-fn push_caret(stdout: &mut StdoutLock, stderr: &mut Stderr, notation: u8) {
+fn push_caret<T: Write>(stdout: &mut T, stderr: &mut Stderr, notation: u8) {
     stdout.write(&[b'^']).try(stderr);
     stdout.write(&[notation]).try(stderr);
 }
