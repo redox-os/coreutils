@@ -22,14 +22,6 @@ base64 = "~0.6.0"
 path = "src/lib.rs"
 
 [[bin]]
-name = "base64"
-path = "src/bin/base64.rs"
-
-[[bin]]
-name = "basename"
-path = "src/bin/basename.rs"
-
-[[bin]]
 name = "cat"
 path = "src/bin/cat.rs"
 
@@ -42,18 +34,6 @@ name = "clear"
 path = "src/bin/clear.rs"
 
 [[bin]]
-name = "cp"
-path = "src/bin/cp.rs"
-
-[[bin]]
-name = "cut"
-path = "src/bin/cut.rs"
-
-[[bin]]
-name = "date"
-path = "src/bin/date.rs"
-
-[[bin]]
 name = "dd"
 path = "src/bin/dd.rs"
 
@@ -62,28 +42,12 @@ name = "df"
 path = "src/bin/df.rs"
 
 [[bin]]
-name = "dirname"
-path = "src/bin/dirname.rs"
-
-[[bin]]
 name = "du"
 path = "src/bin/du.rs"
 
 [[bin]]
-name = "echo"
-path = "src/bin/echo.rs"
-
-[[bin]]
-name = "false"
-path = "src/bin/false.rs"
-
-[[bin]]
 name = "free"
 path = "src/bin/free.rs"
-
-[[bin]]
-name = "head"
-path = "src/bin/head.rs"
 
 [[bin]]
 name = "kill"
@@ -98,56 +62,24 @@ name = "mkdir"
 path = "src/bin/mkdir.rs"
 
 [[bin]]
-name = "mv"
-path = "src/bin/mv.rs"
-
-[[bin]]
-name = "printenv"
-path = "src/bin/printenv.rs"
-
-[[bin]]
 name = "ps"
 path = "src/bin/ps.rs"
-
-[[bin]]
-name = "pwd"
-path = "src/bin/pwd.rs"
-
-[[bin]]
-name = "readlink"
-path = "src/bin/readlink.rs"
-
-[[bin]]
-name = "realpath"
-path = "src/bin/realpath.rs"
 
 [[bin]]
 name = "reset"
 path = "src/bin/reset.rs"
 
 [[bin]]
-name = "rm"
-path = "src/bin/rm.rs"
-
-[[bin]]
-name = "rmdir"
-path = "src/bin/rmdir.rs"
-
-[[bin]]
-name = "seq"
-path = "src/bin/seq.rs"
-
-[[bin]]
 name = "shutdown"
 path = "src/bin/shutdown.rs"
 
 [[bin]]
-name = "sleep"
-path = "src/bin/sleep.rs"
-
-[[bin]]
 name = "sort"
 path = "src/bin/sort.rs"
+
+[[bin]]
+name = "stat"
+path = "src/bin/stat.rs"
 
 [[bin]]
 name = "tail"
@@ -166,41 +98,13 @@ name = "touch"
 path = "src/bin/touch.rs"
 
 [[bin]]
-name = "tr"
-path = "src/bin/tr.rs"
-
-[[bin]]
-name = "true"
-path = "src/bin/true.rs"
-
-[[bin]]
-name = "uniq"
-path = "src/bin/uniq.rs"
+name = "uname"
+path = "src/bin/uname.rs"
 
 [[bin]]
 name = "uptime"
 path = "src/bin/uptime.rs"
 
 [[bin]]
-name = "wc"
-path = "src/bin/wc.rs"
-
-[[bin]]
 name = "which"
 path = "src/bin/which.rs"
-
-[[bin]]
-name = "yes"
-path = "src/bin/yes.rs"
-
-[[bin]]
-name = "tee"
-path = "src/bin/tee.rs"
-
-[[bin]]
-name = "stat"
-path = "src/bin/stat.rs"
-
-[[bin]]
-name = "uname"
-path = "src/bin/uname.rs"
