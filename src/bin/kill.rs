@@ -8,7 +8,7 @@ extern crate syscall;
 #[cfg(target_os = "redox")]
 fn main() {
     use std::env;
-    use std::io::{stdout, stderr, Error, Write};
+    use std::io::{stdout, stderr, Write};
     use arg_parser::ArgParser;
     use extra::io::fail;
     use extra::option::OptionalExt;
@@ -49,8 +49,8 @@ fn main() {
             }
 
             for pid_str in &parser.args[1..] {
-                let pid = pid_str.parse::<usize>().try(&mut stderr);
-                syscall::kill(pid, sig).map_err(|err| Error::from_raw_os_error(err.errno)).try(&mut stderr);
+                let pid = pid_str.parse::<usize>().unwrap_or_exit(1);
+                syscall::kill(pid, sig).unwrap_or_exit(1);
             }
         } else {
             fail("Signal greater than 127. Use --help to see the usage.", &mut stderr);

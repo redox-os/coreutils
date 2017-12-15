@@ -7,10 +7,13 @@ extern crate redox_users;
 
 use std::{env, fmt, fs};
 use std::io::{stdout, stderr, Write};
+use std::os::unix::fs::MetadataExt;
+use std::process::exit;
+
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
-use redox_users::{get_group_by_id, get_user_by_id};
-use std::os::unix::fs::MetadataExt;
+use redox_users::{get_group_by_id, get_user_by_id, UsersError};
+
 use time::Timespec;
 
 const MAN_PAGE: &'static str = /* @MANSTART{stat} */ r#"
@@ -82,11 +85,25 @@ fn main() {
         }
         println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
         println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
-        let user_option = get_user_by_id(meta.uid() as usize);
-        let group_option = get_group_by_id(meta.gid() as usize);
 
-        let username = user_option.map_or_else(|| String::from("UNKNOWN"), |user| user.user);
-        let groupname = group_option.map_or_else(|| String::from("UNKNOWN"), |group| group.group);
+        let username = match get_user_by_id(meta.uid() as usize) {
+            Ok(user) => user.user,
+            Err(ref err) if err.downcast_ref::<UsersError>() == Some(&UsersError::NotFound)  => String::from("UNKNOWN"),
+            Err(err) => {
+                eprintln!("stat: {}", err);
+                exit(1);
+            }
+        };
+
+        let groupname = match get_group_by_id(meta.uid() as usize) {
+            Ok(group) => group.group,
+            Err(ref err) if err.downcast_ref::<UsersError>() == Some(&UsersError::NotFound)  => String::from("UNKNOWN"),
+            Err(err) => {
+                eprintln!("stat: {}", err);
+                exit(1);
+            }
+        };
+
         println!("Access: {}  Uid: ({}/{})  Gid: ({}/{})", Perms(meta.mode()),
                                                              meta.uid(), username,
                                                              meta.gid(), groupname);
