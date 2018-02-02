@@ -12,7 +12,7 @@ use std::process::exit;
 
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
-use redox_users::{get_group_by_id, get_user_by_id, UsersError};
+use redox_users::{AllUsers, AllGroups};
 
 use time::Timespec;
 
@@ -66,6 +66,21 @@ fn main() {
         stdout.flush().try(&mut stderr);
         return;
     }
+    let (all_users, all_groups) = match (AllUsers::new(), AllGroups::new()) {
+        (Ok(all_users), Ok(all_groups)) => (all_users, all_groups),
+        (Err(_), Ok(_)) => {
+            eprintln!("Unable to access password file");
+            exit(1);
+        },
+        (Ok(_), Err(_)) => {
+            eprintln!("Unable to access group file");
+            exit(1);
+        }
+        _ => {
+            eprintln!("Unable to access password and group file");
+            exit(1);
+        }
+    };
 
     for path in &parser.args[0..] {
         let meta = fs::symlink_metadata(path).unwrap();
@@ -83,30 +98,16 @@ fn main() {
         } else {
             println!("File: {}", path);
         }
+        let username = all_users.get_by_id(meta.uid() as usize)
+            .map(|x| x.user.to_string())
+            .unwrap_or("UNKNOWN".to_string());
+        let groupname = all_groups.get_by_id(meta.gid() as usize)
+            .map(|x| x.group.to_string())
+            .unwrap_or("UNKNOWN".to_string());
         println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
         println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
-
-        let username = match get_user_by_id(meta.uid() as usize) {
-            Ok(user) => user.user,
-            Err(ref err) if err.downcast_ref::<UsersError>() == Some(&UsersError::NotFound)  => String::from("UNKNOWN"),
-            Err(err) => {
-                eprintln!("stat: {}", err);
-                exit(1);
-            }
-        };
-
-        let groupname = match get_group_by_id(meta.uid() as usize) {
-            Ok(group) => group.group,
-            Err(ref err) if err.downcast_ref::<UsersError>() == Some(&UsersError::NotFound)  => String::from("UNKNOWN"),
-            Err(err) => {
-                eprintln!("stat: {}", err);
-                exit(1);
-            }
-        };
-
         println!("Access: {}  Uid: ({}/{})  Gid: ({}/{})", Perms(meta.mode()),
-                                                             meta.uid(), username,
-                                                             meta.gid(), groupname);
+                 meta.uid(), username, meta.gid(), groupname);
         println!("Access: {}", time::at(Timespec::new(meta.atime(), meta.atime_nsec() as i32)).strftime(TIME_FMT).unwrap());
         println!("Modify: {}", time::at(Timespec::new(meta.mtime(), meta.mtime_nsec() as i32)).strftime(TIME_FMT).unwrap());
         println!("Change: {}", time::at(Timespec::new(meta.ctime(), meta.ctime_nsec() as i32)).strftime(TIME_FMT).unwrap());
