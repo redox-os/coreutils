@@ -2,6 +2,7 @@
 
 extern crate arg_parser;
 extern crate extra;
+extern crate tail;
 
 use std::collections::VecDeque;
 use std::env;
@@ -14,6 +15,7 @@ use std::error::Error;
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use extra::io::fail;
+use tail::BackwardsReader;
 
 static MAN_PAGE: &'static str = /* @MANSTART{tail} */ r#"
 NAME
@@ -156,7 +158,45 @@ fn tail<R: Read, W: Write>(input: R, output: W, lines: bool, skip: bool, num: us
     Ok(())
 }
 
-fn follow<W>(files: Vec<(&str, Option<File>)>, output: W, sleep_interval: Duration, follow_name: bool) -> io::Result<()>
+fn tail_file<W: Write>(mut input: &mut io::BufReader<File>, output: W, lines: bool, skip: bool, num: usize) -> io::Result<()> {
+    let mut writer = io::BufWriter::new(output);
+
+    if lines {
+        if skip {
+            let lines = lines_with_ending(input).skip(num);
+
+            for line_res in lines {
+                match line_res {
+                    Ok(line) => writer.write_all(line.as_bytes())?,
+                    Err(err) => return Err(err),
+                };
+            }
+        } else {
+            let mut reader = BackwardsReader::new(num, &mut input);
+            reader.read_all(&mut writer);
+        }
+    } else {
+        if skip {
+            let bytes = input.bytes().skip(num);
+
+            for byte_res in bytes {
+                match byte_res {
+                    Ok(byte) => try!(writer.write_all(&[byte])),
+                    Err(err) => return Err(err),
+                };
+            }
+        } else {
+            input.seek(SeekFrom::End(-(num as i64)))?;
+            let mut out = Vec::with_capacity(num);
+            input.read_to_end(&mut out)?;
+            writer.write_all(&out)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn follow<W>(files: Vec<(&str, Option<io::BufReader<File>>)>, output: W, sleep_interval: Duration, follow_name: bool) -> io::Result<()>
     where W: Write
 {
     if files.is_empty() {
@@ -173,8 +213,8 @@ fn follow<W>(files: Vec<(&str, Option<File>)>, output: W, sleep_interval: Durati
     let mut readers = Vec::new();
     for (filename, file_opt) in files {
         let follow_info = if let Some(file) = file_opt {
-            let metadata = file.metadata()?;
-            let mut reader = io::BufReader::new(file);
+            let metadata = file.get_ref().metadata()?;
+            let mut reader = file;
             let file_end = reader.seek(SeekFrom::End(0))?;
             Some((reader, file_end, metadata))
         } else {
@@ -325,10 +365,10 @@ fn main() {
             }
         }
     } else {
-        let files = parser.args.iter()
+        let mut files = parser.args.iter()
             .map(|filename| {
                 let file_opt = match File::open(filename) {
-                    Ok(f) => Some(f),
+                    Ok(f) => Some(io::BufReader::new(f)),
                     Err(e) => {
                         writeln!(stderr, "tail: cannot open file '{}': {}", filename, e.description()).try(&mut stderr);
                         None
@@ -339,8 +379,8 @@ fn main() {
             .collect::<Vec<(_, _)>>();
 
         let mut print_newline = false;
-        for &(filename, ref file_opt) in &files {
-            if let &Some(ref file) = file_opt {
+        for &mut (filename, ref mut file_opt) in &mut files {
+            if let &mut Some(ref mut file) = file_opt {
                 if file_count > 1 {
                     if print_newline {
                         stdout.write_all(b"\n").try(&mut stderr);
@@ -348,7 +388,7 @@ fn main() {
                     print_newline = true;
                     print_filename_header(filename, &mut stdout).try(&mut stderr);
                 }
-                tail(file, &mut stdout, lines, skip, num).try(&mut stderr);
+                tail_file(file, &mut stdout, lines, skip, num).try(&mut stderr);
             }
         }
 
