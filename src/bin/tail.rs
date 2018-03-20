@@ -17,6 +17,8 @@ use extra::option::OptionalExt;
 use extra::io::fail;
 use tail::BackwardsReader;
 
+const LINES_DEFAULT: usize = 10;
+
 static MAN_PAGE: &'static str = /* @MANSTART{tail} */ r#"
 NAME
     tail - output the last part of a file
@@ -299,7 +301,7 @@ fn main() {
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
     let mut parser = ArgParser::new(6)
-        .add_opt_default("n", "lines", "10")
+        .add_opt("n", "lines")
         .add_opt("c", "bytes")
         .add_flag(&["h", "help"])
         .add_flag(&["f"])
@@ -331,7 +333,7 @@ fn main() {
             (false, num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
         }
         else {
-            fail("missing argument (number of lines/bytes)", &mut stderr);
+            (true, false, LINES_DEFAULT)
         };
 
     let sleep_interval = {
