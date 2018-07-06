@@ -3,6 +3,12 @@
 extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
+extern crate num;
+
+#[cfg(test)]
+#[macro_use] extern crate proptest;
+#[cfg(test)]
+use proptest::prelude::*;
 
 use std::env;
 use std::fs::File;
@@ -12,6 +18,8 @@ use std::process::exit;
 use arg_parser::ArgParser;
 use coreutils::to_human_readable_string;
 use extra::option::OptionalExt;
+use std::str::FromStr;
+use num::{PrimInt,Num,CheckedMul};
 
 const MAN_PAGE: &'static str = /* @MANSTART{dd} */ r#"
 NAME
@@ -36,6 +44,7 @@ OPTIONS
         read from file instead of standard input
     of=file
         write output to file instead of standard out
+    Any number can end with the suffix of b(512), k(1024), m(1024^2), or g(1024^3) bytes
 
 "#; /* @MANEND */
 
@@ -61,9 +70,9 @@ fn main() {
         exit(0);
     }
 
-    let bs: usize = parser.get_setting("bs").unwrap().parse::<usize>().unwrap();
-    let count = parser.get_setting("count").unwrap().parse::<i32>().unwrap();
-    let status = parser.get_setting("status").unwrap().parse::<usize>().unwrap();
+    let bs: usize = get_int(parser.get_setting("bs").unwrap()).unwrap();
+    let count: i64 = get_int(parser.get_setting("count").unwrap()).unwrap();
+    let status: usize = get_int(parser.get_setting("status").unwrap()).unwrap();
 
     let mut input: Box<Read> = match parser.found("if") {
         true => {
@@ -143,3 +152,55 @@ fn main() {
         let _ = writeln!(stderr, "{} bytes ({}B) copied, {} s, {}B/s", out_total, to_human_readable_string(out_total), elapsed, to_human_readable_string((out_total as f64/elapsed) as u64));
     }
 }
+
+fn get_int<T>(mystr: String) -> Option<T>
+where T: PrimInt+Num+FromStr+CheckedMul,
+      <T as std::str::FromStr>::Err : std::fmt::Debug
+{
+
+    //f=from
+    macro_rules! f {
+        ( $x:expr )  => (
+            T::from($x).unwrap()
+            )
+    }
+    //Make a mutable copy
+    let mut mutcopy: String = mystr;
+    let ch = mutcopy.chars().rev().next().unwrap(); 
+    let modifier = match ch {
+        'b' => f!(512),
+        'k' => f!(1024),
+        'm' => f!(1024*1024),
+        'g' => f!(1024*1024*1024),
+        _ => T::one(),
+    };
+    
+    if modifier == T::one() {
+        mutcopy.parse::<T>().ok()
+    } else {
+        mutcopy.pop();
+        modifier.checked_mul(&mutcopy.parse::<T>().unwrap())
+    }
+
+
+}
+
+#[cfg(test)]
+proptest! {
+    //the s is a number, and the b is the byte, can be b,k,m,g or ""
+    #[test]
+    fn get_int_test(s in any::<i128>(), b in "[b,k,m,g]?") {
+        let prefix: i128 = match b.as_str() {
+            "b" => 512,
+            "k" => 1024,
+            "m" => 1024*1024,
+            "g" => 1024*1024*1024,
+            _ => 1,
+        };
+        let res: Option<i128> = get_int::<i128>(s.to_string()+&b);
+        if let Some(r) = res {
+            assert_eq!(r, s*prefix)
+        }
+    }
+}
+
