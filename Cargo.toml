@@ -17,6 +17,10 @@ redox_users = { git = "https://gitlab.redox-os.org/redox-os/users.git" }
 walkdir = "1"
 time = "0.1"
 base64 = "~0.6.0"
+num = "0.1.42"
+
+[dev-dependencies]
+proptest = "0.8.2"
 
 [lib]
 path = "src/lib.rs"
