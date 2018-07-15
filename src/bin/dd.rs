@@ -4,22 +4,22 @@ extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;
 extern crate num;
+extern crate failure;
+#[macro_use] extern crate failure_derive;
 
-#[cfg(test)]
-#[macro_use] extern crate proptest;
-#[cfg(test)]
-use proptest::prelude::*;
-
+#[cfg(test)] #[macro_use] extern crate proptest;
+#[cfg(test)] use proptest::prelude::*;
 use std::env;
-use std::fs::File;
+use std::fs::File; 
 use std::io::{stderr, stdin, stdout, Read, Write};
 use std::time::Instant;
 use std::process::exit;
+use std::str::FromStr;
 use arg_parser::ArgParser;
 use coreutils::to_human_readable_string;
 use extra::option::OptionalExt;
-use std::str::FromStr;
 use num::{PrimInt,Num,CheckedMul};
+use failure::Error;
 
 const MAN_PAGE: &'static str = /* @MANSTART{dd} */ r#"
 NAME
@@ -48,6 +48,8 @@ OPTIONS
 
 "#; /* @MANEND */
 
+
+
 fn main() {
     let stdin = stdin();
     let stdin = stdin.lock();
@@ -69,15 +71,27 @@ fn main() {
         stdout.flush().try(&mut stderr);
         exit(0);
     }
-
-    let bs: usize = get_int(parser.get_setting("bs").unwrap()).unwrap();
-    let count: i64 = get_int(parser.get_setting("count").unwrap()).unwrap();
-    let status: usize = get_int(parser.get_setting("status").unwrap()).unwrap();
+    //pretty panic
+    macro_rules! pp {
+        ($x:expr) => (
+            get_int(parser.get_setting($x).unwrap()).unwrap_or_else(|message| {
+                println!("dd: {}",message);
+                exit(1);
+            });
+        )
+    }
+    let bs: usize = pp!("bs");
+    let count: i64 = pp!("count");
+    let status: usize = pp!("status");
 
     let mut input: Box<Read> = match parser.found("if") {
         true => {
             let path = parser.get_setting("if").unwrap();
-            Box::new(File::open(path).expect("dd: failed to open if"))
+            Box::new(File::open(path).unwrap_or_else(|message| {
+                println!("dd: Unable to open {}: {}",parser.get_setting("if").unwrap(),message);
+                exit(1);
+            }))
+
         },
         false => Box::new(stdin),
     };
@@ -85,7 +99,10 @@ fn main() {
     let mut output: Box<Write> = match parser.found("of") {
         true => {
             let path = parser.get_setting("of").unwrap();
-            Box::new(File::create(path).expect("dd: failed to open of"))
+            Box::new(File::create(path).unwrap_or_else(|message| {
+                println!("dd: Unable to open {}: {}", parser.get_setting("of").unwrap(), message.to_string());
+                exit(1);
+            }))
         },
         false => Box::new(stdout),
     };
@@ -153,9 +170,18 @@ fn main() {
     }
 }
 
-fn get_int<T>(mystr: String) -> Option<T>
+#[derive(Fail,Debug)]
+enum DDerror {
+    #[fail(display = "Parsing your number created an error: {}", _0)]
+    ParseIntErr(String),
+    #[fail(display = "Your number was too large and caused an overflow")]
+    Overflow,
+}
+
+
+fn get_int<T>(mystr: String) -> Result<T, Error>
 where T: PrimInt+Num+FromStr+CheckedMul,
-      <T as std::str::FromStr>::Err : std::fmt::Debug
+      <T as std::str::FromStr>::Err : std::fmt::Debug+std::string::ToString,
 {
 
     //f=from
@@ -176,10 +202,13 @@ where T: PrimInt+Num+FromStr+CheckedMul,
     };
     
     if modifier == T::one() {
-        mutcopy.parse::<T>().ok()
+        let parsed = mutcopy.parse::<T>().map_err(|n| DDerror::ParseIntErr(n.to_string()))?;
+        Ok(parsed)
     } else {
         mutcopy.pop();
-        modifier.checked_mul(&mutcopy.parse::<T>().unwrap())
+        let parsed = mutcopy.parse::<T>().map_err(|n| DDerror::ParseIntErr(n.to_string()))?;
+        let muld = modifier.checked_mul(&parsed).ok_or(DDerror::Overflow)?;
+        Ok(muld)
     }
 
 
@@ -197,8 +226,8 @@ proptest! {
             "g" => 1024*1024*1024,
             _ => 1,
         };
-        let res: Option<i128> = get_int::<i128>(s.to_string()+&b);
-        if let Some(r) = res {
+        let res: Result<i128, Error> = get_int::<i128>(s.to_string()+&b);
+        if let Ok(r) = res {
             assert_eq!(r, s*prefix)
         }
     }
