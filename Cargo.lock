@@ -112,6 +112,8 @@ dependencies = [
  "arg_parser 0.1.0 (git+https://gitlab.redox-os.org/redox-os/arg-parser.git)",
  "base64 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "extra 0.1.0 (git+https://gitlab.redox-os.org/redox-os/libextra.git)",
+ "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "filetime 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "proptest 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
