@@ -66,7 +66,7 @@ fn main() {
         stdout.flush().try(&mut stderr);
         return;
     }
-    let (all_users, all_groups) = match (AllUsers::new(), AllGroups::new()) {
+    let (all_users, all_groups) = match (AllUsers::new(false), AllGroups::new()) {
         (Ok(all_users), Ok(all_groups)) => (all_users, all_groups),
         (Err(_), Ok(_)) => {
             eprintln!("Unable to access password file");
