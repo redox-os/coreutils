@@ -4,8 +4,7 @@ extern crate extra;
 extern crate arg_parser;
 
 use std::io::{self, Write};
-use std::env;
-use std::process;
+use std::env::args;
 use std::fs::File;
 use std::string::String;
 use arg_parser::ArgParser;
@@ -50,6 +49,8 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
+    let potential_arguments = ["all", "machine", "nodename", "kernel-release", 
+                     "kernel-name", "kernel-version"];
     let mut parser = ArgParser::new(7)
         .add_flag(&["a", "all"])
         .add_flag(&["m", "machine"])
@@ -58,53 +59,34 @@ fn main() {
         .add_flag(&["s", "kernel-name"])
         .add_flag(&["v", "kernel-version"])
         .add_flag(&["h", "help"]);
-    parser.parse(env::args());
+    parser.parse(args());
 
     if parser.found("help") {
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
-        process::exit(0);
-    }
+    } else {
+        if parser.found("all") {
+            for i in 1..6 {
+                *parser.flag(potential_arguments[i]) = true; //Machine, nodename, kernel-release, kernel-name, kernel-version.
+            }
+        } else if args().len() == 1 {
+            *parser.flag("kernel-name") = true;
+        }
 
-    if parser.found("all") {
-        *parser.flag("machine") = true;
-        *parser.flag("nodename") = true;
-        *parser.flag("kernel-release") = true;
-        *parser.flag("kernel-name") = true;
-        *parser.flag("kernel-version") = true;
-    } else if !(parser.found("machine") || parser.found("nodename")
-                || parser.found("kernel-release") || parser.found("kernel-name")
-                || parser.found("kernel-version")) {
-        *parser.flag("kernel-name") = true;
-    }
+        let mut file = File::open("sys:uname").unwrap();
+        let mut uname_str = String::new();
+        file.read_to_string(&mut uname_str).unwrap();
+        let mut lines = uname_str.lines();
 
-    let mut file = File::open("sys:uname").unwrap();
-    let mut uname_str = String::new();
-    file.read_to_string(&mut uname_str).unwrap();
-    let mut lines = uname_str.lines();
+        let mut uname = Vec::new();
 
-    let mut uname = Vec::new();
+        for i in 1..potential_arguments.len() { 
+            let uname_segment = lines.next().unwrap();
+            if parser.found(potential_arguments[i]) {
+                uname.push(uname_segment);
+            }
+        }
 
-    let kernel = lines.next().unwrap();
-    if parser.found("kernel-name") {
-        uname.push(kernel);
+        println!("{}", uname.join(" "));
     }
-    let nodename = lines.next().unwrap();
-    if parser.found("nodename") {
-        uname.push(nodename);
-    }
-    let release = lines.next().unwrap();
-    if parser.found("kernel-release") {
-        uname.push(release);
-    }
-    let version = lines.next().unwrap();
-    if parser.found("kernel-version") {
-        uname.push(version);
-    }
-    let machine = lines.next().unwrap();
-    if parser.found("machine") {
-        uname.push(machine);
-    }
-
-    println!("{}", uname.join(" "));
 }
