@@ -12,7 +12,7 @@ use std::process::exit;
 
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
-use redox_users::{AllUsers, AllGroups};
+use redox_users::{All, AllUsers, AllGroups, Config};
 
 use time::Timespec;
 
@@ -66,7 +66,7 @@ fn main() {
         stdout.flush().try(&mut stderr);
         return;
     }
-    let (all_users, all_groups) = match (AllUsers::new(false), AllGroups::new()) {
+    let (all_users, all_groups) = match (AllUsers::new(Config::default()), AllGroups::new(Config::default())) {
         (Ok(all_users), Ok(all_groups)) => (all_users, all_groups),
         (Err(_), Ok(_)) => {
             eprintln!("Unable to access password file");
