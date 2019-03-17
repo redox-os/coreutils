@@ -12,7 +12,7 @@ use std::process::exit;
 
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
-use redox_users::{AllUsers, AllGroups};
+use redox_users::{AllUsers, AllGroups, Config, All};
 
 use time::Timespec;
 
@@ -54,19 +54,26 @@ impl fmt::Display for Perms {
 }
 
 fn main() {
+	
+    //create Output options
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
+    
+    //create help page
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "help"]);
     parser.parse(env::args());
 
+    //show manpage or return error
     if parser.found("help") {
         stdout.write_all(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         return;
     }
-    let (all_users, all_groups) = match (AllUsers::new(false), AllGroups::new()) {
+    
+    //Try to get User and Group rights, throw an error upon failure
+    let (all_users, all_groups) = match (AllUsers::new(Config::default()), AllGroups::new(Config::default())) {
         (Ok(all_users), Ok(all_groups)) => (all_users, all_groups),
         (Err(_), Ok(_)) => {
             eprintln!("Unable to access password file");
@@ -98,12 +105,14 @@ fn main() {
         } else {
             println!("File: {}", path);
         }
+        
         let username = all_users.get_by_id(meta.uid() as usize)
             .map(|x| x.user.to_string())
             .unwrap_or("UNKNOWN".to_string());
         let groupname = all_groups.get_by_id(meta.gid() as usize)
             .map(|x| x.group.to_string())
             .unwrap_or("UNKNOWN".to_string());
+        
         println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
         println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
         println!("Access: {}  Uid: ({}/{})  Gid: ({}/{})", Perms(meta.mode()),
