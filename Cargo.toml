@@ -83,9 +83,9 @@ path = "src/bin/shutdown.rs"
 name = "sort"
 path = "src/bin/sort.rs"
 
-#[[bin]]
-#name = "stat"
-#path = "src/bin/stat.rs"
+[[bin]]
+name = "stat"
+path = "src/bin/stat.rs"
 
 [[bin]]
 name = "tail"
