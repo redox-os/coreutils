@@ -21,14 +21,18 @@ NAME
     stat - display file status
 
 SYNOPSIS
-    stat [ -h | --help ] FILE...
+    stat [-x] [file ...]
 
 DESCRIPTION
-    Displays file status.
+     The stat utility displays information about the file pointed to by	file.
+     Read, write, or execute permissions of the	named file are not required,
+     but all directories listed	in the pathname	leading	to the file must be
+     searchable.  If no	argument is given, stat	displays information about the
+     file descriptor for standard input.
 
 OPTIONS
-    --help, -h
-        print this message
+     -x	        Display information in a more verbose way as known from some
+	            Linux distributions.
 "#; /* @MANEND */
 
 const TIME_FMT: &'static str = "%Y-%m-%d %H:%M:%S.%f %z";
@@ -62,7 +66,8 @@ fn main() {
     
     //create help page
     let mut parser = ArgParser::new(1)
-        .add_flag(&["h", "help"]);
+        .add_flag(&["h", "help"])
+        .add_flag(&["x"]);
     parser.parse(env::args());
 
     //show manpage or return error
@@ -100,25 +105,46 @@ fn main() {
         } else {
             ""
         };
-        if meta.file_type().is_symlink() {
-            println!("File: {} -> {}", path, fs::read_link(path).unwrap().display());
-        } else {
-            println!("File: {}", path);
-        }
         
+        //Get username and groupname of file
         let username = all_users.get_by_id(meta.uid() as usize)
             .map(|x| x.user.to_string())
             .unwrap_or("UNKNOWN".to_string());
         let groupname = all_groups.get_by_id(meta.gid() as usize)
             .map(|x| x.group.to_string())
             .unwrap_or("UNKNOWN".to_string());
-        
-        println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
-        println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
-        println!("Access: {}  Uid: ({}/{})  Gid: ({}/{})", Perms(meta.mode()),
-                 meta.uid(), username, meta.gid(), groupname);
-        println!("Access: {}", time::at(Timespec::new(meta.atime(), meta.atime_nsec() as i32)).strftime(TIME_FMT).unwrap());
-        println!("Modify: {}", time::at(Timespec::new(meta.mtime(), meta.mtime_nsec() as i32)).strftime(TIME_FMT).unwrap());
-        println!("Change: {}", time::at(Timespec::new(meta.ctime(), meta.ctime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+
+		//Verbose Output
+		if parser.found(&'x') 
+		{
+			if meta.file_type().is_symlink() 
+			{
+				println!("File: {} -> {}", path, fs::read_link(path).unwrap().display());
+			} 
+			else 
+            {
+				println!("File: {}", path);
+			}
+			println!("Size: {}  Blocks: {}  IO Block: {} {}", meta.size(), meta.blocks(), meta.blksize(), file_type);
+			println!("Device: {}  Inode: {}  Links: {}", meta.dev(), meta.ino(), meta.nlink());
+			println!("Access: {}", Perms(meta.mode()));
+			println!("Uid: ({}/{}) Gid: ({}/{})", meta.uid(), username, meta.gid(), groupname);
+			println!("Access: {}", time::at(Timespec::new(meta.atime(), meta.atime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+			println!("Modify: {}", time::at(Timespec::new(meta.mtime(), meta.mtime_nsec() as i32)).strftime(TIME_FMT).unwrap());
+			println!("Change: {}", time::at(Timespec::new(meta.ctime(), meta.ctime_nsec() as i32)).strftime(TIME_FMT).unwrap());	
+		}
+		//Standard Output
+        else
+        {
+			print!("{} {} {} {} {} {} ", meta.dev(), meta.ino(), Perms(meta.mode()), meta.nlink(), meta.uid(), meta.gid());
+			print!("{}", meta.rdev());
+			print!("{} ", meta.size());
+			print!("\"{}\" ", time::at(Timespec::new(meta.atime(), meta.atime_sec() as i32)).strftime(TIME_FMT).unwrap());
+			print!("\"{}\" ", time::at(Timespec::new(meta.mtime(), meta.mtime_sec() as i32)).strftime(TIME_FMT).unwrap()); 
+			print!("\"{}\" ", time::at(Timespec::new(meta.ctime(), meta.ctime_sec() as i32)).strftime(TIME_FMT).unwrap());
+			//TODO: %SB (Birth time of Inode) option from BSD stat(1)
+			println!("{}", path);
+        }
+		return;
     }
 }
