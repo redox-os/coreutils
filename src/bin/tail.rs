@@ -285,10 +285,10 @@ fn main() {
     }
     let (lines, skip, num): (bool, bool, usize) =
         if let Some(num) = parser.get_opt("lines") {
-            (true, num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
+            (true, num.starts_with("+"), num.trim_start_matches('+').parse().try(&mut stderr))
         }
         else if let Some(num) = parser.get_opt("bytes") {
-            (false, num.starts_with("+"), num.trim_left_matches('+').parse().try(&mut stderr))
+            (false, num.starts_with("+"), num.trim_start_matches('+').parse().try(&mut stderr))
         }
         else {
             fail("missing argument (number of lines/bytes)", &mut stderr);
