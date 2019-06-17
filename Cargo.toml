@@ -10,26 +10,27 @@ version = "0.1.0"
 [dependencies]
 arg_parser = { git = "https://gitlab.redox-os.org/redox-os/arg-parser.git" }
 extra = { git = "https://gitlab.redox-os.org/redox-os/libextra.git" }
-termion = "1.5.1"
-filetime = "0.1.11"
-redox_syscall = "0.1"
+termion = "1.5.2"
+filetime = "0.2.5"
+redox_syscall = "0.1.54"
 redox_users = { git = "https://gitlab.redox-os.org/redox-os/users.git" }
-walkdir = "1"
-time = "0.1"
-base64 = "~0.6.0"
-num = "0.1.42"
-failure = "0.1.1"
-failure_derive = "0.1.1"
+walkdir = "2.2.7"
+time = "0.1.42"
+base64 = "0.10.1"
+num = "0.2.0"
+failure = "0.1.5"
+failure_derive = "0.1.5"
 
 [dev-dependencies]
-proptest = "0.8.2"
+proptest = "0.9.2"
 
 [lib]
 path = "src/lib.rs"
 
-[[bin]]
-name = "cat"
-path = "src/bin/cat.rs"
+# Also in uutils
+# [[bin]]
+# name = "cat"
+# path = "src/bin/cat.rs"
 
 [[bin]]
 name = "chown"
@@ -59,13 +60,15 @@ path = "src/bin/free.rs"
 name = "kill"
 path = "src/bin/kill.rs"
 
-[[bin]]
-name = "ln"
-path = "src/bin/ln.rs"
+# Also in uutils
+# [[bin]]
+# name = "ln"
+# path = "src/bin/ln.rs"
 
-[[bin]]
-name = "mkdir"
-path = "src/bin/mkdir.rs"
+# Also in uutils
+# [[bin]]
+# name = "mkdir"
+# path = "src/bin/mkdir.rs"
 
 [[bin]]
 name = "ps"
@@ -79,21 +82,24 @@ path = "src/bin/reset.rs"
 name = "shutdown"
 path = "src/bin/shutdown.rs"
 
-[[bin]]
-name = "sort"
-path = "src/bin/sort.rs"
+# Also in uutils
+# [[bin]]
+# name = "sort"
+# path = "src/bin/sort.rs"
 
 #[[bin]]
 #name = "stat"
 #path = "src/bin/stat.rs"
 
-[[bin]]
-name = "tail"
-path = "src/bin/tail.rs"
+# Also in uutils
+# [[bin]]
+# name = "tail"
+# path = "src/bin/tail.rs"
 
-[[bin]]
-name = "test"
-path = "src/bin/test.rs"
+# Also in uutils
+# [[bin]]
+# name = "test"
+# path = "src/bin/test.rs"
 
 [[bin]]
 name = "time"
@@ -103,9 +109,10 @@ path = "src/bin/time.rs"
 name = "touch"
 path = "src/bin/touch.rs"
 
-[[bin]]
-name = "uname"
-path = "src/bin/uname.rs"
+# Also in uutils
+# [[bin]]
+# name = "uname"
+# path = "src/bin/uname.rs"
 
 [[bin]]
 name = "uptime"

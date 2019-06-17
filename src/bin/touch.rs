@@ -7,7 +7,7 @@ extern crate filetime;
 use std::env;
 use std::fs::File;
 use std::io::{stdout, stderr, Write};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 use std::path::Path;
 use std::process::exit;
 use arg_parser::ArgParser;
@@ -52,8 +52,7 @@ fn main() {
         // TODO update file modification date/time
         for arg in env::args().skip(1) {
             if Path::new(&arg).is_file() {
-                let mtime = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-                let time = FileTime::from_seconds_since_1970(mtime.as_secs(), mtime.subsec_nanos());
+                let time = FileTime::from_system_time(SystemTime::now());
                 set_file_times(&arg, time, time).try(&mut stderr);
             } else {
                 File::create(&arg).try(&mut stderr);
