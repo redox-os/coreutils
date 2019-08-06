@@ -66,8 +66,6 @@ fn main() {
             display this help and exit
     "#; /* @MANEND */
 
-    let stdout = stdout();
-    let mut stdout = stdout.lock();
     let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "human-readable"])
@@ -75,6 +73,8 @@ fn main() {
     parser.parse(env::args());
 
     if parser.found("help") {
+        let stdout = stdout();
+        let mut stdout = stdout.lock();
         stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
         stdout.flush().try(&mut stderr);
         exit(0);
