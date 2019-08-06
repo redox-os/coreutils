@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate arg_parser;
 extern crate extra;
 extern crate syscall;
@@ -71,7 +69,7 @@ fn main() {
         }
 
         if fmt_result.is_err() {
-            writeln!(stderr, "error: failed to parse uptime");
+            let _ = writeln!(stderr, "error: failed to parse uptime");
         }
     }
 

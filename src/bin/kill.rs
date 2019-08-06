@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate arg_parser;
 extern crate extra;
 #[cfg(target_os = "redox")]

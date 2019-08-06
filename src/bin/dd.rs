@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate arg_parser;
 extern crate coreutils;
 extern crate extra;

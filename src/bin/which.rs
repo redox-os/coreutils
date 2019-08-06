@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate arg_parser;
 extern crate extra;
 
@@ -55,9 +53,9 @@ fn main() {
         }
 
         if let Some(path) = executable_path {
-            writeln!(stdout, "{}", path.display());
+            let _ = writeln!(stdout, "{}", path.display());
         } else {
-            writeln!(stderr, "{} not found", program);
+            let _ = writeln!(stderr, "{} not found", program);
         }
     }
 }

@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate arg_parser;
 extern crate extra;
 
@@ -204,9 +202,9 @@ impl Program {
     }
 
     /// A simple cat that runs a lot faster than self.cat() due to no iterators over single bytes.
-    fn simple_cat<F: Read>(&self, file: &mut F, stdout: &mut StdoutLock, stderr: &mut Stderr) { 
+    fn simple_cat<F: Read>(&self, file: &mut F, stdout: &mut StdoutLock, stderr: &mut Stderr) {
         let mut buf: [u8; 8*8192] = [0; 8*8192]; // 64K seems to be the sweet spot for a buffer on my machine.
-        loop { 
+        loop {
             let n_read = file.read(&mut buf).try(stderr);
             if n_read == 0 { // We've reached the end of the input
                 break;
@@ -221,7 +219,7 @@ impl Program {
         let mut last_line_was_blank = false;
         let mut buf: [u8; 8*8192] = [0; 8*8192]; // 64K seems to be the sweet spot for a buffer on my machine.
         let mut out_buf: Vec<u8> = Vec::with_capacity(24*8192); // Worst case 2 chars out per char
-        loop { 
+        loop {
             let n_read = file.read(&mut buf).try(stderr);
             if n_read == 0 { // We've reached the end of the input
                 break;

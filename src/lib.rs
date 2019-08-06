@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod columns {
@@ -30,10 +28,10 @@ pub mod columns {
     }
 
 
-    /// Turns the list of words into this: line<columns<word>> 
+    /// Turns the list of words into this: line<columns<word>>
     fn make_columns(mut words: Vec<String>, terminal_width: usize) -> Vec<Vec<String>> {
 
-        let word_lengths: Vec<usize> = 
+        let word_lengths: Vec<usize> =
             words.iter().map(|x: &String| -> usize {(&x).len() + 2}).collect();
 
         let columns_amt = bin_search( word_lengths.iter().fold(0   , |x, y| {min(x, *y)})
@@ -41,7 +39,7 @@ pub mod columns {
                                     , &word_lengths
                                     , terminal_width);
 
-        let longest_words: Vec<usize> = 
+        let longest_words: Vec<usize> =
             split_into_columns( &word_lengths
                               , columns_amt
                               , (words.len() / columns_amt) + 1
@@ -57,7 +55,7 @@ pub mod columns {
         }
 
         for i in 0..words.len() {
-            
+
             let whitespace = " ".repeat(longest_words_rep[i] - words[i].len());
             words[i].push_str(whitespace.as_str());
             words_with_space.push(words[i].clone());
@@ -84,7 +82,7 @@ pub mod columns {
         words.iter().fold(0, |x, y| {max(x, *y)})
     }
 
-    /// splits a vector of cloneables into a vector of vectors of cloneables where lines_amt 
+    /// splits a vector of cloneables into a vector of vectors of cloneables where lines_amt
     /// is the length of the outer vector and columns the max len of the inner vector
     fn split_into_columns<T: Clone>(words: &Vec<T>, columns: usize, lines_amt: usize) -> Vec<Vec<T>> {
         assert!(words.len() <= columns * lines_amt);
@@ -127,7 +125,7 @@ pub mod columns {
 pub fn format_system_time(time: SystemTime) -> String {
     let tz_offset = 0; //TODO Apply timezone offset
     match time.duration_since(UNIX_EPOCH) {
-        Ok(duration) => format_time(duration.as_secs() as i64, tz_offset), 
+        Ok(duration) => format_time(duration.as_secs() as i64, tz_offset),
         Err(_) => "duration since epoch err".to_string(),
     }
 }
