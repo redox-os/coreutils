@@ -86,7 +86,6 @@ fn lines_from_files(paths: &Vec<&String>) -> Result<Vec<String>, Error> {
 }
 
 fn main() {
-
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
@@ -124,7 +123,7 @@ fn main() {
                 l.dedup();
             }
             for x in l {
-                println!("{}", x);
+                let _ = writeln!(stdout, "{}", x);
             }
         }
         Err(e) => {

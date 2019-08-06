@@ -71,7 +71,7 @@ fn main() {
         }
 
         if fmt_result.is_err() {
-            println!("error: couldn't parse uptime");
+            writeln!(stderr, "error: failed to parse uptime");
         }
     }
 

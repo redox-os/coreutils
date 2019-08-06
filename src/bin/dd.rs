@@ -10,7 +10,7 @@ extern crate failure;
 #[cfg(test)] #[macro_use] extern crate proptest;
 #[cfg(test)] use proptest::prelude::*;
 use std::env;
-use std::fs::File; 
+use std::fs::File;
 use std::io::{stderr, stdin, stdout, Read, Write};
 use std::time::Instant;
 use std::process::exit;
@@ -75,7 +75,7 @@ fn main() {
     macro_rules! pp {
         ($x:expr) => (
             get_int(parser.get_setting($x).unwrap()).unwrap_or_else(|message| {
-                println!("dd: {}",message);
+                let _ = writeln!(stdout, "dd: {}",message);
                 exit(1);
             });
         )
@@ -88,7 +88,7 @@ fn main() {
         true => {
             let path = parser.get_setting("if").unwrap();
             Box::new(File::open(path).unwrap_or_else(|message| {
-                println!("dd: Unable to open {}: {}",parser.get_setting("if").unwrap(),message);
+                let _ = writeln!(stdout, "dd: Unable to open {}: {}",parser.get_setting("if").unwrap(),message);
                 exit(1);
             }))
 
@@ -100,7 +100,7 @@ fn main() {
         true => {
             let path = parser.get_setting("of").unwrap();
             Box::new(File::create(path).unwrap_or_else(|message| {
-                println!("dd: Unable to open {}: {}", parser.get_setting("of").unwrap(), message.to_string());
+                let _ = writeln!(stdout, "dd: Unable to open {}: {}", parser.get_setting("of").unwrap(), message.to_string());
                 exit(1);
             }))
         },
@@ -192,7 +192,7 @@ where T: PrimInt+Num+FromStr+CheckedMul,
     }
     //Make a mutable copy
     let mut mutcopy: String = mystr;
-    let ch = mutcopy.chars().rev().next().unwrap(); 
+    let ch = mutcopy.chars().rev().next().unwrap();
     let modifier = match ch {
         'b' => f!(512),
         'k' => f!(1024),
@@ -200,7 +200,7 @@ where T: PrimInt+Num+FromStr+CheckedMul,
         'g' => f!(1024*1024*1024),
         _ => T::one(),
     };
-    
+
     if modifier == T::one() {
         let parsed = mutcopy.parse::<T>().map_err(|n| DDerror::ParseIntErr(n.to_string()))?;
         Ok(parsed)
@@ -232,4 +232,3 @@ proptest! {
         }
     }
 }
-

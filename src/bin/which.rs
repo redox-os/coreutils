@@ -55,9 +55,9 @@ fn main() {
         }
 
         if let Some(path) = executable_path {
-            println!("{}", path.display());
+            writeln!(stdout, "{}", path.display());
         } else {
-            println!("{} not found", program);
+            writeln!(stderr, "{} not found", program);
         }
     }
 }

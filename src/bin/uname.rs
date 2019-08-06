@@ -106,5 +106,5 @@ fn main() {
         uname.push(machine);
     }
 
-    println!("{}", uname.join(" "));
+    writeln!(stdout, "{}", uname.join(" "));
 }
