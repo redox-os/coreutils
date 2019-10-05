@@ -37,5 +37,5 @@ fn main() {
         exit(0);
     }
 
-    let _ = stdout.write(b"\x1B[2J");
+    let _ = stdout.write(b"\x1b[H\x1B[2J");
 }
