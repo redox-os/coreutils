@@ -4,27 +4,10 @@ use std::io::Read;
 
 fn main() -> Result<(), ()> {
     let mut args = env::args();
-    let mut has_bad_file = false;
-    let mut buffer: Vec<u8> = Vec::new();
     if args.len() > 1 {
-        let mut next_arg = args.nth(1);
-        while let Some(file_name) = next_arg {
-            let buffer_result = read_file(&file_name);
-            match buffer_result {
-                Ok(buffer_vec) => println!(
-                    "{} {} {}",
-                    compute_crc32(&buffer_vec),
-                    buffer_vec.len(),
-                    file_name
-                ),
-                Err(error) => {
-                    eprintln!("cksum: {}: {}", file_name, error);
-                    has_bad_file = true;
-                }
-            }
-            next_arg = args.next();
-        }
+        checksum_files(&mut args)
     } else {
+        let mut buffer: Vec<u8> = Vec::new();
         match std::io::stdin().lock().read_to_end(&mut buffer) {
             Ok(length) => println!("{} {}", compute_crc32(&buffer), length),
             Err(error) => {
@@ -33,8 +16,28 @@ fn main() -> Result<(), ()> {
             }
         }
     }
+}
 
-    // Exit program with the appropriate code
+fn checksum_files(file_names: &mut _) -> Result<()> {
+    let mut has_bad_file = false;
+    let mut next_arg = file_names.nth(1);
+    while let Some(file_name) = next_arg {
+        let buffer_result = read_file(&file_name);
+        match buffer_result {
+            Ok(buffer) => println!(
+                "{} {} {}",
+                compute_crc32(&buffer),
+                buffer.len(),
+                file_name
+            ),
+            Err(error) => {
+                eprintln!("cksum: {}: {}", file_name, error);
+                has_bad_file = true;
+            }
+        }
+        next_arg = file_names.next();
+    }
+
     if !has_bad_file {
         Ok(())
     } else {
