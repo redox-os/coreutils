@@ -24,6 +24,9 @@ failure_derive = "0.1.5"
 [dev-dependencies]
 proptest = "0.9.2"
 
+[patch.crates-io]
+libc = { git = "https://github.com/rust-lang/libc" }
+
 [lib]
 path = "src/lib.rs"
 
