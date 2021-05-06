@@ -11,8 +11,8 @@ version = "0.1.0"
 arg_parser = { git = "https://gitlab.redox-os.org/redox-os/arg-parser.git" }
 extra = { git = "https://gitlab.redox-os.org/redox-os/libextra.git" }
 termion = "1.5.2"
-filetime = "0.2.5"
-redox_syscall = "0.1.54"
+filetime = { git = "https://gitlab.redox-os.org/redox-os/filetime.git", branch = "redox" }
+redox_syscall = "0.2"
 redox_users = { git = "https://gitlab.redox-os.org/redox-os/users.git" }
 walkdir = "2.2.7"
 time = "0.1.42"
