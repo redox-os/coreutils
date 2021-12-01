@@ -109,10 +109,9 @@ path = "src/bin/time.rs"
 name = "touch"
 path = "src/bin/touch.rs"
 
-# Also in uutils
-# [[bin]]
-# name = "uname"
-# path = "src/bin/uname.rs"
+[[bin]]
+name = "uname"
+path = "src/bin/uname.rs"
 
 [[bin]]
 name = "uptime"
