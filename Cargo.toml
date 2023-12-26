@@ -8,18 +8,19 @@ name = "coreutils"
 version = "0.1.0"
 
 [dependencies]
+anyhow = "1"
 arg_parser = { git = "https://gitlab.redox-os.org/redox-os/arg-parser.git" }
 extra = { git = "https://gitlab.redox-os.org/redox-os/libextra.git" }
-termion = "1.5.2"
+termion = "2.0.3"
 filetime = { git = "https://gitlab.redox-os.org/redox-os/filetime.git", branch = "redox" }
-redox_syscall = "0.2.12"
-redox_users = { git = "https://gitlab.redox-os.org/redox-os/users.git" }
+redox_users = "0.4.4"
 walkdir = "2.2.7"
 time = "0.1.42"
 base64 = "0.10.1"
 num = "0.2.0"
 failure = "0.1.5"
 failure_derive = "0.1.5"
+libredox = "0.0.4"
 
 [dev-dependencies]
 proptest = "0.9.2"

@@ -1,21 +1,18 @@
+extern crate anyhow;
 extern crate arg_parser;
 extern crate coreutils;
-extern crate extra;
 #[cfg(target_os = "redox")]
-extern crate syscall;
+extern crate libredox;
+
+use anyhow::Result;
 
 #[cfg(target_os = "redox")]
-fn df(path: &str, parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
+fn df(path: &str, parser: &arg_parser::ArgParser) -> Result<()> {
     use coreutils::to_human_readable_string;
+    use libredox::{Fd, flag};
     use std::io::Error;
-    use syscall::data::StatVfs;
 
-    let mut stat = StatVfs::default();
-    {
-        let fd = syscall::open(path, syscall::O_STAT).map_err(|err| Error::from_raw_os_error(err.errno))?;
-        syscall::fstatvfs(fd, &mut stat).map_err(|err| Error::from_raw_os_error(err.errno))?;
-        let _ = syscall::close(fd);
-    }
+    let stat = Fd::open(path, flag::O_PATH, 0)?.statvfs()?;
 
     let size = stat.f_blocks * stat.f_bsize as u64;
     let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
@@ -42,13 +39,12 @@ fn df(path: &str, parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
 }
 
 #[cfg(target_os = "redox")]
-fn main() {
+fn main() -> Result<()> {
     use std::env;
     use std::fs::File;
-    use std::io::{stdout, stderr, BufRead, BufReader, Write};
+    use std::io::{stdout, BufRead, BufReader, Write};
     use std::process::exit;
     use arg_parser::ArgParser;
-    use extra::option::OptionalExt;
 
     const MAN_PAGE: &'static str = /* @MANSTART{df} */ r#"
     NAME
@@ -68,7 +64,6 @@ fn main() {
             display this help and exit
     "#; /* @MANEND */
 
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "human-readable"])
         .add_flag(&["help"]);
@@ -77,30 +72,26 @@ fn main() {
     if parser.found("help") {
         let stdout = stdout();
         let mut stdout = stdout.lock();
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
+        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.flush()?;
         exit(0);
     }
 
     println!("{:<10}{:>10}{:>10}{:>10}{:>5}", "Path", "Size", "Used", "Free", "Use%");
     if parser.args.is_empty() {
-        let file = BufReader::new(File::open("sys:scheme").try(&mut stderr));
+        let file = BufReader::new(File::open("sys:scheme")?);
         for line in file.lines() {
-            let _ = df(&format!("{}:", line.try(&mut stderr)), &parser);
+            let _ = df(&format!("{}:", line?), &parser);
         }
     } else {
         for path in &parser.args {
-            df(&path, &parser).try(&mut stderr);
+            df(&path, &parser)?;
         }
     }
+    Ok(())
 }
 
 #[cfg(not(target_os = "redox"))]
-fn main() {
-    use std::io::{stderr, Write};
-    use std::process::exit;
-
-    let mut stderr = stderr();
-    stderr.write(b"error: unimplemented outside redox").unwrap();
-    exit(1);
+fn main() -> Result<()> {
+    Err(anyhow::anyhow!("error: unimplemented outside redox"))
 }

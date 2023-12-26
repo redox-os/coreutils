@@ -1,12 +1,14 @@
+extern crate anyhow;
 extern crate arg_parser;
 extern crate extra;
-extern crate syscall;
+extern crate libredox;
 
 use std::env;
 use std::io::{self, Write};
 use std::process::exit;
+use anyhow::Result;
 use arg_parser::ArgParser;
-use extra::option::OptionalExt;
+use libredox::{Fd, flag};
 
 const MAN_PAGE: &'static str = /* @MANSTART{chown} */ r#"
 NAME
@@ -33,14 +35,12 @@ AUTHOR
 const MISSING_OPERAND: &'static str = "missing operand\n";
 const HELP_INFO:       &'static str = "Try 'chown --help' for more information.\n";
 
-fn chown(path: &str, uid: u32, gid: u32) -> syscall::Result<usize> {
-    let fd = syscall::open(path, syscall::O_STAT)?;
-    let res = syscall::fchown(fd, uid, gid);
-    let _ = syscall::close(fd);
-    res
+fn chown(path: &str, uid: u32, gid: u32) -> Result<()> {
+    Fd::open(path, flag::O_PATH, 0)?.chown(uid, gid)?;
+    Ok(())
 }
 
-fn main() {
+fn main() -> Result<()> {
     let stdout     = io::stdout();
     let mut stdout = stdout.lock();
     let mut stderr = io::stderr();
@@ -49,9 +49,9 @@ fn main() {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
-        exit(0);
+        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.flush()?;
+        return Ok(());
     }
 
     if parser.args.len() >= 2 {
@@ -99,10 +99,11 @@ fn main() {
                 exit(1);
             }
         }
+        Ok(())
     } else {
-        stderr.write(MISSING_OPERAND.as_bytes()).try(&mut stderr);
-        stderr.write(HELP_INFO.as_bytes()).try(&mut stderr);
-        stderr.flush().try(&mut stderr);
-        exit(1);
+        stderr.write(MISSING_OPERAND.as_bytes())?;
+        stderr.write(HELP_INFO.as_bytes())?;
+        stderr.flush()?;
+        exit(1)
     }
 }
