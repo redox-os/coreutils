@@ -1,21 +1,21 @@
+extern crate anyhow;
 extern crate arg_parser;
 extern crate coreutils;
-extern crate extra;
 #[cfg(target_os = "redox")]
-extern crate syscall;
+extern crate libredox;
+
+use anyhow::Result;
 
 #[cfg(target_os = "redox")]
-fn free(parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
+fn free(parser: &arg_parser::ArgParser) -> Result<()> {
+    use anyhow::Context;
     use coreutils::to_human_readable_string;
-    use std::io::Error;
-    use syscall::data::StatVfs;
+    use libredox::{Fd, flag};
 
-    let mut stat = StatVfs::default();
-    {
-        let fd = syscall::open("memory:", syscall::O_STAT).map_err(|err| Error::from_raw_os_error(err.errno))?;
-        syscall::fstatvfs(fd, &mut stat).map_err(|err| Error::from_raw_os_error(err.errno))?;
-        let _ = syscall::close(fd);
-    }
+    let stat = Fd::open("memory:", flag::O_PATH, 0)
+        .context("failed to open `memory:`")?
+        .statvfs()
+        .context("failed to fstatvfs `memory:`")?;
 
     let size = stat.f_blocks * stat.f_bsize as u64;
     let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
@@ -39,12 +39,11 @@ fn free(parser: &arg_parser::ArgParser) -> ::std::io::Result<()> {
 }
 
 #[cfg(target_os = "redox")]
-fn main() {
+fn main() -> Result<()> {
     use std::env;
-    use std::io::{stdout, stderr, Write};
+    use std::io::{stdout, Write};
     use std::process::exit;
     use arg_parser::ArgParser;
-    use extra::option::OptionalExt;
 
     const MAN_PAGE: &'static str = /* @MANSTART{free} */ r#"
     NAME
@@ -64,7 +63,6 @@ fn main() {
             display this help and exit
     "#; /* @MANEND */
 
-    let mut stderr = stderr();
     let mut parser = ArgParser::new(1)
         .add_flag(&["h", "human-readable"])
         .add_flag(&["help"]);
@@ -73,21 +71,17 @@ fn main() {
     if parser.found("help") {
         let stdout = stdout();
         let mut stdout = stdout.lock();
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
+        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.flush()?;
         exit(0);
     }
 
     println!("{:<8}{:>10}{:>10}{:>10}", "", "total", "used", "free");
-    free(&parser).try(&mut stderr);
+    free(&parser)?;
+    Ok(())
 }
 
 #[cfg(not(target_os = "redox"))]
-fn main() {
-    use std::io::{stderr, Write};
-    use std::process::exit;
-
-    let mut stderr = stderr();
-    stderr.write(b"error: unimplemented outside redox").unwrap();
-    exit(1);
+fn main() -> Result<()> {
+    Err(anyhow::anyhow!("error: unimplemented outside redox"))
 }
