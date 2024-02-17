@@ -12,7 +12,8 @@ anyhow = "1"
 arg_parser = { git = "https://gitlab.redox-os.org/redox-os/arg-parser.git" }
 extra = { git = "https://gitlab.redox-os.org/redox-os/libextra.git" }
 termion = "3"
-filetime = { git = "https://gitlab.redox-os.org/redox-os/filetime.git" }
+# https://github.com/alexcrichton/filetime/pull/104
+filetime = { git = "https://github.com/jackpot51/filetime.git" }
 redox_users = "0.4.4"
 walkdir = "2.2.7"
 time = "0.1.42"

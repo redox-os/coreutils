@@ -14,9 +14,9 @@ fn df(path: &str, parser: &arg_parser::ArgParser) -> Result<()> {
 
     let stat = Fd::open(path, flag::O_PATH, 0)?.statvfs()?;
 
-    let size = stat.f_blocks * stat.f_bsize as u64;
-    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
-    let free = stat.f_bavail * stat.f_bsize as u64;
+    let size = stat.f_blocks as u64 * stat.f_bsize as u64;
+    let used = (stat.f_blocks as u64 - stat.f_bfree as u64) * stat.f_bsize as u64;
+    let free = stat.f_bavail as u64 * stat.f_bsize as u64;
     let percent = (100.0 * used as f64 / size as f64) as u64;
 
     if parser.found("human-readable") {

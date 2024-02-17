@@ -17,9 +17,9 @@ fn free(parser: &arg_parser::ArgParser) -> Result<()> {
         .statvfs()
         .context("failed to fstatvfs `memory:`")?;
 
-    let size = stat.f_blocks * stat.f_bsize as u64;
-    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize as u64;
-    let free = stat.f_bavail * stat.f_bsize as u64;
+    let size = stat.f_blocks as u64 * stat.f_bsize as u64;
+    let used = (stat.f_blocks as u64 - stat.f_bfree as u64) * stat.f_bsize as u64;
+    let free = stat.f_bavail as u64 * stat.f_bsize as u64;
 
     if parser.found("human-readable") {
         println!("{:<8}{:>10}{:>10}{:>10}",
