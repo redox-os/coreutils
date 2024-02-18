@@ -82,7 +82,7 @@ fn main() {
     let count: i64 = pp!("count");
     let status: usize = pp!("status");
 
-    let mut input: Box<Read> = match parser.found("if") {
+    let mut input: Box<dyn Read> = match parser.found("if") {
         true => {
             let path = parser.get_setting("if").unwrap();
             Box::new(File::open(path).unwrap_or_else(|message| {
@@ -94,7 +94,7 @@ fn main() {
         false => Box::new(stdin),
     };
 
-    let mut output: Box<Write> = match parser.found("of") {
+    let mut output: Box<dyn Write> = match parser.found("of") {
         true => {
             let path = parser.get_setting("of").unwrap();
             Box::new(File::create(path).unwrap_or_else(|message| {
