@@ -104,5 +104,5 @@ fn main() {
         uname.push(machine);
     }
 
-    writeln!(stdout, "{}", uname.join(" "));
+    let _ = writeln!(stdout, "{}", uname.join(" "));
 }
