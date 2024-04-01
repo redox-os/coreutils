@@ -14,7 +14,7 @@ extra = { git = "https://gitlab.redox-os.org/redox-os/libextra.git" }
 termion = "3"
 # https://github.com/alexcrichton/filetime/pull/104
 filetime = { git = "https://github.com/jackpot51/filetime.git" }
-redox_users = "0.4.4"
+redox_users = "0.4.5"
 walkdir = "2.2.7"
 time = "0.1.42"
 base64 = "0.10.1"
