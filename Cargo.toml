@@ -6,6 +6,7 @@ authors = ["Polymetric <polymetricofficial@gmail.com>",
            "Michael Murphy <mmstickan@gmail.com>"]
 name = "coreutils"
 version = "0.1.0"
+autobins = false
 
 [dependencies]
 anyhow = "1"

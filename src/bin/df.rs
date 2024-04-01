@@ -10,7 +10,6 @@ use anyhow::Result;
 fn df(path: &str, parser: &arg_parser::ArgParser) -> Result<()> {
     use coreutils::to_human_readable_string;
     use libredox::{Fd, flag};
-    use std::io::Error;
 
     let stat = Fd::open(path, flag::O_PATH, 0)?.statvfs()?;
 

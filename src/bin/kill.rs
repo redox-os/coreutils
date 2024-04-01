@@ -8,7 +8,7 @@ use anyhow::Result;
 #[cfg(target_os = "redox")]
 fn main() -> Result<()> {
     use std::env;
-    use std::io::{stdout, stderr, Write};
+    use std::io::{stdout, Write};
     use anyhow::{bail, Context};
     use arg_parser::ArgParser;
 
