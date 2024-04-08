@@ -5,7 +5,6 @@ use std::io::{self, Write};
 use std::env;
 use std::process;
 use std::fs::File;
-use std::string::String;
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use std::io::Read;

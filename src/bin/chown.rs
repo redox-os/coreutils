@@ -1,6 +1,7 @@
 extern crate anyhow;
 extern crate arg_parser;
 extern crate extra;
+#[cfg(target_os = "redox")]
 extern crate libredox;
 
 use std::env;
@@ -8,7 +9,10 @@ use std::io::{self, Write};
 use std::process::exit;
 use anyhow::Result;
 use arg_parser::ArgParser;
+#[cfg(target_os = "redox")]
 use libredox::{Fd, flag};
+#[cfg(not(target_os = "redox"))]
+use std::os::unix::fs;
 
 const MAN_PAGE: &'static str = /* @MANSTART{chown} */ r#"
 NAME
@@ -35,6 +39,13 @@ AUTHOR
 const MISSING_OPERAND: &'static str = "missing operand\n";
 const HELP_INFO:       &'static str = "Try 'chown --help' for more information.\n";
 
+#[cfg(not(target_os = "redox"))]
+fn chown(path: &str, uid: u32, gid: u32) -> Result<()> {
+    fs::chown(path, Some(uid), Some(gid))?;
+    Ok(())
+}
+
+#[cfg(target_os = "redox")]
 fn chown(path: &str, uid: u32, gid: u32) -> Result<()> {
     Fd::open(path, flag::O_PATH, 0)?.chown(uid, gid)?;
     Ok(())

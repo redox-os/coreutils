@@ -5,6 +5,7 @@ extern crate libredox;
 use std::env;
 use std::io::{stdout, Write};
 use arg_parser::ArgParser;
+#[cfg(target_os = "redox")]
 use libredox::flag::{SIGTERM, SIGKILL};
 
 const MAN_PAGE: &'static str = /* @MANSTART{shutdown} */ r#"
@@ -41,10 +42,20 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    if parser.found("reboot") {
-        libredox::call::kill(1, SIGTERM as _)?;
-    } else {
-        libredox::call::kill(1, SIGKILL as _)?;
-    }
+    shutdown(parser.found("reboot"))?;
     Ok(())
+}
+
+#[cfg(target_os = "redox")]
+fn shutdown(reboot: bool) -> anyhow::Result<()> {
+    if reboot {
+        Ok(libredox::call::kill(1, SIGTERM as _)?)
+    } else {
+        Ok(libredox::call::kill(1, SIGKILL as _)?)
+    }
+}
+
+#[cfg(not(target_os = "redox"))]
+fn shutdown(_reboot: bool) -> anyhow::Result<()> {
+    unimplemented!("This program only works on Redox at present.");
 }
