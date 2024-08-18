@@ -12,10 +12,10 @@ fn free(parser: &arg_parser::ArgParser) -> Result<()> {
     use coreutils::to_human_readable_string;
     use libredox::{Fd, flag};
 
-    let stat = Fd::open("memory:", flag::O_PATH, 0)
-        .context("failed to open `memory:`")?
+    let stat = Fd::open("/scheme/memory", flag::O_PATH, 0)
+        .context("failed to open `/scheme/memory`")?
         .statvfs()
-        .context("failed to fstatvfs `memory:`")?;
+        .context("failed to fstatvfs `/scheme/memory`")?;
 
     let size = stat.f_blocks as u64 * stat.f_bsize as u64;
     let used = (stat.f_blocks as u64 - stat.f_bfree as u64) * stat.f_bsize as u64;

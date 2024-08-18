@@ -75,7 +75,7 @@ fn main() {
         *parser.flag("kernel-name") = true;
     }
 
-    let mut file = File::open("sys:uname").unwrap();
+    let mut file = File::open("/scheme/sys/uname").unwrap();
     let mut uname_str = String::new();
     file.read_to_string(&mut uname_str).unwrap();
     let mut lines = uname_str.lines();
