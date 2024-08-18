@@ -78,9 +78,9 @@ fn main() -> Result<()> {
 
     println!("{:<10}{:>10}{:>10}{:>10}{:>5}", "Path", "Size", "Used", "Free", "Use%");
     if parser.args.is_empty() {
-        let file = BufReader::new(File::open("sys:scheme")?);
+        let file = BufReader::new(File::open("/scheme/sys/scheme")?);
         for line in file.lines() {
-            let _ = df(&format!("{}:", line?), &parser);
+            let _ = df(&format!("/scheme/{}", line?), &parser);
         }
     } else {
         for path in &parser.args {
