@@ -12,7 +12,7 @@ autobins = false
 anyhow = "1"
 arg_parser = { git = "https://gitlab.redox-os.org/redox-os/arg-parser.git" }
 extra = { git = "https://gitlab.redox-os.org/redox-os/libextra.git" }
-termion = "3"
+termion = "4"
 # https://github.com/alexcrichton/filetime/pull/104
 filetime = { git = "https://github.com/jackpot51/filetime.git" }
 redox_users = "0.4.5"
