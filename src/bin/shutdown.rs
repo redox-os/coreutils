@@ -48,11 +48,13 @@ fn main() -> anyhow::Result<()> {
 
 #[cfg(target_os = "redox")]
 fn shutdown(reboot: bool) -> anyhow::Result<()> {
-    if reboot {
-        Ok(libredox::call::kill(1, SIGTERM as _)?)
+    let message = if reboot {
+        "reset"
     } else {
-        Ok(libredox::call::kill(1, SIGKILL as _)?)
-    }
+        "shutdown"
+    };
+    std::fs::write("/scheme/sys/kstop", message.as_bytes())?;
+    Ok(())
 }
 
 #[cfg(not(target_os = "redox"))]
