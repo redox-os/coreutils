@@ -43,10 +43,6 @@ name = "df"
 path = "src/bin/df.rs"
 
 [[bin]]
-name = "du"
-path = "src/bin/du.rs"
-
-[[bin]]
 name = "free"
 path = "src/bin/free.rs"
 
@@ -69,10 +65,6 @@ path = "src/bin/shutdown.rs"
 [[bin]]
 name = "time"
 path = "src/bin/time.rs"
-
-[[bin]]
-name = "touch"
-path = "src/bin/touch.rs"
 
 [[bin]]
 name = "uname"
