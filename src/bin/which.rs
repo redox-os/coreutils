@@ -1,11 +1,11 @@
 extern crate arg_parser;
 extern crate extra;
 
-use std::env;
-use std::process::exit;
-use std::io::{stdout, stderr, Write};
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
+use std::env;
+use std::io::{stderr, stdout, Write};
+use std::process::{exit, ExitCode};
 
 const MAN_PAGE: &'static str = r#"
 NAME
@@ -20,7 +20,8 @@ OPTIONS
         Print this manual page.
 "#; /* @MANEND */
 
-fn main() {
+fn main() -> ExitCode {
+    let mut not_found_count = 0;
     let stdout = stdout();
     let mut stdout = stdout.lock();
     let mut stderr = stderr();
@@ -34,7 +35,9 @@ fn main() {
     }
 
     if parser.args.is_empty() {
-        stderr.write(b"Please provide a program name\n").try(&mut stderr);
+        stderr
+            .write(b"Please provide a program name\n")
+            .try(&mut stderr);
         stderr.flush().try(&mut stderr);
         exit(1);
     }
@@ -56,6 +59,12 @@ fn main() {
             let _ = writeln!(stdout, "{}", path.display());
         } else {
             let _ = writeln!(stderr, "{} not found", program);
+            not_found_count += 1;
         }
+    }
+    if not_found_count == 0 {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(not_found_count)
     }
 }
