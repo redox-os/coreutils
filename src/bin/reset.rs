@@ -1,6 +1,3 @@
-extern crate arg_parser;
-extern crate extra;
-
 use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::exit;
@@ -32,8 +29,8 @@ fn main() {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
+        stdout.write(MAN_PAGE.as_bytes()).r#try(&mut stderr);
+        stdout.flush().r#try(&mut stderr);
         exit(0);
     }
 

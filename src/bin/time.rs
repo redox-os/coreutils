@@ -1,6 +1,3 @@
-extern crate arg_parser;
-extern crate extra;
-
 use std::env;
 use std::io::{stdout, stderr, Write};
 use std::process::{exit, Command};
@@ -33,8 +30,8 @@ fn main() {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
+        stdout.write(MAN_PAGE.as_bytes()).r#try(&mut stderr);
+        stdout.flush().r#try(&mut stderr);
         exit(0);
     }
 
@@ -45,11 +42,11 @@ fn main() {
         for arg in &parser.args[1..] {
             command.arg(arg);
         }
-        command.spawn().try(&mut stderr).wait().try(&mut stderr);
+        command.spawn().r#try(&mut stderr).wait().r#try(&mut stderr);
     }
 
     let duration = time.elapsed();
     stdout.write(&format!("{}m{:.3}s\n", duration.as_secs() / 60,
                           (duration.as_secs()%60) as f64 + (duration.subsec_nanos() as f64)/1000000000.0)
-        .as_bytes()).try(&mut stderr);
+        .as_bytes()).r#try(&mut stderr);
 }

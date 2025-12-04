@@ -1,8 +1,3 @@
-extern crate anyhow;
-extern crate arg_parser;
-#[cfg(target_os = "redox")]
-extern crate libredox;
-
 use anyhow::Result;
 
 #[cfg(target_os = "redox")]

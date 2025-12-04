@@ -1,6 +1,3 @@
-extern crate arg_parser;
-extern crate extra;
-
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 use std::env;
@@ -29,16 +26,16 @@ fn main() -> ExitCode {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
+        stdout.write(MAN_PAGE.as_bytes()).r#try(&mut stderr);
+        stdout.flush().r#try(&mut stderr);
         exit(0);
     }
 
     if parser.args.is_empty() {
         stderr
             .write(b"Please provide a program name\n")
-            .try(&mut stderr);
-        stderr.flush().try(&mut stderr);
+            .r#try(&mut stderr);
+        stderr.flush().r#try(&mut stderr);
         exit(1);
     }
 

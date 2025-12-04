@@ -1,7 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod columns {
-    extern crate termion;
     extern crate extra;
     use std::cmp::max;
     use std::cmp::min;
@@ -19,12 +18,12 @@ pub mod columns {
         for i in 0..columned[0].len() {
             for j in 0..columned.len() {
                 if i < columned[j].len() {
-                    stdout.write(columned[j][i].as_bytes()).try(&mut stderr);
+                    stdout.write(columned[j][i].as_bytes()).r#try(&mut stderr);
                 }
             }
-            stdout.write("\n".as_bytes()).try(&mut stderr);
+            stdout.write("\n".as_bytes()).r#try(&mut stderr);
         }
-        stdout.flush().try(&mut stderr);
+        stdout.flush().r#try(&mut stderr);
     }
 
 

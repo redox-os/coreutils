@@ -1,12 +1,6 @@
-extern crate anyhow;
-extern crate arg_parser;
-extern crate libredox;
-
 use std::env;
 use std::io::{stdout, Write};
 use arg_parser::ArgParser;
-#[cfg(target_os = "redox")]
-use libredox::flag::{SIGTERM, SIGKILL};
 
 const MAN_PAGE: &'static str = /* @MANSTART{shutdown} */ r#"
 NAME
