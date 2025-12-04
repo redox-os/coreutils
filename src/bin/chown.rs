@@ -1,9 +1,3 @@
-extern crate anyhow;
-extern crate arg_parser;
-extern crate extra;
-#[cfg(target_os = "redox")]
-extern crate libredox;
-
 use std::env;
 use std::io::{self, Write};
 use std::process::exit;

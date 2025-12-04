@@ -1,6 +1,3 @@
-extern crate arg_parser;
-extern crate extra;
-
 use std::env;
 use std::fs::File;
 use std::io::{stdout, stderr, copy, Write};
@@ -33,11 +30,11 @@ fn main() {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes()).try(&mut stderr);
-        stdout.flush().try(&mut stderr);
+        stdout.write(MAN_PAGE.as_bytes()).r#try(&mut stderr);
+        stdout.flush().r#try(&mut stderr);
         exit(0);
     }
 
-    let mut file = File::open("/scheme/sys/context").try(&mut stderr);
-    copy(&mut file, &mut stdout).try(&mut stderr);
+    let mut file = File::open("/scheme/sys/context").r#try(&mut stderr);
+    copy(&mut file, &mut stdout).r#try(&mut stderr);
 }
