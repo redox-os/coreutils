@@ -48,10 +48,6 @@ name = "free"
 path = "src/bin/free.rs"
 
 [[bin]]
-name = "kill"
-path = "src/bin/kill.rs"
-
-[[bin]]
 name = "ps"
 path = "src/bin/ps.rs"
 
