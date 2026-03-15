@@ -11,10 +11,10 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - `clear`
 - ~~`dd`~~
 - `df`
-- `du`
+- ~~`du`~~
 - ~~`env`~~
 - `free`
-- `kill`
+- ~~`kill`~~
 - ~~`ln`~~
 - ~~`mkdir`~~
 - `ps`
@@ -26,7 +26,7 @@ This repository contains the core UNIX utilities for Redox OS. These are based o
 - ~~`tee`~~
 - ~~`test`~~
 - `time`
-- `touch`
-- `uname`
+- ~~`touch`~~
+- ~~`uname`~~
 - `uptime`
 - `which`
