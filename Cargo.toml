@@ -64,10 +64,6 @@ name = "time"
 path = "src/bin/time.rs"
 
 [[bin]]
-name = "uname"
-path = "src/bin/uname.rs"
-
-[[bin]]
 name = "uptime"
 path = "src/bin/uptime.rs"
 
