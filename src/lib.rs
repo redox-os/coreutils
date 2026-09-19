@@ -16,9 +16,9 @@ pub mod columns {
         let terminal_size = termion::terminal_size().unwrap().0 as usize;
         let columned = make_columns(words, terminal_size);
         for i in 0..columned[0].len() {
-            for j in 0..columned.len() {
-                if i < columned[j].len() {
-                    stdout.write(columned[j][i].as_bytes()).r#try(&mut stderr);
+            for column in &columned {
+                if i < column.len() {
+                    stdout.write(column[i].as_bytes()).r#try(&mut stderr);
                 }
             }
             stdout.write("\n".as_bytes()).r#try(&mut stderr);
@@ -31,7 +31,7 @@ pub mod columns {
     fn make_columns(mut words: Vec<String>, terminal_width: usize) -> Vec<Vec<String>> {
 
         let word_lengths: Vec<usize> =
-            words.iter().map(|x: &String| -> usize {(&x).len() + 2}).collect();
+            words.iter().map(|x: &String| -> usize {x.len() + 2}).collect();
 
         let columns_amt = bin_search( word_lengths.iter().fold(0   , |x, y| {min(x, *y)})
                                     , word_lengths.iter().fold(1000, |x, y| {max(x, *y)})
@@ -49,7 +49,7 @@ pub mod columns {
         let mut longest_words_rep = Vec::new();
         for longest_word in longest_words {
             for _ in 0..lines_amt {
-                longest_words_rep.push(longest_word.clone());
+                longest_words_rep.push(longest_word);
             }
         }
 
@@ -68,22 +68,23 @@ pub mod columns {
         let diff = min as isize - max as isize;
         let fits = try_rows(words, min + (max - min) / 2, terminal_width);
         if  diff == -1 || diff == 0 || diff == 1{
-            return min;
+            min
         } else if fits {
-            return bin_search(min + (max - min) / 2, max, words, terminal_width);
+            bin_search(min + (max - min) / 2, max, words, terminal_width)
         } else {
-            return bin_search(min, min + (max - min) / 2, words, terminal_width);
+            bin_search(min, min + (max - min) / 2, words, terminal_width)
         }
     }
 
     /// Find the length of the longest word in a list
+    #[allow(clippy::ptr_arg)] // simplifies use in .map()
     fn longest_word(words: &Vec<usize>) -> usize {
         words.iter().fold(0, |x, y| {max(x, *y)})
     }
 
     /// splits a vector of cloneables into a vector of vectors of cloneables where lines_amt
     /// is the length of the outer vector and columns the max len of the inner vector
-    fn split_into_columns<T: Clone>(words: &Vec<T>, columns: usize, lines_amt: usize) -> Vec<Vec<T>> {
+    fn split_into_columns<T: Clone>(words: &[T], columns: usize, lines_amt: usize) -> Vec<Vec<T>> {
         assert!(words.len() <= columns * lines_amt);
         let mut outputs: Vec<Vec<T>> = Vec::new();
         for _ in 0..columns {
@@ -105,7 +106,7 @@ pub mod columns {
     }
 
     /// Tests wheter a vector of words, split into a certain number of columns fits into given width
-    fn try_rows(input: &Vec<usize>, columns: usize, width: usize) -> bool {
+    fn try_rows(input: &[usize], columns: usize, width: usize) -> bool {
 
         let lines_amt = (input.len() / columns) + 1;
 
@@ -164,7 +165,7 @@ pub fn to_human_readable_string(size: u64) -> String {
         return format!("{}", size);
     }
 
-    static UNITS: [&'static str; 7] = ["", "K", "M", "G", "T", "P", "E"];
+    static UNITS: [&str; 7] = ["", "K", "M", "G", "T", "P", "E"];
 
     let sizef = size as f64;
     let digit_groups = (sizef.log10() / 1024f64.log10()) as i32;

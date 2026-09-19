@@ -1,12 +1,17 @@
 image: "redoxos/redoxer"
 
 stages:
+    - clippy
     - build
     - test
 
 cache:
     paths:
         - target/
+
+clippy:redox:
+    stage: clippy
+    script: redoxer clippy
 
 build:redox:
     stage: build

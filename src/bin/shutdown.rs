@@ -2,7 +2,7 @@ use std::env;
 use std::io::{stdout, Write};
 use arg_parser::ArgParser;
 
-const MAN_PAGE: &'static str = /* @MANSTART{shutdown} */ r#"
+const MAN_PAGE: &str = /* @MANSTART{shutdown} */ r#"
 NAME
     shutdown - stop the system
 
@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.write_all(MAN_PAGE.as_bytes())?;
         stdout.flush()?;
         return Ok(());
     }

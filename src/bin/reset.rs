@@ -4,7 +4,7 @@ use std::process::exit;
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{reset} */ r#"
+const MAN_PAGE: &str = /* @MANSTART{reset} */ r#"
 NAME
     reset - terminal initialization
 

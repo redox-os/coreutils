@@ -8,7 +8,7 @@ use libredox::{Fd, flag};
 #[cfg(not(target_os = "redox"))]
 use std::os::unix::fs;
 
-const MAN_PAGE: &'static str = /* @MANSTART{chown} */ r#"
+const MAN_PAGE: &str = /* @MANSTART{chown} */ r#"
 NAME
     chown - set user and/or group ownership of a file
 
@@ -30,8 +30,8 @@ AUTHOR
     Written by Jeremy Soller.
 "#; /* @MANEND */
 
-const MISSING_OPERAND: &'static str = "missing operand\n";
-const HELP_INFO:       &'static str = "Try 'chown --help' for more information.\n";
+const MISSING_OPERAND: &str = "missing operand\n";
+const HELP_INFO:       &str = "Try 'chown --help' for more information.\n";
 
 #[cfg(not(target_os = "redox"))]
 fn chown(path: &str, uid: u32, gid: u32) -> Result<()> {
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
     parser.parse(env::args());
 
     if parser.found("help") {
-        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.write_all(MAN_PAGE.as_bytes())?;
         stdout.flush()?;
         return Ok(());
     }
@@ -106,8 +106,8 @@ fn main() -> Result<()> {
         }
         Ok(())
     } else {
-        stderr.write(MISSING_OPERAND.as_bytes())?;
-        stderr.write(HELP_INFO.as_bytes())?;
+        stderr.write_all(MISSING_OPERAND.as_bytes())?;
+        stderr.write_all(HELP_INFO.as_bytes())?;
         stderr.flush()?;
         exit(1)
     }
