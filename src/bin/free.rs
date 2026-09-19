@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 #[cfg(target_os = "redox")]
+#[allow(clippy::unnecessary_cast)] // they are only unnecessary on 64-bits platforms
 fn free(parser: &arg_parser::ArgParser) -> Result<()> {
     use anyhow::Context;
     use coreutils::to_human_readable_string;
@@ -24,9 +25,9 @@ fn free(parser: &arg_parser::ArgParser) -> Result<()> {
     } else {
         println!("{:<8}{:>10}{:>10}{:>10}",
                  "Mem:",
-                 (size + 1023)/1024,
-                 (used + 1023)/1024,
-                 (free + 1023)/1024);
+                 size.div_ceil(1024),
+                 used.div_ceil(1024),
+                 free.div_ceil(1024));
     }
 
     Ok(())
@@ -39,7 +40,7 @@ fn main() -> Result<()> {
     use std::process::exit;
     use arg_parser::ArgParser;
 
-    const MAN_PAGE: &'static str = /* @MANSTART{free} */ r#"
+    const MAN_PAGE: &str = /* @MANSTART{free} */ r#"
     NAME
         free - view memory usage
 
@@ -65,7 +66,7 @@ fn main() -> Result<()> {
     if parser.found("help") {
         let stdout = stdout();
         let mut stdout = stdout.lock();
-        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.write_all(MAN_PAGE.as_bytes())?;
         stdout.flush()?;
         exit(0);
     }

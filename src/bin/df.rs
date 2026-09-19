@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 #[cfg(target_os = "redox")]
+#[allow(clippy::unnecessary_cast)] // they are only unnecessary on 64-bits platforms
 fn df(path: &str, parser: &arg_parser::ArgParser) -> Result<()> {
     use coreutils::to_human_readable_string;
     use libredox::{Fd, flag};
@@ -31,9 +32,9 @@ fn df(path: &str, parser: &arg_parser::ArgParser) -> Result<()> {
     } else {
         println!("{:<10}{:>10}{:>10}{:>10}{:>5}",
                  display_path,
-                 (size + 1023)/1024,
-                 (used + 1023)/1024,
-                 (free + 1023)/1024,
+                 size.div_ceil(1024),
+                 used.div_ceil(1024),
+                 free.div_ceil(1024),
                  format!("{}%", percent));
     }
 
@@ -48,7 +49,7 @@ fn main() -> Result<()> {
     use std::process::exit;
     use arg_parser::ArgParser;
 
-    const MAN_PAGE: &'static str = /* @MANSTART{df} */ r#"
+    const MAN_PAGE: &str = /* @MANSTART{df} */ r#"
     NAME
         df - view filesystem space usage
 
@@ -74,7 +75,7 @@ fn main() -> Result<()> {
     if parser.found("help") {
         let stdout = stdout();
         let mut stdout = stdout.lock();
-        stdout.write(MAN_PAGE.as_bytes())?;
+        stdout.write_all(MAN_PAGE.as_bytes())?;
         stdout.flush()?;
         exit(0);
     }
@@ -95,7 +96,7 @@ fn main() -> Result<()> {
         }
     } else {
         for path in &parser.args {
-            df(&path, &parser)?;
+            df(path, &parser)?;
         }
     }
     Ok(())

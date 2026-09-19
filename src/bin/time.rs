@@ -5,7 +5,7 @@ use std::time::Instant;
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{time} */ r#"
+const MAN_PAGE: &str = /* @MANSTART{time} */ r#"
 NAME
     time - timer for commands
 
@@ -46,7 +46,7 @@ fn main() {
     }
 
     let duration = time.elapsed();
-    stdout.write(&format!("{}m{:.3}s\n", duration.as_secs() / 60,
+    stdout.write(format!("{}m{:.3}s\n", duration.as_secs() / 60,
                           (duration.as_secs()%60) as f64 + (duration.subsec_nanos() as f64)/1000000000.0)
         .as_bytes()).r#try(&mut stderr);
 }

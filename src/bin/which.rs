@@ -4,7 +4,7 @@ use std::env;
 use std::io::{stderr, stdout, Write};
 use std::process::{exit, ExitCode};
 
-const MAN_PAGE: &'static str = r#"
+const MAN_PAGE: &str = r#"
 NAME
     which - locate a command
 SYNOPSIS

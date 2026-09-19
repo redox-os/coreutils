@@ -5,7 +5,7 @@ use std::process::exit;
 use arg_parser::ArgParser;
 use extra::option::OptionalExt;
 
-const MAN_PAGE: &'static str = /* @MANSTART{ps} */ r#"
+const MAN_PAGE: &str = /* @MANSTART{ps} */ r#"
 NAME
     ps - report a snapshot of the current processes
 
