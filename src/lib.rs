@@ -77,7 +77,10 @@ pub mod columns {
     }
 
     /// Find the length of the longest word in a list
-    #[allow(clippy::ptr_arg)] // simplifies use in .map()
+    #[expect(
+        clippy::ptr_arg,
+        reason = "&Vec<_> instead of &[_] simplifies use in `vec.iter().map(longest_word)`"
+    )]
     fn longest_word(words: &Vec<usize>) -> usize {
         words.iter().fold(0, |x, y| {max(x, *y)})
     }
