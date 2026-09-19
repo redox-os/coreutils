@@ -1,15 +1,16 @@
 use anyhow::Result;
 
 #[cfg(target_os = "redox")]
+#[allow(clippy::unnecessary_cast)] // they are only unnecessary on 64-bits platforms
 fn df(path: &str, parser: &arg_parser::ArgParser) -> Result<()> {
     use coreutils::to_human_readable_string;
     use libredox::{Fd, flag};
 
     let stat = Fd::open(path, flag::O_PATH, 0)?.statvfs()?;
 
-    let size = stat.f_blocks * stat.f_bsize;
-    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize;
-    let free = stat.f_bavail * stat.f_bsize;
+    let size = stat.f_blocks as u64 * stat.f_bsize as u64;
+    let used = (stat.f_blocks as u64 - stat.f_bfree as u64) * stat.f_bsize as u64;
+    let free = stat.f_bavail as u64 * stat.f_bsize as u64;
     let percent = if size == 0 {
         0
     } else {

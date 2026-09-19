@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 #[cfg(target_os = "redox")]
+#[allow(clippy::unnecessary_cast)] // they are only unnecessary on 64-bits platforms
 fn free(parser: &arg_parser::ArgParser) -> Result<()> {
     use anyhow::Context;
     use coreutils::to_human_readable_string;
@@ -11,9 +12,9 @@ fn free(parser: &arg_parser::ArgParser) -> Result<()> {
         .statvfs()
         .context("failed to fstatvfs `/scheme/memory`")?;
 
-    let size = stat.f_blocks * stat.f_bsize;
-    let used = (stat.f_blocks - stat.f_bfree) * stat.f_bsize;
-    let free = stat.f_bavail * stat.f_bsize;
+    let size = stat.f_blocks as u64 * stat.f_bsize as u64;
+    let used = (stat.f_blocks as u64 - stat.f_bfree as u64) * stat.f_bsize as u64;
+    let free = stat.f_bavail as u64 * stat.f_bsize as u64;
 
     if parser.found("human-readable") {
         println!("{:<8}{:>10}{:>10}{:>10}",
